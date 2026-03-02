@@ -19,6 +19,7 @@ shopt -s extglob
 
 # --- CONFIGURATION ---
 readonly LOG_SOURCE="${HOME:?HOME is not set}/Documents/logs"
+readonly HYPR_EDIT_DIR="$HOME/.config/hypr/edit_here"
 readonly UPLOAD_PRIMARY="https://0x0.st"
 readonly UPLOAD_SECONDARY="https://litterbox.catbox.moe/resources/internals/api.php"
 readonly GIT_DIR="$HOME/dusky"
@@ -59,6 +60,15 @@ cleanup() {
     fi
 }
 trap cleanup EXIT
+
+handle_interrupt() {
+    printf '\n%s[!] INTERRUPT RECEIVED - Salvaging archive before exit...%s\n' "$RED" "$RESET" >&2
+    if [[ -v ARCHIVE_FILE && -f "$ARCHIVE_FILE" ]]; then
+        save_local_fallback "$ARCHIVE_FILE"
+    fi
+    exit 130
+}
+trap handle_interrupt INT TERM
 
 is_valid_key() {
     [[ "$1" =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]]
@@ -139,6 +149,18 @@ capture_gitdelta() {
         printf '%s\n' "$diff_output" > "$delta_file"
     else
         log "INFO" "No working tree changes detected. Skipping delta file creation."
+    fi
+}
+
+# --- HYPRLAND CONFIG EXTRACTION ---
+stage_hypr_edit_dir() {
+    log "INFO" "Staging Hyprland config directory from $HYPR_EDIT_DIR..."
+    if [[ -d "$HYPR_EDIT_DIR" ]]; then
+        local dest="${STAGING_DIR}/hypr_edit_here"
+        mkdir -p -- "$dest"
+        cp -a -- "$HYPR_EDIT_DIR"/. "$dest/" 2>/dev/null || log "WARNING" "Some files in $HYPR_EDIT_DIR could not be copied."
+    else
+        log "INFO" "Directory $HYPR_EDIT_DIR not found. Skipping."
     fi
 }
 
@@ -332,6 +354,7 @@ main() {
     initialize_environment
     check_and_install_deps
     capture_gitdelta
+    stage_hypr_edit_dir
     generate_system_report
     generate_env_dump
     prepare_payload
