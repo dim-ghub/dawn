@@ -37,7 +37,7 @@ readonly SERVICES_CONFIG=(
     # Add your own paths below...
 
     # Dusky Control Center Daemon (Default: Disable)
-    "$HOME/user_scripts/dusky_system/control_center/service/dusky.service | enable"
+    "$HOME/user_scripts/dusky_system/control_center/service/dusky.service | disable"
 
     # dusky update checker
     "$HOME/user_scripts/update_dusky/update_checker/service/update_checker.service | disable"
