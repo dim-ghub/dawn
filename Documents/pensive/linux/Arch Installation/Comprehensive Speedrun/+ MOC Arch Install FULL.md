@@ -75,7 +75,7 @@
 ┌──────────────────────────────────────────────────────────┐
 │  /dev/sdX                                                │
 ├──────────────────────────────────────────────────────────┤
-│  Partition 1 — ESP (FAT32, ~1 GiB)                       │
+│  Partition 1 — ESP (FAT32, ~2-5 GiB)                       │
 │    └── mounted at /boot                                  │
 │        Contains: Limine EFI, vmlinuz, initramfs          │
 ├──────────────────────────────────────────────────────────┤
@@ -593,7 +593,7 @@ mount /dev/esp_partition /mnt/boot
 #### 11e. Verify All Mounts
 
 ```bash
-findmnt -t btrfs,vfat --target /mnt
+findmnt -R -t btrfs,vfat /mnt
 ```
 
 > [!note]- Expected output (10 mount points)
@@ -1264,6 +1264,29 @@ systemctl mask systemd-rfkill.service systemd-rfkill.socket
 
 > [!note]- About `fstrim.timer` and `discard=async`
 > You have both continuous TRIM (`discard=async` in mount options + `rd.luks.options=discard` for LUKS passthrough) and periodic TRIM (`fstrim.timer`). Both are safe together. `discard=async` handles routine block reclamation; `fstrim.timer` catches anything that might have been missed.
+
+### Supporting Commands
+- For systemd resolved service to work , you need to symlink this file. 
+NetworkManager will ignore it and use its own DNS backend unless you explicitly link the system's DNS resolver file to `systemd-resolved`'s stub file.
+
+```bash
+ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
+```
+
+- for reflector to sync mirrors with your contry pick your contry's name 
+```bash
+_Configure Reflector for optimal mirror speeds (India)_
+
+```bash
+mkdir -p /etc/xdg/reflector
+cat << 'EOF' > /etc/xdg/reflector/reflector.conf
+--save /etc/pacman.d/mirrorlist
+--protocol https
+--country US
+--latest 6
+--sort rate
+EOF
+```
 
 - [ ] Status
 
@@ -1975,6 +1998,7 @@ sudo snapper -c root delete 3-7
 sudo btrfs filesystem usage /
 ```
 
+- Quotas are disabled so this is not needed
 ```bash
 # Space used by quota groups (if quotas enabled)
 sudo btrfs qgroup show / -reF
@@ -2035,6 +2059,7 @@ sudo snapper -c root cleanup number                         # Manual cleanup
 # ─── BTRFS Operations ───────────────────────────────────────────
 sudo btrfs subvolume list /                                 # List all subvolumes
 sudo btrfs filesystem usage /                               # Disk usage
+# quotas are disabled so this command shoudln't be run
 sudo btrfs qgroup show / -reF                               # Quota group info
 sudo btrfs scrub start /                                    # Start integrity check
 sudo btrfs scrub status /                                   # Check scrub progress
