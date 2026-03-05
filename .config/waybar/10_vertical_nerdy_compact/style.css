@@ -45,13 +45,13 @@ tooltip label {
 }
 
 /* ===================================================================
- * MODULE BASE
+ * MODULE BASE & GROUPS
  * =================================================================== */
 
 #battery, #clock, #cpu, #memory, #temperature, 
 #pulseaudio, #backlight, #network, #bluetooth, #tray,
 #custom-theme, #custom-power, #custom-notification, #custom-inhibit-suspend,
-#custom-app-tray, #custom-network {
+#custom-app-tray, #custom-network, #custom-audiorouter {
     padding: 4px 0px; /* Tight padding for width 10 */
     margin: 1px 0px;
     background-color: transparent;
@@ -59,10 +59,18 @@ tooltip label {
     transition: all 0.2s ease-in-out;
 }
 
+/* --- Native Waybar Group Styling --- */
+#group-media, #group-hardware, #group-utils, #group-connections {
+    background-color: alpha(@surface_container_highest, 0.2);
+    border-radius: 6px;
+    margin: 6px 0px;
+    padding: 2px 0px;
+}
+
 /* Hover effects */
 #battery:hover, #clock:hover, #cpu:hover, #memory:hover, #temperature:hover, 
 #pulseaudio:hover, #backlight:hover, #bluetooth:hover, #custom-network:hover,
-#custom-theme:hover, #custom-power:hover, #custom-notification:hover {
+#custom-theme:hover, #custom-power:hover, #custom-notification:hover, #custom-audiorouter:hover {
     color: @primary;
     text-shadow: 0 0 3px alpha(@primary, 0.4);
 }
@@ -94,7 +102,6 @@ tooltip label {
     margin: 9px 8px 3px 9px;
     min-height: 8px;
     min-width: 6px;
-    /* CHANGED: Uses @outline to ensure it's a subtle grey dot in both modes */
     background-color: alpha(@outline, 0.2); 
     color: transparent;
     box-shadow: none;
@@ -153,9 +160,17 @@ tooltip label {
 
 #custom-theme { color: @tertiary; }
 #custom-network {
-  font-size: 9px;
-  color: @primary;
-  font-weight: bold;
+    font-size: 9px;
+    color: @primary;
+    font-weight: bold;
+}
+
+/* --- Audio Router States --- */
+#custom-audiorouter.active {
+    color: @primary;
+}
+#custom-audiorouter.inactive {
+    color: @inactive_color; /* Matches Matugen's @surface_container_highest */
 }
 
 /* ===================================================================
