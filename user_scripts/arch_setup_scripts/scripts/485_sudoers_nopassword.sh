@@ -14,18 +14,18 @@ shopt -s nullglob inherit_errexit
 #  Add absolute paths to binaries you want to process automatically.
 # ==============================================================================
 declare -ar DEFAULT_BINARIES=(
-
-#     "/usr/bin/powertop"
-     "/usr/bin/papirus-folders"
-
+    # "/usr/bin/powertop"
+    "/usr/bin/papirus-folders"
 )
 
-declare -r SCRIPT_NAME="${0##*/}"
+declare -r SCRIPT_PATH="${BASH_SOURCE[0]}"
+declare -r SCRIPT_NAME="${SCRIPT_PATH##*/}"
 declare -r SUDOERS_DIR='/etc/sudoers.d'
 declare -r LOCK_FILE="${SUDOERS_DIR}/.sudoers-nopasswd-automator.lock"
 declare -r MANAGED_MARKER='# Managed by sudoers-nopasswd-automator'
-declare -r SUDOERS_RUNAS='ALL:ALL'    # Preserves current behavior.
-declare -r DROPIN_PREFIX='10-nopasswd-'
+declare -r SUDOERS_RUNAS='ALL:ALL'      # Preserves current behavior.
+declare -r DROPIN_PREFIX='zzzz-nopasswd-'
+declare -ri RC_SKIP=10
 
 declare -ag TEMP_FILES=()
 declare -gi LOCK_FD=-1
@@ -110,7 +110,7 @@ auto_elevate() {
         exit 1
     }
 
-    exec sudo -- "${BASH}" "$0" "$@"
+    exec sudo -- "${BASH}" "${SCRIPT_PATH}" "$@"
     fail "Unable to elevate with sudo."
 }
 
@@ -154,6 +154,10 @@ validate_target_user() {
 is_active_dropin_name() {
     local base_name="$1"
     [[ "${base_name}" != *.* && "${base_name}" != *~ ]]
+}
+
+path_exists_or_symlink() {
+    [[ -e "$1" || -L "$1" ]]
 }
 
 escape_sudoers_command() {
@@ -301,7 +305,7 @@ find_managed_matches() {
     out_matches=()
 
     for file in "${SUDOERS_DIR}"/*; do
-        [[ -f "${file}" ]] || continue
+        [[ -f "${file}" && ! -L "${file}" ]] || continue
         base_name="${file##*/}"
         is_active_dropin_name "${base_name}" || continue
 
@@ -324,7 +328,7 @@ find_exact_rule_locations() {
     fi
 
     for file in "${SUDOERS_DIR}"/*; do
-        [[ -f "${file}" ]] || continue
+        [[ -f "${file}" && ! -L "${file}" ]] || continue
         base_name="${file##*/}"
         is_active_dropin_name "${base_name}" || continue
 
@@ -337,6 +341,7 @@ find_exact_rule_locations() {
 allocate_dropin_file() {
     local target_user="$1"
     local target_bin="$2"
+    local ignore_file="${3-}"
 
     local simple_stem
     local extended_stem
@@ -354,7 +359,7 @@ allocate_dropin_file() {
 
     base_name="$(compose_basename "${DROPIN_PREFIX}" "${simple_stem}" '')"
     candidate="${SUDOERS_DIR}/${base_name}"
-    if [[ ! -e "${candidate}" ]]; then
+    if [[ "${candidate}" == "${ignore_file}" ]] || ! path_exists_or_symlink "${candidate}"; then
         printf '%s\n' "${candidate}"
         return 0
     fi
@@ -362,7 +367,7 @@ allocate_dropin_file() {
     if [[ "${extended_stem}" != "${simple_stem}" ]]; then
         base_name="$(compose_basename "${DROPIN_PREFIX}" "${extended_stem}" '')"
         candidate="${SUDOERS_DIR}/${base_name}"
-        if [[ ! -e "${candidate}" ]]; then
+        if [[ "${candidate}" == "${ignore_file}" ]] || ! path_exists_or_symlink "${candidate}"; then
             printf '%s\n' "${candidate}"
             return 0
         fi
@@ -371,7 +376,7 @@ allocate_dropin_file() {
     suffix="-${short_hash}"
     base_name="$(compose_basename "${DROPIN_PREFIX}" "${simple_stem}" "${suffix}")"
     candidate="${SUDOERS_DIR}/${base_name}"
-    if [[ ! -e "${candidate}" ]]; then
+    if [[ "${candidate}" == "${ignore_file}" ]] || ! path_exists_or_symlink "${candidate}"; then
         printf '%s\n' "${candidate}"
         return 0
     fi
@@ -379,7 +384,7 @@ allocate_dropin_file() {
     if [[ "${extended_stem}" != "${simple_stem}" ]]; then
         base_name="$(compose_basename "${DROPIN_PREFIX}" "${extended_stem}" "${suffix}")"
         candidate="${SUDOERS_DIR}/${base_name}"
-        if [[ ! -e "${candidate}" ]]; then
+        if [[ "${candidate}" == "${ignore_file}" ]] || ! path_exists_or_symlink "${candidate}"; then
             printf '%s\n' "${candidate}"
             return 0
         fi
@@ -390,7 +395,7 @@ allocate_dropin_file() {
 
         base_name="$(compose_basename "${DROPIN_PREFIX}" "${extended_stem}" "${suffix}")"
         candidate="${SUDOERS_DIR}/${base_name}"
-        if [[ ! -e "${candidate}" ]]; then
+        if [[ "${candidate}" == "${ignore_file}" ]] || ! path_exists_or_symlink "${candidate}"; then
             printf '%s\n' "${candidate}"
             return 0
         fi
@@ -411,13 +416,23 @@ process_binary() {
         return 1
     fi
 
+    if [[ ! -e "${target_bin}" && ! -L "${target_bin}" ]]; then
+        log_warn "NOT INSTALLED: The target binary does not exist. Skipping '${target_bin}'."
+        return "${RC_SKIP}"
+    fi
+
+    if [[ -L "${target_bin}" && ! -e "${target_bin}" ]]; then
+        log_error "BROKEN SYMLINK: The target path exists but points nowhere. Refusing '${target_bin}'."
+        return 1
+    fi
+
     if [[ ! -f "${target_bin}" ]]; then
-        log_error "NOT FOUND: The target binary does not exist. Skipping '${target_bin}'."
+        log_error "INVALID TARGET: The target is not a regular file. Refusing '${target_bin}'."
         return 1
     fi
 
     if [[ ! -x "${target_bin}" ]]; then
-        log_error "NOT EXECUTABLE: The target lacks execute permissions. Skipping '${target_bin}'."
+        log_error "NOT EXECUTABLE: The target lacks execute permissions. Refusing '${target_bin}'."
         return 1
     fi
 
@@ -446,6 +461,9 @@ process_binary() {
     find_managed_matches "${target_user}" "${target_bin}" managed_matches
 
     local drop_in_file=''
+    local current_managed_file=''
+    local preferred_file=''
+    local old_file_to_remove=''
 
     case "${#managed_matches[@]}" in
         0)
@@ -469,8 +487,21 @@ process_binary() {
             log_info "Allocating file: ${drop_in_file##*/}"
             ;;
         1)
-            drop_in_file="${managed_matches[0]}"
-            log_info "Idempotency trigger: Existing managed rule found at ${drop_in_file##*/}"
+            current_managed_file="${managed_matches[0]}"
+
+            preferred_file="$(allocate_dropin_file "${target_user}" "${target_bin}" "${current_managed_file}")" || {
+                log_error "FAILED: Could not allocate a safe sudoers drop-in filename."
+                return 1
+            }
+
+            if [[ "${preferred_file}" != "${current_managed_file}" ]]; then
+                drop_in_file="${preferred_file}"
+                old_file_to_remove="${current_managed_file}"
+                log_info "Migrating managed rule to ${drop_in_file##*/}"
+            else
+                drop_in_file="${current_managed_file}"
+                log_info "Idempotency trigger: Existing managed rule found at ${drop_in_file##*/}"
+            fi
             ;;
         *)
             log_error "CONFLICT: Multiple managed files match the same user and command."
@@ -482,7 +513,7 @@ process_binary() {
             ;;
     esac
 
-    if [[ -e "${drop_in_file}" && ( ! -f "${drop_in_file}" || -L "${drop_in_file}" ) ]]; then
+    if [[ -L "${drop_in_file}" || ( -e "${drop_in_file}" && ! -f "${drop_in_file}" ) ]]; then
         log_error "REFUSING TO WRITE: Target path is not a regular non-symlink file: ${drop_in_file}"
         return 1
     fi
@@ -544,6 +575,10 @@ process_binary() {
         return 1
     }
 
+    if [[ -n "${old_file_to_remove}" && "${old_file_to_remove}" != "${drop_in_file}" ]]; then
+        rm -f -- "${old_file_to_remove}" || log_warn "Could not remove old managed file: ${old_file_to_remove##*/}"
+    fi
+
     log_success "Successfully deployed NOPASSWD for ${target_bin##*/}."
 }
 
@@ -551,7 +586,7 @@ main() {
     parse_cli "$@"
     auto_elevate "$@"
 
-    require_commands visudo sha256sum mktemp flock mv chmod chown cmp id grep
+    require_commands visudo sha256sum mktemp flock mv chmod chown cmp id grep rm
 
     [[ -d "${SUDOERS_DIR}" ]] || fail "CRITICAL: ${SUDOERS_DIR} does not exist."
     [[ -w "${SUDOERS_DIR}" ]] || fail "CRITICAL: ${SUDOERS_DIR} is not writable."
@@ -583,21 +618,38 @@ main() {
         fi
     done
 
-    local exit_status=0
+    local rc=0
+    local -i failure_count=0
+    local -i skipped_count=0
+
     for bin in "${unique_queue[@]}"; do
-        if ! process_binary "${bin}" "${target_user}"; then
-            exit_status=1
+        if process_binary "${bin}" "${target_user}"; then
+            :
+        else
+            rc=$?
+            case "${rc}" in
+                "${RC_SKIP}")
+                    (( skipped_count++ ))
+                    ;;
+                *)
+                    (( failure_count++ ))
+                    ;;
+            esac
         fi
     done
 
     printf '%s\n' '--------------------------------------------------------------------------------'
-    if (( exit_status == 0 )); then
-        log_success "All binaries processed successfully."
-    else
-        log_warn "Processing completed with some errors. Review the logs above."
+    if (( failure_count == 0 )); then
+        if (( skipped_count == 0 )); then
+            log_success "All binaries processed successfully."
+        else
+            log_warn "Completed successfully. ${skipped_count} missing binaries were skipped."
+        fi
+        exit 0
     fi
 
-    exit "${exit_status}"
+    log_warn "Processing completed with ${failure_count} error(s) and ${skipped_count} skipped binary/binaries."
+    exit 1
 }
 
 main "$@"
