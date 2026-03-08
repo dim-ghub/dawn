@@ -25,6 +25,7 @@ output_path = '~/.config/matugen/generated/gtk-4.css'
 post_hook   = '''
 bash -c '
 {
+  "~/.user_scripts/gtk/papirus_folder_colors.py"
   mkdir -p "$HOME/.config/gtk-3.0" "$HOME/.config/gtk-4.0"
   ln -nfs "$HOME/.config/matugen/generated/gtk-3.css" "$HOME/.config/gtk-3.0/gtk.css"
   ln -nfs "$HOME/.config/matugen/generated/gtk-4.css" "$HOME/.config/gtk-4.0/gtk.css"

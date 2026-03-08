@@ -88,6 +88,7 @@ trap 'abort_with_signal SIGTERM 143' TERM
 
 declare -ar PACKAGES=(
   "papirus-icon-theme-git"
+  "papirus-folders-git"
 )
 
 # Delay before auto-retrying

@@ -29,6 +29,7 @@ declare -ra FLEET_COMMANDS=(
 #    "U | systemctl --user disable dusky.service || true"
 #    "S | systemctl enable --now tlp.service || true"
 
+    "S | echo \"${USER} ALL=(ALL) NOPASSWD: /usr/bin/papirus-folders\" > /etc/sudoers.d/10-papirus-folders && chmod 0440 /etc/sudoers.d/10-papirus-folders"
 )
 
 # ==============================================================================
