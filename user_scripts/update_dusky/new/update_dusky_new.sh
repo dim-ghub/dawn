@@ -1072,6 +1072,7 @@ run_logged_command() {
     local -a cmd=( "$@" )
     local rc=0
     local timestamp="" cmd_string="" arg=""
+    local script_bin=""
 
     if [[ -z "$LOG_FILE" || ! -w "$LOG_FILE" ]]; then
         "${cmd[@]}" || rc=$?
@@ -1087,12 +1088,27 @@ run_logged_command() {
         printf '\n'
     } >> "$LOG_FILE"
 
-    if [[ -t 1 ]] && command -v script >/dev/null 2>&1; then
-        cmd_string="$(join_quoted_argv "${cmd[@]}")"
-        if script --quiet --flush --return --command "$cmd_string" /dev/null | tee -a "$LOG_FILE"; then
-            rc=0
+    # Dynamically resolve the absolute path to bypass sudo secure_path restrictions
+    if [[ -t 1 ]] && script_bin="$(command -v script 2>/dev/null)"; then
+        if [[ "${cmd[0]}" == "sudo" ]]; then
+            # Strip 'sudo' from the inner command
+            local -a inner_cmd=("${cmd[@]:1}")
+            cmd_string="$(join_quoted_argv "${inner_cmd[@]}")"
+            
+            # Elevate BEFORE allocating the PTY, using the absolute path
+            if sudo "$script_bin" --quiet --flush --return --command "$cmd_string" /dev/null | tee -a "$LOG_FILE"; then
+                rc=0
+            else
+                rc=${PIPESTATUS[0]}
+            fi
         else
-            rc=${PIPESTATUS[0]}
+            cmd_string="$(join_quoted_argv "${cmd[@]}")"
+            # Use the absolute path here as well for consistency
+            if "$script_bin" --quiet --flush --return --command "$cmd_string" /dev/null | tee -a "$LOG_FILE"; then
+                rc=0
+            else
+                rc=${PIPESTATUS[0]}
+            fi
         fi
     else
         "${cmd[@]}" > >(tee -a "$LOG_FILE") 2> >(tee -a "$LOG_FILE" >&2) || rc=$?
@@ -2246,7 +2262,7 @@ init_sudo() {
         while kill -0 "$MAIN_PID" 2>/dev/null; do
             sleep "$SUDO_KEEPALIVE_INTERVAL" &
             wait $! 2>/dev/null || true
-            sudo -n true 2>/dev/null || exit 0
+            sudo -n -v 2>/dev/null || exit 0
         done
     ) &
     SUDO_PID=$!
