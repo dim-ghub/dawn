@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# HYPRLAND SCREENSHOT ARCHITECTURE (THE UNBREAKABLE MASTER v6)
+# HYPRLAND SCREENSHOT ARCHITECTURE (THE UNBREAKABLE MASTER v7)
 # Bash 5.3+ | Atomic IPC | Smart Click-Math | Perfect Freeze | Stacking Fix
 # ==============================================================================
 
@@ -60,7 +60,7 @@ done
 # --- 2. ENVIRONMENT & CAPABILITY POLLING ---
 mkdir -p "$SAVE_DIR"
 
-declare -a REQ_CMDS=("grim" "flock")
+declare -a REQ_CMDS=("grim")
 (( COPY_CLIP )) && REQ_CMDS+=("wl-copy")
 (( NOTIFY ))    && REQ_CMDS+=("notify-send")
 (( ANNOTATE ))  && REQ_CMDS+=("satty")
@@ -88,12 +88,8 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# --- 3. CONCURRENCY PREVENTER (The Omarchy Toggle) ---
-# If a selection overlay is already active, kill it and cleanly abort.
-# This prevents overlays from stacking and turns your hotkey into a cancel toggle.
+# --- 3. CONCURRENCY PREVENTER ---
 if pkill -x slurp >/dev/null 2>&1; then
-    # If you ACTUALLY want it to kill the old one and instantly start a new one, 
-    # delete 'exit 0' below and uncomment 'sleep 0.1'. But the toggle behavior is superior.
     exit 0 
 fi
 
@@ -126,7 +122,6 @@ get_visible_clients() {
 }
 
 # --- 5. SELECTION LOGIC ---
-# Note: $STATUS 1 = Esc pressed. $STATUS 143 = killed by pkill toggle. Both exit cleanly.
 case "$MODE" in
     region)
         freeze_screen
@@ -211,45 +206,38 @@ fi
 
 unfreeze_screen 
 
-# --- 7. ATOMIC FLOCK IPC & PUBLISHING ---
-readonly LOCK_FILE="${SAVE_DIR}/.${PREFIX}.lock"
-exec {lock_fd}>"$LOCK_FILE"
-flock -x "$lock_fd"
-
-shopt -s nullglob extglob
-MAX_NUM=0
-for file in "${SAVE_DIR}/${PREFIX}"-*.png; do
-    basename="${file##*/}"
-    num_text=${basename#"${PREFIX}-"}
-    num_text=${num_text%.png}
-    
-    if [[ "$num_text" == +([0-9]) ]]; then
-        num=$((10#$num_text))
-        ((num > MAX_NUM)) && MAX_NUM=$num
-    fi
-done
-shopt -u nullglob extglob
-
-NEXT_NUM=$((MAX_NUM + 1))
-FILE_PATH="${SAVE_DIR}/${PREFIX}-${NEXT_NUM}.png"
+# --- 7. ATOMIC PUBLISHING (Timestamp Based) ---
+FILENAME="${PREFIX}-$(date +'%Y-%m-%d_%H-%M-%S').png"
+FILE_PATH="${SAVE_DIR}/${FILENAME}"
 
 if PUBLISH_ERR=$(mv -T --no-copy --update=none-fail -- "$TEMP_FILE" "$FILE_PATH" 2>&1); then
     TEMP_FILE="" 
 else
-    echo "Fatal: ${PUBLISH_ERR:-Publish failed.}" >&2
+    echo "Fatal: ${PUBLISH_ERR:-Publish failed. File collision detected.}" >&2
     exit 1
 fi
 
-flock -u "$lock_fd"
-exec {lock_fd}>&-
-
 # --- 8. ANNOTATION HANDLER ---
 run_satty() {
-    local -a satty_args=("--filename" "$FILE_PATH" "--output-filename" "$FILE_PATH" "--early-exit" "--disable-notifications")
+    local -a satty_args=(
+        "--filename" "$FILE_PATH" 
+        "--output-filename" "$FILE_PATH" 
+        "--early-exit" 
+        "--disable-notifications"
+    )
     [[ -n "$SATTY_TOOL" ]] && satty_args+=("--initial-tool" "$SATTY_TOOL")
     
+    if (( COPY_CLIP )); then
+        satty_args+=(
+            "--actions-on-enter" "save-to-clipboard"
+            "--actions-on-escape" "save-to-clipboard"
+            "--save-after-copy"
+            "--right-click-copy"
+            "--copy-command" "wl-copy"
+        )
+    fi
+    
     if ! satty "${satty_args[@]}"; then
-        echo "Warning: Satty exited with an error. Original image retained." >&2
         return 1
     fi
     return 0
@@ -258,23 +246,19 @@ run_satty() {
 # --- 9. DISPATCH & NOTIFICATIONS ---
 if (( ANNOTATE )); then
     run_satty || true
-fi
-
-if (( COPY_CLIP )); then
+elif (( COPY_CLIP )); then
     wl-copy --type image/png < "$FILE_PATH" || echo "Warning: Clipboard copy failed." >&2
 fi
 
 if (( NOTIFY )); then
     if (( ANNOTATE )) || ! (( HAS_ACTION_SUPPORT )); then
-        notify-send -a "$SCRIPT_NAME" -i "$FILE_PATH" "Screenshot Captured" "Saved as ${PREFIX}-${NEXT_NUM}.png" || true
+        notify-send -a "$SCRIPT_NAME" -i "$FILE_PATH" "Screenshot Captured" "Saved as $FILENAME" || true
     else
         (
-            ACTION=$(notify-send -a "$SCRIPT_NAME" -i "$FILE_PATH" -t 8000 --action="edit=Annotate" "Screenshot Captured" "Saved as ${PREFIX}-${NEXT_NUM}.png" 2>/dev/null || true)
+            ACTION=$(notify-send -a "$SCRIPT_NAME" -i "$FILE_PATH" -t 8000 --action="edit=Annotate" "Screenshot Captured" "Saved as $FILENAME" 2>/dev/null || true)
             
             if [[ "$ACTION" == "edit" ]]; then
-                if run_satty; then
-                    (( COPY_CLIP )) && wl-copy --type image/png < "$FILE_PATH" || true
-                else
+                if ! run_satty; then
                     notify-send -a "$SCRIPT_NAME" -i "$FILE_PATH" -u critical "Annotation Failed" "Satty encountered an error." || true
                 fi
             fi
