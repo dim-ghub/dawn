@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# HYPRLAND SCREENSHOT ARCHITECTURE (THE UNBREAKABLE MASTER v5)
-# Bash 5.3+ | Atomic IPC | Smart Click-Math | Perfect Opaque Freezing
+# HYPRLAND SCREENSHOT ARCHITECTURE (THE UNBREAKABLE MASTER v6)
+# Bash 5.3+ | Atomic IPC | Smart Click-Math | Perfect Freeze | Stacking Fix
 # ==============================================================================
 
 set -euo pipefail
@@ -88,6 +88,16 @@ cleanup() {
 }
 trap cleanup EXIT
 
+# --- 3. CONCURRENCY PREVENTER (The Omarchy Toggle) ---
+# If a selection overlay is already active, kill it and cleanly abort.
+# This prevents overlays from stacking and turns your hotkey into a cancel toggle.
+if pkill -x slurp >/dev/null 2>&1; then
+    # If you ACTUALLY want it to kill the old one and instantly start a new one, 
+    # delete 'exit 0' below and uncomment 'sleep 0.1'. But the toggle behavior is superior.
+    exit 0 
+fi
+
+# --- 4. SCREEN FREEZING & WAYLAND IPC ---
 freeze_screen() {
     if (( FREEZE )); then
         hyprpicker -r -z >/dev/null 2>&1 &
@@ -115,7 +125,8 @@ get_visible_clients() {
     ' || return 1
 }
 
-# --- 3. SELECTION LOGIC ---
+# --- 5. SELECTION LOGIC ---
+# Note: $STATUS 1 = Esc pressed. $STATUS 143 = killed by pkill toggle. Both exit cleanly.
 case "$MODE" in
     region)
         freeze_screen
@@ -124,12 +135,12 @@ case "$MODE" in
         STATUS=$?
         set -e
         
-        [[ $STATUS -eq 1 ]] && exit 0 
+        [[ $STATUS -eq 1 || $STATUS -eq 143 ]] && exit 0 
         [[ $STATUS -ne 0 ]] && { echo "Fatal: Slurp failed." >&2; exit 1; }
         [[ -z "$SELECTION" ]] && exit 0
         ;;
     window)
-        freeze_screen # Moved freeze to the top!
+        freeze_screen
         CLIENTS=$(get_visible_clients) || { echo "Fatal: Failed to query clients." >&2; exit 1; }
         [[ -z "$CLIENTS" ]] && exit 0 
 
@@ -138,12 +149,12 @@ case "$MODE" in
         STATUS=$?
         set -e
         
-        [[ $STATUS -eq 1 ]] && exit 0 
+        [[ $STATUS -eq 1 || $STATUS -eq 143 ]] && exit 0 
         [[ $STATUS -ne 0 ]] && { echo "Fatal: Slurp failed." >&2; exit 1; }
         [[ -z "$SELECTION" ]] && exit 0
         ;;
     smart)
-        freeze_screen # Moved freeze to the top!
+        freeze_screen
         CLIENTS=$(get_visible_clients) || { echo "Fatal: Failed to query clients." >&2; exit 1; }
         
         MONITORS=$(hyprctl -j monitors | jq -r '
@@ -158,7 +169,7 @@ case "$MODE" in
         STATUS=$?
         set -e
 
-        [[ $STATUS -eq 1 ]] && exit 0 
+        [[ $STATUS -eq 1 || $STATUS -eq 143 ]] && exit 0 
         [[ $STATUS -ne 0 ]] && { echo "Fatal: Slurp failed." >&2; exit 1; }
         [[ -z "$SELECTION" ]] && exit 0
 
@@ -189,20 +200,18 @@ case "$MODE" in
         ;;
 esac
 
-# --- 4. CAPTURE & UNFREEZE ---
+# --- 6. CAPTURE & UNFREEZE ---
 TEMP_FILE=$(mktemp --tmpdir="$SAVE_DIR" ".${PREFIX}.XXXXXX.png")
 
 if [[ "$MODE" == "fullscreen" ]]; then
     grim "$TEMP_FILE" || { echo "Fatal: Grim capture failed." >&2; exit 1; }
 else
-    # grim captures the frozen hyprpicker layer, ensuring menus remain opaque
     grim -g "$SELECTION" "$TEMP_FILE" || { echo "Fatal: Grim capture failed." >&2; exit 1; }
 fi
 
-# We safely kill the freeze layer ONLY AFTER the picture is taken
 unfreeze_screen 
 
-# --- 5. ATOMIC FLOCK IPC & PUBLISHING ---
+# --- 7. ATOMIC FLOCK IPC & PUBLISHING ---
 readonly LOCK_FILE="${SAVE_DIR}/.${PREFIX}.lock"
 exec {lock_fd}>"$LOCK_FILE"
 flock -x "$lock_fd"
@@ -234,7 +243,7 @@ fi
 flock -u "$lock_fd"
 exec {lock_fd}>&-
 
-# --- 6. ANNOTATION HANDLER ---
+# --- 8. ANNOTATION HANDLER ---
 run_satty() {
     local -a satty_args=("--filename" "$FILE_PATH" "--output-filename" "$FILE_PATH" "--early-exit" "--disable-notifications")
     [[ -n "$SATTY_TOOL" ]] && satty_args+=("--initial-tool" "$SATTY_TOOL")
@@ -246,7 +255,7 @@ run_satty() {
     return 0
 }
 
-# --- 7. DISPATCH & NOTIFICATIONS ---
+# --- 9. DISPATCH & NOTIFICATIONS ---
 if (( ANNOTATE )); then
     run_satty || true
 fi
