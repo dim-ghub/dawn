@@ -1,353 +1,1167 @@
-# ==============================================================================
-# function: logs (detailed_log)
-# description: The ultimate, zero-regression execution and logging wrapper.
-# deployment: Production-ready for mass distribution.
-# ==============================================================================
 logs() {
     emulate -L zsh
-    setopt local_options NO_NOMATCH PIPE_FAIL NO_MULTIOS
-    umask 077
+    setopt localoptions localtraps pipefail no_nomatch no_multios
+    unsetopt monitor aliases
 
-    local -i opt_strace=0 opt_quiet=0 opt_strict=0 opt_journal=0
+    function __logs_is_bash_shebang() {
+        emulate -L zsh
+
+        local line="$1"
+        [[ "$line" == '#!'* ]] || return 0
+
+        line="${line#\#!}"
+        line="${line%%$'\r'}"
+
+        local -a words
+        words=(${(z)line})
+        (( $#words )) || return 1
+
+        case "${words[1]:t}" in
+            bash)
+                return 0
+                ;;
+            env)
+                local i
+                for (( i = 2; i <= $#words; ++i )); do
+                    case "${words[i]}" in
+                        -*)  continue ;;
+                        *=*) continue ;;
+                        bash|*/bash) return 0 ;;
+                        *) return 1 ;;
+                    esac
+                done
+                return 1
+                ;;
+            *)
+                return 1
+                ;;
+        esac
+    }
+
+    local -i opt_strace=0 opt_quiet=0 opt_strict=0 opt_journal=0 opt_xtrace=0 opt_shellcheck=0
     local opt_outdir="" opt_timeout=""
-    local raw_target="" script_exec_path="" script_resolved_path="" script_name="" script_dir="" bash_bin=""
+
+    local raw_target="" script_invoke_path="" script_real_path="" script_name="" safe_name="" script_dir=""
+    local first_line="" j_cursor="" orig_bash_env=""
     local -a script_args=()
 
     local c_red="" c_yellow="" c_green="" c_blue="" c_bold="" c_reset=""
     if [[ -t 2 && "${TERM:-}" != "dumb" ]]; then
-        c_red=$'\e[31m'; c_yellow=$'\e[33m'; c_green=$'\e[32m'; c_blue=$'\e[34m'; c_bold=$'\e[1m'; c_reset=$'\e[0m'
+        c_red=$'\e[31m'
+        c_yellow=$'\e[33m'
+        c_green=$'\e[32m'
+        c_blue=$'\e[34m'
+        c_bold=$'\e[1m'
+        c_reset=$'\e[0m'
     fi
 
-    # --- 1. Robust Option Parsing
     while (( $# )); do
         case "$1" in
             -h|--help)
-                printf 'Usage: logs [opts] <script> [args...]\n'
-                printf '  -s, --strace    Trace system calls (-f -tt -T -y -yy)\n'
-                printf '  -q, --quiet     Suppress terminal output (logs only)\n'
-                printf '  -S, --strict    Inject strict mode (set -euo pipefail)\n'
-                printf '  -j, --journal   Capture journalctl entries after the run\n'
-                printf '  -t, --timeout   Set max execution time (e.g., 30, 2m)\n'
-                printf '  -o, --outdir    Specify custom output directory\n'
+                printf 'Usage: logs [options] <bash-script> [args...]\n'
+                printf 'Bash-focused execution, tracing, and log capture wrapper.\n'
+                printf '  -q, --quiet         Suppress live child stdout/stderr mirroring\n'
+                printf '  -S, --strict        Enable child strict mode: set -euo pipefail\n'
+                printf '  -x, --xtrace        Enable Bash xtrace into trace.log\n'
+                printf '  -s, --strace        Capture strace (-ff -ttt -T -y -yy -s 1024)\n'
+                printf '  -C, --shellcheck    Run shellcheck preflight on the snapshot\n'
+                printf '  -j, --journal       Capture journalctl entries after the run\n'
+                printf '  -t, --timeout DUR   Kill child process group after DUR, then after 5s force kill\n'
+                printf '  -o, --outdir DIR    Write sessions under DIR\n'
                 return 0
                 ;;
-            -s|--strace) opt_strace=1; shift ;;
-            -q|--quiet) opt_quiet=1; shift ;;
-            -S|--strict) opt_strict=1; shift ;;
-            -j|--journal) opt_journal=1; shift ;;
+            -q|--quiet)      opt_quiet=1; shift ;;
+            -S|--strict)     opt_strict=1; shift ;;
+            -x|--xtrace)     opt_xtrace=1; shift ;;
+            -s|--strace)     opt_strace=1; shift ;;
+            -C|--shellcheck) opt_shellcheck=1; shift ;;
+            -j|--journal)    opt_journal=1; shift ;;
             -t|--timeout)
-                shift
-                if [[ ! "$1" =~ ^[0-9]+([.][0-9]+)?(s|m|h|d)?$ ]]; then
-                    printf '%sError:%s -t requires a duration (e.g., 30s, 2m)\n' "$c_red" "$c_reset" >&2
+                if (( $# < 2 )); then
+                    printf '%sError:%s -t requires a duration\n' "$c_red" "$c_reset" >&2
                     return 2
                 fi
-                opt_timeout="$1"; shift 
+                if [[ ! "$2" =~ ^[0-9]+([.][0-9]+)?([smhd])?$ ]]; then
+                    printf '%sError:%s invalid timeout: %s\n' "$c_red" "$c_reset" "$2" >&2
+                    return 2
+                fi
+                opt_timeout="$2"
+                shift 2
                 ;;
-            --timeout=*) opt_timeout="${1#*=}"; shift ;;
+            --timeout=*)
+                opt_timeout="${1#*=}"
+                if [[ -z "$opt_timeout" || ! "$opt_timeout" =~ ^[0-9]+([.][0-9]+)?([smhd])?$ ]]; then
+                    printf '%sError:%s invalid timeout: %s\n' "$c_red" "$c_reset" "$opt_timeout" >&2
+                    return 2
+                fi
+                shift
+                ;;
             -o|--outdir)
-                shift
-                if (( $# == 0 )) || [[ "$1" == -* ]]; then
-                    printf '%sError:%s -o requires a directory argument\n' "$c_red" "$c_reset" >&2
+                if (( $# < 2 )) || [[ -z "$2" ]]; then
+                    printf '%sError:%s -o requires a non-empty directory\n' "$c_red" "$c_reset" >&2
                     return 2
                 fi
-                opt_outdir="$1"; shift 
+                opt_outdir="$2"
+                shift 2
                 ;;
-            --outdir=*) opt_outdir="${1#*=}"; shift ;;
-            --) shift; break ;;
-            -*) printf '%sError:%s Unknown option %s\n' "$c_red" "$c_reset" "$1" >&2; return 2 ;;
-            *)  break ;;
+            --outdir=*)
+                opt_outdir="${1#*=}"
+                if [[ -z "$opt_outdir" ]]; then
+                    printf '%sError:%s --outdir requires a directory\n' "$c_red" "$c_reset" >&2
+                    return 2
+                fi
+                shift
+                ;;
+            --)
+                shift
+                break
+                ;;
+            -*)
+                printf '%sError:%s unknown option: %s\n' "$c_red" "$c_reset" "$1" >&2
+                return 2
+                ;;
+            *)
+                break
+                ;;
         esac
     done
 
     if (( $# == 0 )); then
-        printf '%sError:%s No script provided.\n' "$c_red" "$c_reset" >&2
+        printf '%sError:%s no script provided\n' "$c_red" "$c_reset" >&2
         return 2
     fi
 
-    raw_target="$1"; shift
+    raw_target="$1"
+    shift
     script_args=("$@")
 
-    # --- 2. Hardened Path & Dependency Resolution
-    if ! bash_bin=$(command -v bash 2>/dev/null); then
-        printf '%sError:%s bash not found in PATH.\n' "$c_red" "$c_reset" >&2
+    local bash_bin="${commands[bash]-}"
+    local env_bin="${commands[env]-}"
+    local cp_bin="${commands[cp]-}"
+    local mkdir_bin="${commands[mkdir]-}"
+    local mktemp_bin="${commands[mktemp]-}"
+    local mkfifo_bin="${commands[mkfifo]-}"
+    local realpath_bin="${commands[realpath]-}"
+    local date_bin="${commands[date]-}"
+    local awk_bin="${commands[awk]-}"
+    local grep_bin="${commands[grep]-}"
+    local sed_bin="${commands[sed]-}"
+    local perl_bin="${commands[perl]-}"
+    local setsid_bin="${commands[setsid]-}"
+    local ps_bin="${commands[ps]-}"
+    local sort_bin="${commands[sort]-}"
+    local rm_bin="${commands[rm]-}"
+    local chmod_bin="${commands[chmod]-}"
+    local cat_bin="${commands[cat]-}"
+    local sleep_bin="${commands[sleep]-}"
+    local ls_bin="${commands[ls]-}"
+
+    local sha256sum_bin="${commands[sha256sum]-}"
+    local git_bin="${commands[git]-}"
+    local shellcheck_bin="${commands[shellcheck]-}"
+    local strace_bin="${commands[strace]-}"
+    local journalctl_bin="${commands[journalctl]-}"
+    local lsof_bin="${commands[lsof]-}"
+    local fuser_bin="${commands[fuser]-}"
+    local hostname_bin="${commands[hostname]-}"
+    local uptime_bin="${commands[uptime]-}"
+    local free_bin="${commands[free]-}"
+    local df_bin="${commands[df]-}"
+    local lscpu_bin="${commands[lscpu]-}"
+
+    local time_bin="/usr/bin/time"
+    [[ -x "$time_bin" ]] || time_bin=""
+
+    local _tool _var
+    for _tool in bash env cp mkdir mktemp mkfifo realpath date awk grep sed perl setsid ps sort rm chmod cat sleep ls; do
+        _var="${_tool}_bin"
+        [[ -n "${(P)_var}" ]] || {
+            printf '%sError:%s required command missing: %s\n' "$c_red" "$c_reset" "$_tool" >&2
+            return 1
+        }
+    done
+
+    if (( opt_strace )) && [[ -z "$strace_bin" ]]; then
+        printf '%sError:%s --strace requested but strace is not installed\n' "$c_red" "$c_reset" >&2
         return 1
     fi
 
-    if [[ "$raw_target" == */* ]]; then
-        script_exec_path="$raw_target"
-    elif [[ -e "$raw_target" ]]; then
-        script_exec_path="$raw_target"
-    elif (( $+commands[$raw_target] )); then
-        script_exec_path="${commands[$raw_target]}"
+    if (( opt_journal )) && [[ -z "$journalctl_bin" ]]; then
+        printf '%sError:%s --journal requested but journalctl is not installed\n' "$c_red" "$c_reset" >&2
+        return 1
+    fi
+
+    if [[ "$raw_target" == */* || "$raw_target" == .* || -f "$raw_target" ]]; then
+        script_invoke_path="$raw_target"
+    elif [[ -f "./$raw_target" ]]; then
+        script_invoke_path="./$raw_target"
+    elif [[ -n "${commands[$raw_target]-}" ]]; then
+        script_invoke_path="${commands[$raw_target]}"
     else
         printf '%sError:%s target not found: %s\n' "$c_red" "$c_reset" "$raw_target" >&2
         return 1
     fi
 
-    if ! script_resolved_path=$(realpath -e -- "$script_exec_path" 2>/dev/null); then
-        printf '%sError:%s could not resolve target: %s\n' "$c_red" "$c_reset" "$script_exec_path" >&2
-        return 1
-    fi
-
-    local mime=$(file -b --mime-type "$script_resolved_path" 2>/dev/null)
-    if [[ "$mime" != text/* && "$mime" != application/x-executable ]]; then
-        printf '%sError:%s Target is a binary, not a shell script (MIME: %s)\n' "$c_red" "$c_reset" "$mime" >&2
-        return 1
-    fi
-
-    script_name="${script_resolved_path:t}"
-    script_dir="${script_resolved_path:h}"
-
-    # --- 3. Collision-Proof Session Directory
-    local ts=$(date '+%Y%m%d-%H%M%S')
-    local base="${opt_outdir:-$HOME/Documents/logs/script_logs}"
-    local outdir="${base%/}"
-    mkdir -p -m 700 -- "$outdir"
-    
-    local session_dir
-    session_dir=$(mktemp -d "${outdir}/${script_name}.${ts}.XXXXXX") || {
-        printf '%sError:%s Failed to generate session directory.\n' "$c_red" "$c_reset" >&2
+    script_real_path="$("$realpath_bin" -e -- "$script_invoke_path" 2>/dev/null)" || {
+        printf '%sError:%s failed to resolve target path: %s\n' "$c_red" "$c_reset" "$script_invoke_path" >&2
         return 1
     }
 
-    local trace_log="${session_dir}/trace.log"
-    local stdout_log="${session_dir}/stdout.log"
-    local stderr_log="${session_dir}/stderr.log"
-    local comb_log="${session_dir}/combined.log"
-    local meta_log="${session_dir}/metadata.txt"
-    local sys_log="${session_dir}/system_state.txt"
-    local journal_log="${session_dir}/systemd_journal.log"
-    local error_dump="${session_dir}/error_state_dump.txt"
-    local snapshot_path="${session_dir}/script_snapshot.source"
-    local env_prelude="${session_dir}/.bash_prelude.sh"
-    local fifo_out="${session_dir}/fifo_out"
-    local fifo_err="${session_dir}/fifo_err"
-    local exit_code=0
-    local pre_sha256="$(sha256sum -- "$script_resolved_path" 2>/dev/null | awk '{print $1}')"
+    [[ -f "$script_real_path" && -r "$script_real_path" ]] || {
+        printf '%sError:%s target is not a readable regular file: %s\n' "$c_red" "$c_reset" "$script_real_path" >&2
+        return 1
+    }
 
-    # ==========================================================================
-    # ENCLOSING ZSH ALWAYS BLOCK - Guarantees Subshell-Immune Teardown
-    # ==========================================================================
+    IFS= read -r first_line < "$script_real_path" 2>/dev/null || first_line=""
+    __logs_is_bash_shebang "$first_line" || {
+        printf '%sError:%s target shebang is not Bash: %s\n' "$c_red" "$c_reset" "$first_line" >&2
+        return 1
+    }
+
+    script_name="${script_real_path:t}"
+    safe_name="${script_name//[^[:alnum:]._-]/_}"
+    script_dir="${script_real_path:h}"
+
+    local base="${opt_outdir:-${HOME:-$PWD}/Documents/logs/script_logs}"
+    local outdir="$base"
+    [[ "$outdir" != "/" ]] && outdir="${outdir%/}"
+
+    local ts="$("$date_bin" '+%Y%m%d-%H%M%S' 2>/dev/null)"
+    [[ -n "$ts" ]] || ts="unknown-time"
+
+    local old_umask="$(umask)"
+
+    local session_dir="" trace_log="" stdout_log="" stderr_log="" combined_log="" meta_log="" sys_log=""
+    local journal_log="" error_dump="" snapshot_path="" env_prelude="" fifo_out="" fifo_err=""
+    local syntax_log="" shellcheck_log="" resource_log="" strace_prefix="" io_events_log=""
+    local child_events_log="" child_status_file="" child_set_o_log="" child_shopt_log="" child_traps_log=""
+    local child_first_err_log="" child_info="" drain_diag="" lingering_log=""
+    local timeout_flag="" forced_out_flag="" forced_err_flag="" launcher_path="" collector_path=""
+    local stdout_eof_flag="" stderr_eof_flag=""
+
+    local source_sha256_before="unavailable" source_sha256_after="unavailable" snapshot_sha256="unavailable"
+    local bash_version_line="" host_name="unknown" child_pgid="" verdict="SUCCESS" child_signal=""
+
+    local -i child_pid=0 timeout_pid=0 collector_pid=0
+    local -i exit_code=0 return_code=0 timed_out=0 lingering_pgroup=0 forced_out=0 forced_err=0
+    local -i child_prelude_loaded=0 child_err_seen=0 child_opt_errexit=0 child_opt_nounset=0
+    local -i child_opt_pipefail=0 child_opt_xtrace=0 child_xtrace_active=0
+
     {
-        # --- 4. Pre-Flight Checks & Snapshots
-        touch "$trace_log" "$stdout_log" "$stderr_log" "$comb_log"
-        mkfifo -m 600 "$fifo_out" "$fifo_err"
+        umask 077
 
-        cp -a --reflink=auto -- "$script_resolved_path" "$snapshot_path" 2>/dev/null || cp -a -- "$script_resolved_path" "$snapshot_path"
-
-        if ! "$bash_bin" -n -- "$script_resolved_path" > "${session_dir}/syntax_preflight.log" 2>&1; then
-            printf '%s[!] CRITICAL:%s Bash syntax check failed. Execution aborted.\n' "$c_red" "$c_reset" >&2
-            cat "${session_dir}/syntax_preflight.log" >&2
+        if ! "$mkdir_bin" -p -- "$outdir"; then
+            printf '%sError:%s failed to create output directory: %s\n' "$c_red" "$c_reset" "$outdir" >&2
             exit_code=1
             return 1
         fi
 
-        if (( $+commands[shellcheck] )); then
-            shellcheck --shell=bash -x -- "$script_resolved_path" > "${session_dir}/shellcheck_preflight.log" 2>&1
+        session_dir="$("$mktemp_bin" -d -- "${outdir}/${safe_name}.${ts}.XXXXXXXX" 2>/dev/null)" || {
+            printf '%sError:%s failed to create session directory under %s\n' "$c_red" "$c_reset" "$outdir" >&2
+            exit_code=1
+            return 1
+        }
+
+        trace_log="${session_dir}/trace.log"
+        stdout_log="${session_dir}/stdout.log"
+        stderr_log="${session_dir}/stderr.log"
+        combined_log="${session_dir}/combined.log"
+        meta_log="${session_dir}/metadata.txt"
+        sys_log="${session_dir}/system_state.txt"
+        journal_log="${session_dir}/systemd_journal.log"
+        error_dump="${session_dir}/error_state_dump.txt"
+        snapshot_path="${session_dir}/script_snapshot.source"
+        env_prelude="${session_dir}/.bash_prelude.sh"
+        fifo_out="${session_dir}/fifo_out"
+        fifo_err="${session_dir}/fifo_err"
+        syntax_log="${session_dir}/syntax_preflight.log"
+        shellcheck_log="${session_dir}/shellcheck_preflight.log"
+        resource_log="${session_dir}/resource_usage.log"
+        strace_prefix="${session_dir}/strace"
+        io_events_log="${session_dir}/io_events.log"
+
+        child_events_log="${session_dir}/child_events.log"
+        child_status_file="${session_dir}/child_status.env"
+        child_set_o_log="${session_dir}/child_set_o.log"
+        child_shopt_log="${session_dir}/child_shopt.log"
+        child_traps_log="${session_dir}/child_traps.log"
+        child_first_err_log="${session_dir}/child_first_error.log"
+        child_info="${session_dir}/child_process.txt"
+        drain_diag="${session_dir}/forced_drain_diagnostics.txt"
+        lingering_log="${session_dir}/lingering_processes.log"
+        timeout_flag="${session_dir}/.timed_out"
+        forced_out_flag="${session_dir}/.forced_stdout"
+        forced_err_flag="${session_dir}/.forced_stderr"
+        stdout_eof_flag="${session_dir}/.stdout_eof"
+        stderr_eof_flag="${session_dir}/.stderr_eof"
+        launcher_path="${session_dir}/.launcher.sh"
+        collector_path="${session_dir}/.collector.pl"
+
+        local f=""
+        for f in \
+            "$stdout_log" "$stderr_log" "$combined_log" "$meta_log" "$sys_log" "$syntax_log" "$io_events_log" \
+            "$child_events_log" "$child_status_file" "$child_set_o_log" "$child_shopt_log" \
+            "$child_traps_log" "$child_first_err_log" "$child_info" "$drain_diag" "$error_dump"
+        do
+            : >| "$f" || {
+                printf '%sError:%s failed to create log file: %s\n' "$c_red" "$c_reset" "$f" >&2
+                exit_code=1
+                return 1
+            }
+        done
+
+        if (( opt_xtrace )); then
+            : >| "$trace_log" || {
+                printf '%sError:%s failed to create trace log: %s\n' "$c_red" "$c_reset" "$trace_log" >&2
+                exit_code=1
+                return 1
+            }
         fi
 
-        local j_cursor=""
-        if (( opt_journal )) && (( $+commands[journalctl] )); then
-            j_cursor=$(journalctl -n 0 --show-cursor -q 2>/dev/null | awk '{print $NF}')
+        "$mkfifo_bin" -m 600 -- "$fifo_out" "$fifo_err" || {
+            printf '%sError:%s failed to create FIFOs\n' "$c_red" "$c_reset" >&2
+            exit_code=1
+            return 1
+        }
+
+        if ! "$cat_bin" >"$launcher_path" <<'EOF'
+#!/bin/sh
+set -eu
+
+: "${DL_CHILD_INFO:?missing DL_CHILD_INFO}"
+{
+    printf 'pid=%s\n' "$$"
+    printf 'pgid=%s\n' "$$"
+} >"$DL_CHILD_INFO"
+
+export BASH_ENV="$DL_WRAPPER_BASH_ENV"
+exec "$@"
+EOF
+        then
+            printf '%sError:%s failed to write launcher helper\n' "$c_red" "$c_reset" >&2
+            exit_code=1
+            return 1
         fi
 
-        # --- 5. BASH_ENV Payload Injection
-        cat >"$env_prelude" <<'EOF'
-unset BASH_ENV
+        if ! "$chmod_bin" 700 -- "$launcher_path"; then
+            printf '%sError:%s failed to chmod launcher helper\n' "$c_red" "$c_reset" >&2
+            exit_code=1
+            return 1
+        fi
 
-if [[ -n "${DL_TRACE_LOG:-}" ]]; then
+        if ! "$cat_bin" >"$collector_path" <<'EOF'
+#!/usr/bin/env perl
+use strict;
+use warnings;
+use IO::Select;
+use Time::HiRes qw(time);
+
+sub write_all {
+    my ($fh, $buf) = @_;
+    my $len = length($buf);
+    my $off = 0;
+
+    while ($off < $len) {
+        my $n = syswrite($fh, $buf, $len - $off, $off);
+        die "syswrite failed: $!" unless defined $n;
+        $off += $n;
+    }
+}
+
+sub write_terminal {
+    my ($which, $buf) = @_;
+    my $len = length($buf);
+    my $off = 0;
+
+    while ($off < $len) {
+        my $n;
+        if ($which eq 'STDOUT') {
+            $n = syswrite(STDOUT, $buf, $len - $off, $off);
+        } else {
+            $n = syswrite(STDERR, $buf, $len - $off, $off);
+        }
+        die "terminal syswrite failed: $!" unless defined $n;
+        $off += $n;
+    }
+}
+
+my (
+    $fifo_out,
+    $fifo_err,
+    $stdout_log,
+    $stderr_log,
+    $combined_log,
+    $io_events_log,
+    $quiet,
+    $stdout_eof_flag,
+    $stderr_eof_flag
+) = @ARGV;
+
+open my $out_r, '<',  $fifo_out      or die "open fifo_out: $!";
+open my $err_r, '<',  $fifo_err      or die "open fifo_err: $!";
+open my $out_l, '>>', $stdout_log    or die "open stdout_log: $!";
+open my $err_l, '>>', $stderr_log    or die "open stderr_log: $!";
+open my $cmb_l, '>>', $combined_log  or die "open combined_log: $!";
+open my $evt_l, '>>', $io_events_log or die "open io_events_log: $!";
+
+binmode STDOUT;
+binmode STDERR;
+binmode $out_r;
+binmode $err_r;
+binmode $out_l;
+binmode $err_l;
+binmode $cmb_l;
+binmode $evt_l;
+
+select((select(STDOUT), $| = 1)[0]);
+select((select(STDERR), $| = 1)[0]);
+
+my $sel = IO::Select->new($out_r, $err_r);
+my $out_fd = fileno($out_r);
+my $err_fd = fileno($err_r);
+
+while (my @ready = $sel->can_read) {
+    for my $fh (@ready) {
+        my $fd = fileno($fh);
+        my $n = sysread($fh, my $buf, 65536);
+        die "sysread failed: $!" unless defined $n;
+
+        if ($n == 0) {
+            if ($fd == $out_fd) {
+                open my $m, '>', $stdout_eof_flag or die "touch stdout_eof: $!";
+                close $m or die "close stdout_eof: $!";
+            } elsif ($fd == $err_fd) {
+                open my $m, '>', $stderr_eof_flag or die "touch stderr_eof: $!";
+                close $m or die "close stderr_eof: $!";
+            }
+
+            $sel->remove($fh);
+            close $fh;
+            next;
+        }
+
+        my $stream = ($fd == $out_fd) ? 'STDOUT' : 'STDERR';
+        my $raw_fh = ($fd == $out_fd) ? $out_l : $err_l;
+
+        write_all($raw_fh, $buf);
+        write_all($cmb_l,  $buf);
+
+        printf {$evt_l} "%0.9f\t%s\t%d\n", time(), $stream, $n
+            or die "write io event failed: $!";
+
+        if (!$quiet) {
+            write_terminal($stream, $buf);
+        }
+    }
+}
+
+close $out_l or die "close stdout_log: $!";
+close $err_l or die "close stderr_log: $!";
+close $cmb_l or die "close combined_log: $!";
+close $evt_l or die "close io_events_log: $!";
+EOF
+        then
+            printf '%sError:%s failed to write collector helper\n' "$c_red" "$c_reset" >&2
+            exit_code=1
+            return 1
+        fi
+
+        if ! "$chmod_bin" 700 -- "$collector_path"; then
+            printf '%sError:%s failed to chmod collector helper\n' "$c_red" "$c_reset" >&2
+            exit_code=1
+            return 1
+        fi
+
+        if ! "$cat_bin" >"$env_prelude" <<'EOF'
+# shellcheck shell=bash
+
+__DL_TRAP_FIRED=0
+__DL_SIGNAL=""
+__DL_XTRACE_ENABLED=0
+__DL_PRELUDE_DEPTH="${DL_PRELUDE_DEPTH:-0}"
+export DL_PRELUDE_DEPTH=$((__DL_PRELUDE_DEPTH + 1))
+
+__dl_status_put() {
+    [[ -n "${DL_CHILD_STATUS:-}" ]] || return 0
+    builtin printf '%s=%s\n' "$1" "$2" >>"$DL_CHILD_STATUS" 2>/dev/null || :
+}
+
+__dl_note_event() {
+    [[ -n "${DL_CHILD_EVENTS:-}" ]] || return 0
+
+    local _event="$1" _status="$2" _sig="${3-}"
+    local _cmd="${BASH_COMMAND-unknown}"
+    local _src="${BASH_SOURCE[2]:-${BASH_SOURCE[1]:-${BASH_SOURCE[0]:-unknown}}}"
+    local _lin="${BASH_LINENO[1]:-${BASH_LINENO[0]:-?}}"
+    local -a _pipe_status=( "${PIPESTATUS[@]}" )
+
+    {
+        builtin printf 'ts=%s event=%s depth=%s pid=%s status=%s' \
+            "${EPOCHREALTIME}" "${_event}" "${DL_PRELUDE_DEPTH}" "${BASHPID}" "${_status}"
+        [[ -n ${_sig} ]] && builtin printf ' signal=%q' "${_sig}"
+        builtin printf ' source=%q line=%s cmd=%q pipestatus=%q\n' \
+            "${_src}" "${_lin}" "${_cmd}" "${_pipe_status[*]-}"
+    } >>"${DL_CHILD_EVENTS}" 2>/dev/null || :
+}
+
+__dl_capture_shell_state() {
+    [[ -n "${DL_SET_O_LOG:-}" ]] && set -o >"$DL_SET_O_LOG" 2>/dev/null || :
+    [[ -n "${DL_SHOPT_LOG:-}" ]] && shopt -p >"$DL_SHOPT_LOG" 2>/dev/null || :
+    [[ -n "${DL_TRAPS_LOG:-}" ]] && trap -p >"$DL_TRAPS_LOG" 2>/dev/null || :
+}
+
+__dl_is_secret_name() {
+    local __name_upper="${1^^}"
+    case "$__name_upper" in
+        *PASS*|*TOKEN*|*SECRET*|*API_KEY*|*ACCESS_KEY*|*PRIVATE_KEY*|*AUTH*|*CREDENTIAL*|*COOKIE*|*SESSION*)
+            return 0
+            ;;
+    esac
+    return 1
+}
+
+__dl_note_first_error() {
+    [[ -n "${DL_FIRST_ERR_LOG:-}" ]] || return 0
+    [[ -s "$DL_FIRST_ERR_LOG" ]] && return 0
+
+    local _status="$1"
+    local _cmd="${BASH_COMMAND-unknown}"
+    local _src="${BASH_SOURCE[2]:-${BASH_SOURCE[1]:-${BASH_SOURCE[0]:-unknown}}}"
+    local _lin="${BASH_LINENO[1]:-${BASH_LINENO[0]:-?}}"
+    local -a _pipe_status=( "${PIPESTATUS[@]}" )
+
+    {
+        builtin printf 'timestamp=%s\n' "${EPOCHREALTIME}"
+        builtin printf 'status=%s\n' "${_status}"
+        builtin printf 'command=%q\n' "${_cmd}"
+        builtin printf 'source=%q\n' "${_src}"
+        builtin printf 'line=%s\n' "${_lin}"
+        builtin printf 'pipestatus=%q\n' "${_pipe_status[*]-}"
+    } >"$DL_FIRST_ERR_LOG" 2>/dev/null || :
+}
+
+__dl_capture_trap_body() {
+    local _sig="$1" _raw _quoted
+
+    _raw="$(builtin trap -p "${_sig}")" || return 0
+    [[ -n ${_raw} ]] || return 0
+
+    _quoted="${_raw#trap -- }"
+    _quoted="${_quoted% ${_sig}}"
+
+    eval "builtin printf '%s' ${_quoted}"
+}
+
+__dl_run_prior_trap() {
+    local _body="$1"
+    [[ -n ${_body} ]] || return 0
+    eval "${_body}"
+}
+
+__dl_dump_state() {
+    local _reason="$1" _status="$2" _signal="${3-}"
+    [[ -n "${DL_ERROR_DUMP:-}" ]] || return 0
+
+    local _cmd="${BASH_COMMAND-unknown}"
+    local _src="${BASH_SOURCE[2]:-${BASH_SOURCE[1]:-${BASH_SOURCE[0]:-unknown}}}"
+    local _lin="${BASH_LINENO[1]:-${BASH_LINENO[0]:-?}}"
+    local -a _pipe_status=( "${PIPESTATUS[@]}" )
+
+    (
+        set +e +u +x
+        set +o pipefail 2>/dev/null || :
+
+        builtin printf '=== %s ===\n' "${_reason}"
+        builtin printf 'timestamp=%s\n' "${EPOCHREALTIME}"
+        builtin printf 'status=%s\n' "${_status}"
+        [[ -n ${_signal} ]] && builtin printf 'signal=%s\n' "${_signal}"
+        builtin printf 'pid=%s\nbashpid=%s\nppid=%s\n' "$$" "${BASHPID}" "${PPID}"
+        builtin printf 'pwd=%q\n' "${PWD}"
+        builtin printf 'command=%q\n' "${_cmd}"
+        builtin printf 'source=%q\n' "${_src}"
+        builtin printf 'line=%s\n' "${_lin}"
+        builtin printf 'pipestatus=%q\n' "${_pipe_status[*]-}"
+
+        builtin printf '\n--- call stack ---\n'
+        local _frame=0
+        while caller "${_frame}"; do
+            ((_frame++))
+        done || :
+
+        builtin printf '\n--- open file descriptors ---\n'
+        "${DL_LS_BIN:-ls}" -l "/proc/${BASHPID}/fd" 2>/dev/null || :
+
+        builtin printf '\n--- variables ---\n'
+        local _name
+        while IFS= read -r _name; do
+            if __dl_is_secret_name "$_name"; then
+                builtin printf 'declare -- %s=%q\n' "$_name" '[REDACTED]'
+            else
+                declare -p "$_name" 2>/dev/null || :
+            fi
+        done < <(compgen -v | "${DL_SORT_BIN:-sort}")
+        builtin printf '\n'
+    ) >>"$DL_ERROR_DUMP" 2>/dev/null || :
+}
+
+if [[ -n "${DL_ORIG_BASH_ENV:-}" && -r "${DL_ORIG_BASH_ENV}" && "${DL_ORIG_BASH_ENV}" != "${DL_PRELUDE_PATH:-}" ]]; then
+    . "${DL_ORIG_BASH_ENV}" || :
+fi
+
+__DL_PRIOR_ERR_TRAP="$(__dl_capture_trap_body ERR)"
+__DL_PRIOR_EXIT_TRAP="$(__dl_capture_trap_body EXIT)"
+__DL_PRIOR_HUP_TRAP="$(__dl_capture_trap_body HUP)"
+__DL_PRIOR_INT_TRAP="$(__dl_capture_trap_body INT)"
+__DL_PRIOR_QUIT_TRAP="$(__dl_capture_trap_body QUIT)"
+__DL_PRIOR_TERM_TRAP="$(__dl_capture_trap_body TERM)"
+
+if [[ -n "${DL_ORIG_BASH_ENV:-}" && "${DL_ORIG_BASH_ENV}" != "${DL_PRELUDE_PATH:-}" ]]; then
+    export BASH_ENV="${DL_ORIG_BASH_ENV}"
+else
+    unset BASH_ENV
+fi
+
+if [[ "${DL_XTRACE:-0}" == "1" && -n "${DL_TRACE_LOG:-}" ]]; then
     if exec {__dl_xtrace_fd}>>"$DL_TRACE_LOG" 2>/dev/null; then
         BASH_XTRACEFD=$__dl_xtrace_fd
+        __DL_XTRACE_ENABLED=1
     fi
 fi
 
 if [[ "${DL_STRICT:-0}" == "1" ]]; then
     set -o errexit -o nounset -o pipefail
-    shopt -s inherit_errexit 2>/dev/null || true
+    shopt -s inherit_errexit 2>/dev/null || :
 fi
 
-set -o errtrace -o functrace
-__DL_TRAP_FIRED=0
+set -o errtrace
 
-__dl_err() {
-    local _ret=$?
-    local -a _pipe_status=("${PIPESTATUS[@]}")  
-    local _trigger="${1:-}"
+__dl_on_err() {
+    local _status=$?
+    __dl_status_put err_seen 1
+    __dl_note_event ERR "${_status}"
+    __dl_note_first_error "${_status}"
 
-    if [[ "$_trigger" == "EXIT" && "$_ret" == 0 ]]; then return 0; fi
-
-    local is_fatal=0
-    [[ "$_trigger" == "EXIT" ]] || [[ "$-" == *e* ]] && is_fatal=1
-
-    if (( ! is_fatal )); then
-        builtin echo -e "\e[1;33m[WARN] Unchecked command failed (Exit $_ret): ${BASH_COMMAND:-unknown}\e[0m" >&2
-        return 0
-    fi
-
-    [[ "$__DL_TRAP_FIRED" == "1" ]] && return 0
-    __DL_TRAP_FIRED=1
-
-    local _cmd="${BASH_COMMAND:-unknown}"
-    local _src="${BASH_SOURCE[1]:-${BASH_SOURCE[0]:-unknown}}"
-    local _lin="${BASH_LINENO[0]:-?}"
-    
-    set +e +u 
-    set +o pipefail 2>/dev/null || true
-
-    if [[ -n "${DL_ERROR_DUMP:-}" ]]; then
+    if [[ "${DL_STRICT:-0}" == "1" ]] && (( __DL_TRAP_FIRED == 0 )); then
+        __DL_TRAP_FIRED=1
+        __dl_dump_state "ERR" "${_status}"
         {
-            printf '=== CRITICAL ERROR AT %s ===\n' "$(date '+%H:%M:%S.%N')"
-            printf 'Exit Code: %s\nCommand: %s\n' "$_ret" "$_cmd"
-            printf 'PIPESTATUS: ( %s )\n' "${_pipe_status[*]}"
-            printf '\n--- OPEN FILE DESCRIPTORS (/proc/%s/fd) ---\n' "$BASHPID"
-            ls -l "/proc/$BASHPID/fd" 2>/dev/null || true
-            printf '\n--- VARIABLE STATE (declare -p) ---\n'
-            declare -p 2>/dev/null | awk -F= 'BEGIN {IGNORECASE=1} {k=$1; if (k ~ /(^|_)(PASS(WORD)?|TOKEN|SECRET|API[_-]?KEY|ACCESS[_-]?KEY|PRIVATE[_-]?KEY|AUTH|CREDENTIAL|COOKIE|SESSION)(_|$)/) {print k "=[REDACTED]"} else {print $0}}' || true
-        } >> "$DL_ERROR_DUMP"
+            builtin printf '\nSCRIPT ERROR DETECTED\n'
+            builtin printf 'status=%s\n' "${_status}"
+            builtin printf 'command=%q\n' "${BASH_COMMAND-unknown}"
+            [[ -n "${DL_ERROR_DUMP:-}" ]] && builtin printf 'error_dump=%q\n' "${DL_ERROR_DUMP}"
+            builtin printf '\n'
+        } >&2
+        __dl_run_prior_trap "${__DL_PRIOR_ERR_TRAP}" || :
+        return "${_status}"
     fi
 
-    builtin echo -e "\n\e[1;41m  SCRIPT ERROR DETECTED  \e[0m" >&2
-    builtin echo -e "\e[1;31m Exit Code:\e[0m $_ret \e[37m| PIPESTATUS: ( ${_pipe_status[*]} )\e[0m" >&2
-    builtin echo -e "\e[1;31m Command  :\e[0m $_cmd" >&2
-    builtin echo -e "\e[1;33m Call Stack:\e[0m" >&2
-    local frame=0
-    while builtin caller $frame; do ((frame++)); done | awk '{printf "  \033[36m↳\033[0m %s:%s (\033[35m%s\033[0m)\n", $3, $1, $2}' >&2
-    
-    if [[ -f "$_src" && "$_lin" =~ ^[0-9]+$ ]]; then
-        builtin echo -e "\e[1;33m Source Context:\e[0m" >&2
-        awk -v n="$_lin" 'NR >= n - 3 && NR <= n + 3 { printf "  %s %6d | %s\n", (NR == n ? "\033[1;31m>\033[0m" : "  "), NR, $0 }' "$_src" >&2
-    fi
-    builtin echo -e "\n\e[1;34m [!] Full variable and FD state dumped to: \e[4m$(basename "$DL_ERROR_DUMP")\e[0m\n" >&2
+    __dl_run_prior_trap "${__DL_PRIOR_ERR_TRAP}" || :
+    return 0
 }
 
-trap '__dl_err ERR' ERR
-trap '__dl_err EXIT' EXIT
+__dl_on_exit() {
+    local _status=$?
+    __dl_status_put final_exit_status "${_status}"
+    [[ -n "${__DL_SIGNAL}" ]] && __dl_status_put signal "${__DL_SIGNAL}"
 
-set -o xtrace
+    if (( _status != 0 )) && (( __DL_TRAP_FIRED == 0 )); then
+        __DL_TRAP_FIRED=1
+        __dl_note_event EXIT "${_status}" "${__DL_SIGNAL}"
+        __dl_dump_state "EXIT" "${_status}" "${__DL_SIGNAL}"
+        {
+            builtin printf '\nSCRIPT EXITED NON-ZERO\n'
+            builtin printf 'status=%s\n' "${_status}"
+            [[ -n "${__DL_SIGNAL}" ]] && builtin printf 'signal=%s\n' "${__DL_SIGNAL}"
+            [[ -n "${DL_ERROR_DUMP:-}" ]] && builtin printf 'error_dump=%q\n' "${DL_ERROR_DUMP}"
+            builtin printf '\n'
+        } >&2
+    fi
+
+    __dl_run_prior_trap "${__DL_PRIOR_EXIT_TRAP}" || :
+    return 0
+}
+
+__dl_on_signal() {
+    local _sig="$1" _code="$2" _prior=""
+    __DL_SIGNAL="${_sig}"
+    __dl_status_put signal "${_sig}"
+    __dl_status_put signal_status "${_code}"
+    __dl_note_event SIGNAL "${_code}" "${_sig}"
+
+    if (( __DL_TRAP_FIRED == 0 )); then
+        __DL_TRAP_FIRED=1
+        __dl_dump_state "SIGNAL" "${_code}" "${_sig}"
+        {
+            builtin printf '\nSCRIPT INTERRUPTED\n'
+            builtin printf 'signal=%s\nstatus=%s\n' "${_sig}" "${_code}"
+            [[ -n "${DL_ERROR_DUMP:-}" ]] && builtin printf 'error_dump=%q\n' "${DL_ERROR_DUMP}"
+            builtin printf '\n'
+        } >&2
+    fi
+
+    case "${_sig}" in
+        HUP)  _prior="${__DL_PRIOR_HUP_TRAP}" ;;
+        INT)  _prior="${__DL_PRIOR_INT_TRAP}" ;;
+        QUIT) _prior="${__DL_PRIOR_QUIT_TRAP}" ;;
+        TERM) _prior="${__DL_PRIOR_TERM_TRAP}" ;;
+    esac
+
+    __dl_run_prior_trap "${_prior}" || :
+    exit "${_code}"
+}
+
+trap '__dl_on_err' ERR
+trap '__dl_on_exit' EXIT
+trap '__dl_on_signal HUP 129' HUP
+trap '__dl_on_signal INT 130' INT
+trap '__dl_on_signal QUIT 131' QUIT
+trap '__dl_on_signal TERM 143' TERM
+
+if (( __DL_XTRACE_ENABLED )); then
+    set -o xtrace
+fi
+
+__dl_status_put prelude_loaded 1
+__dl_status_put strict_requested "${DL_STRICT:-0}"
+__dl_status_put xtrace_requested "${DL_XTRACE:-0}"
+shopt -qo errexit  && __dl_status_put opt_errexit 1  || __dl_status_put opt_errexit 0
+shopt -qo nounset  && __dl_status_put opt_nounset 1  || __dl_status_put opt_nounset 0
+shopt -qo pipefail && __dl_status_put opt_pipefail 1 || __dl_status_put opt_pipefail 0
+shopt -qo errtrace && __dl_status_put opt_errtrace 1 || __dl_status_put opt_errtrace 0
+shopt -qo xtrace   && __dl_status_put opt_xtrace 1   || __dl_status_put opt_xtrace 0
+__dl_status_put xtrace_active "${__DL_XTRACE_ENABLED}"
+__dl_status_put err_seen 0
+__dl_status_put bashpid "${BASHPID}"
+__dl_status_put depth "${DL_PRELUDE_DEPTH}"
+
+__dl_capture_shell_state
+__dl_note_event STARTUP 0
 EOF
+        then
+            printf '%sError:%s failed to write Bash prelude\n' "$c_red" "$c_reset" >&2
+            exit_code=1
+            return 1
+        fi
 
-        # --- 6. Metadata Capture
-        {
-            printf 'session_start=%s\n' "$(date --iso-8601=seconds)"
-            printf 'script_path=%s\n' "$script_resolved_path"
-            printf 'user=%s uid=%d\n' "$USER" "$UID"
-            printf 'host=%s kernel=%s\n' "${HOST:-$(hostname)}" "$(uname -r)"
-            printf 'bash_version=%s\n' "$($bash_bin --version | head -n1)"
-            printf 'source_sha256_before=%s\n' "$pre_sha256"
-            
-            local -a fstat=( $(stat -c '%a %s' -- "$script_resolved_path" 2>/dev/null || echo "000 0") )
-            printf 'mode=%s size=%s\n' "${fstat[1]}" "${fstat[2]}"
-            
-            if (( $+commands[git] )) && git -C "$script_dir" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-                printf 'git_branch=%s\n' "$(git -C "$script_dir" rev-parse --abbrev-ref HEAD)"
-                printf 'git_commit=%s\n' "$(git -C "$script_dir" rev-parse HEAD)"
-                printf 'git_dirty=%s\n'  "$(git -C "$script_dir" status --porcelain | grep -q . && echo 'true' || echo 'false')"
-            else
-                printf 'git_context=none\n'
+        if ! "$cp_bin" -p --reflink=auto -- "$script_real_path" "$snapshot_path" >/dev/null 2>&1; then
+            if ! "$cp_bin" -p -- "$script_real_path" "$snapshot_path" >/dev/null 2>&1; then
+                printf '%sError:%s failed to create script snapshot\n' "$c_red" "$c_reset" >&2
+                exit_code=1
+                return 1
             fi
-            
-            printf 'args=('
-            (( ${#script_args} )) && printf ' %q' "${script_args[@]}"
-            printf ' )\n'
-        } > "$meta_log" 2>/dev/null
-
-        {
-            echo "=== INITIAL SYSTEM STATE ==="
-            uptime; echo
-            free -m; echo
-            df -hT / /home 2>/dev/null; echo
-            lscpu | awk '/^(Model name|CPU\(s\)|Thread\(s\) per core):/ { print }'; echo
-            echo "=== INITIAL ENVIRONMENT ==="
-            env | LC_ALL=C sort | awk -F= 'BEGIN {IGNORECASE=1} {k=$1; if (k ~ /(^|_)(PASS(WORD)?|TOKEN|SECRET|API[_-]?KEY|ACCESS[_-]?KEY|PRIVATE[_-]?KEY|AUTH|CREDENTIAL|COOKIE|SESSION)(_|$)/) {print k "=[REDACTED]"} else {print $0}}'
-        } > "$sys_log" 2>/dev/null
-
-        (( opt_quiet )) || printf 'Session Logging Active: %s%s%s\n' "$c_blue" "$session_dir" "$c_reset" >&2
-
-        # --- 7. Execution Assembly
-        local -a cmd_prefix=()
-        if [[ -x /usr/bin/time ]]; then
-            cmd_prefix+=( /usr/bin/time -v -o "${session_dir}/resource_usage.log" )
-        fi
-        if [[ -n "$opt_timeout" ]] && (( $+commands[timeout] )); then
-            cmd_prefix+=( timeout --foreground "$opt_timeout" )
-        fi
-        if (( opt_strace )) && (( $+commands[strace] )); then
-            cmd_prefix+=( strace -f -tt -T -y -yy -s 1024 -o "${session_dir}/strace_dump" )
         fi
 
-        # Start asynchronous logging daemons on the FIFOs (Fixing the unquoted string split bug)
-        local -a t_cmd=( tee -a )
-        if [[ -x "/usr/bin/stdbuf" ]]; then
-            t_cmd=( /usr/bin/stdbuf -i0 -o0 -e0 tee -a )
+        if [[ -n "$sha256sum_bin" ]]; then
+            source_sha256_before="$("$sha256sum_bin" -- "$script_real_path" 2>/dev/null | "$awk_bin" '{print $1}')" || source_sha256_before="unavailable"
+            [[ -n "$source_sha256_before" ]] || source_sha256_before="unavailable"
+
+            snapshot_sha256="$("$sha256sum_bin" -- "$snapshot_path" 2>/dev/null | "$awk_bin" '{print $1}')" || snapshot_sha256="unavailable"
+            [[ -n "$snapshot_sha256" ]] || snapshot_sha256="unavailable"
         fi
 
-        if (( opt_quiet )); then
-            < "$fifo_out" "${t_cmd[@]}" "$stdout_log" >> "$comb_log" &
-            local out_pid=$!
-            < "$fifo_err" "${t_cmd[@]}" "$stderr_log" >> "$comb_log" &
-            local err_pid=$!
-        else
-            < "$fifo_out" "${t_cmd[@]}" "$stdout_log" "$comb_log" &
-            local out_pid=$!
-            < "$fifo_err" "${t_cmd[@]}" "$stderr_log" "$comb_log" >&2 &
-            local err_pid=$!
+        if ! "$bash_bin" -n -- "$snapshot_path" >"$syntax_log" 2>&1; then
+            printf '%s[!] CRITICAL:%s Bash syntax check failed. Execution aborted.\n' "$c_red" "$c_reset" >&2
+            "$cat_bin" -- "$syntax_log" >&2
+            printf 'Artifacts stored at: %s%s%s\n' "$c_bold" "$session_dir" "$c_reset" >&2
+            exit_code=1
+            return 1
         fi
 
-        # --- 8. The Direct Execution Trigger
-        (
-            export BASH_ENV="$env_prelude"
-            export DL_TRACE_LOG="$trace_log"
-            export DL_ERROR_DUMP="$error_dump"
-            export DL_STRICT="$opt_strict"
-            export PS4='+[$EPOCHREALTIME] [PID:$$/SUB:$BASHPID] [${BASH_SOURCE[0]##*/}:${LINENO:-0}:${FUNCNAME[0]:-MAIN}] '
-
-            exec "${cmd_prefix[@]}" "$bash_bin" "$script_resolved_path" "${script_args[@]}" > "$fifo_out" 2> "$fifo_err"
-        ) &
-        local child_pid=$!
-        
-        wait "$child_pid"
-        exit_code=$?
-
-        # --- 9. Anti-Orphan-Hang Teardown
-        ( sleep 0.5; kill $out_pid $err_pid 2>/dev/null ) &
-        local flush_killer=$!
-        wait $out_pid $err_pid 2>/dev/null || true
-        kill $flush_killer 2>/dev/null || true
-
-        # --- 10. Finalization
-        local post_sha256="$(sha256sum -- "$script_resolved_path" 2>/dev/null | awk '{print $1}')"
-        printf 'session_end=%s\n' "$(date --iso-8601=seconds)" >> "$meta_log" 2>/dev/null
-        printf 'exit_code=%d\n' "$exit_code" >> "$meta_log" 2>/dev/null
-        printf 'source_sha256_after=%s\n' "$post_sha256" >> "$meta_log" 2>/dev/null
-
-        if (( opt_journal )) && [[ -n "$j_cursor" ]]; then
-            journalctl --after-cursor="$j_cursor" > "$journal_log" 2>/dev/null
-            [[ -s "$journal_log" ]] || rm -f -- "$journal_log"
+        if (( opt_shellcheck )) && [[ -n "$shellcheck_bin" ]]; then
+            "$shellcheck_bin" --shell=bash -x -- "$snapshot_path" >"$shellcheck_log" 2>&1 || :
         fi
 
         if (( ! opt_quiet )); then
-            echo "" >&2
-            if (( exit_code == 0 )); then
-                printf 'Result: %sSUCCESS%s (0)\n' "$c_green" "$c_reset" >&2
-            elif (( exit_code == 124 )) && [[ -n "$opt_timeout" ]]; then
-                printf 'Result: %sTIMED OUT%s (124) - Terminated after %s\n' "$c_yellow" "$c_reset" "$opt_timeout" >&2
-            else
-                printf 'Result: %sFAILED%s (%d) -> Check %s/stderr.log\n' "$c_red" "$c_reset" "$exit_code" "$session_dir" >&2
-            fi
-            printf 'Artifacts stored at: %s%s%s\n' "$c_bold" "$session_dir" "$c_reset" >&2
-            
-            [[ -f "${session_dir}/trace.log" ]] && printf '  ├─ trace.log           (Step-by-step Bash traces)\n' >&2
-            [[ -f "$journal_log" ]] && printf '  ├─ systemd_journal.log (Kernel/System events captured!)\n' >&2
-            [[ -f "${session_dir}/resource_usage.log" ]] && printf '  ├─ resource_usage.log  (GNU Time profiling)\n' >&2
-            [[ -f "$error_dump" ]] && printf '  ├─ error_state_dump.txt (Crash variable & FD state)\n' >&2
-            printf '  └─ script_snapshot.source (Immutable code copy)\n' >&2
+            printf 'Session Logging Active: %s%s%s\n' "$c_blue" "$session_dir" "$c_reset" >&2
         fi
 
+        if (( opt_journal )); then
+            j_cursor="$("$journalctl_bin" -n 0 --show-cursor -q --no-pager 2>/dev/null | "$sed_bin" -n 's/^-- cursor: //p')"
+        fi
+
+        bash_version_line="$("$bash_bin" --version 2>/dev/null | "$sed_bin" -n '1p')"
+        [[ -n "$hostname_bin" ]] && host_name="$("$hostname_bin" 2>/dev/null)" || host_name="unknown"
+        [[ -n "$host_name" ]] || host_name="unknown"
+
+        {
+            printf 'session_start=%s\n' "$("$date_bin" '+%Y-%m-%dT%H:%M:%S%z')"
+            printf 'target_raw=%q\n' "$raw_target"
+            printf 'target_invoke=%q\n' "$script_invoke_path"
+            printf 'target_real=%q\n' "$script_real_path"
+            printf 'executed_snapshot=%q\n' "$snapshot_path"
+            printf 'script_name=%q\n' "$script_name"
+            printf 'script_dir=%q\n' "$script_dir"
+            printf 'cwd=%q\n' "$PWD"
+            printf 'user=%q\n' "${USER:-unknown}"
+            printf 'host=%q\n' "$host_name"
+            printf 'bash_version=%q\n' "$bash_version_line"
+            printf 'strict_requested=%d\n' "$opt_strict"
+            printf 'quiet_requested=%d\n' "$opt_quiet"
+            printf 'strace_requested=%d\n' "$opt_strace"
+            printf 'xtrace_requested=%d\n' "$opt_xtrace"
+            printf 'journal_requested=%d\n' "$opt_journal"
+            printf 'shellcheck_requested=%d\n' "$opt_shellcheck"
+            printf 'timeout=%q\n' "${opt_timeout:-none}"
+            printf 'source_sha256_before=%s\n' "$source_sha256_before"
+            printf 'snapshot_sha256=%s\n' "$snapshot_sha256"
+
+            if [[ -n "$git_bin" ]] && "$git_bin" -C "$script_dir" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+                printf 'git_branch=%q\n' "$("$git_bin" -C "$script_dir" rev-parse --abbrev-ref HEAD 2>/dev/null || printf unknown)"
+                printf 'git_commit=%q\n' "$("$git_bin" -C "$script_dir" rev-parse HEAD 2>/dev/null || printf unknown)"
+                if "$git_bin" -C "$script_dir" status --porcelain 2>/dev/null | "$grep_bin" -q .; then
+                    printf 'git_dirty=true\n'
+                else
+                    printf 'git_dirty=false\n'
+                fi
+            else
+                printf 'git_context=none\n'
+            fi
+        } >"$meta_log" || {
+            printf '%sError:%s failed to write metadata log\n' "$c_red" "$c_reset" >&2
+            exit_code=1
+            return 1
+        }
+
+        {
+            printf '=== INITIAL SYSTEM STATE ===\n'
+            [[ -n "$uptime_bin" ]] && "$uptime_bin" 2>/dev/null || :
+            [[ -n "$free_bin" ]] && "$free_bin" -m 2>/dev/null || :
+            if [[ -n "$df_bin" ]]; then
+                "$df_bin" -hT / /home 2>/dev/null || "$df_bin" -hT / 2>/dev/null || :
+            fi
+            if [[ -n "$lscpu_bin" ]]; then
+                "$lscpu_bin" 2>/dev/null | "$awk_bin" '/^(Model name|CPU\(s\)|Thread\(s\) per core):/ { print }' || :
+            fi
+            printf '\n=== INITIAL ENVIRONMENT ===\n'
+            "$env_bin" | "$sort_bin" | "$awk_bin" -F= '
+                BEGIN { IGNORECASE = 1 }
+                {
+                    k = $1
+                    if (k ~ /(^|_)(PASS(WORD)?|TOKEN|SECRET|API[_-]?KEY|ACCESS[_-]?KEY|PRIVATE[_-]?KEY|AUTH|CREDENTIAL|COOKIE|SESSION)(_|$)/) {
+                        print k "=[REDACTED]"
+                    } else {
+                        print $0
+                    }
+                }
+            '
+        } >"$sys_log" 2>/dev/null || :
+
+        "$collector_path" \
+            "$fifo_out" \
+            "$fifo_err" \
+            "$stdout_log" \
+            "$stderr_log" \
+            "$combined_log" \
+            "$io_events_log" \
+            "$opt_quiet" \
+            "$stdout_eof_flag" \
+            "$stderr_eof_flag" &
+        collector_pid=$!
+
+        "$sleep_bin" 0.05
+        if ! kill -0 "$collector_pid" 2>/dev/null; then
+            printf '%sError:%s log collector failed to start\n' "$c_red" "$c_reset" >&2
+            exit_code=1
+            return 1
+        fi
+
+        local -a exec_cmd
+        exec_cmd=("$bash_bin" -- "$snapshot_path" "${script_args[@]}")
+
+        if [[ -n "$time_bin" ]]; then
+            exec_cmd=("$time_bin" -v -o "$resource_log" "${exec_cmd[@]}")
+        fi
+
+        if (( opt_strace )); then
+            exec_cmd=("$strace_bin" -ff -ttt -T -y -yy -s 1024 -o "$strace_prefix" "${exec_cmd[@]}")
+        fi
+
+        orig_bash_env="${BASH_ENV-}"
+
+        (
+            export DL_WRAPPER_BASH_ENV="$env_prelude"
+            export DL_PRELUDE_PATH="$env_prelude"
+            export DL_ORIG_BASH_ENV="$orig_bash_env"
+            export DL_TRACE_LOG="$trace_log"
+            export DL_ERROR_DUMP="$error_dump"
+            export DL_CHILD_STATUS="$child_status_file"
+            export DL_CHILD_EVENTS="$child_events_log"
+            export DL_SET_O_LOG="$child_set_o_log"
+            export DL_SHOPT_LOG="$child_shopt_log"
+            export DL_TRAPS_LOG="$child_traps_log"
+            export DL_FIRST_ERR_LOG="$child_first_err_log"
+            export DL_STRICT="$opt_strict"
+            export DL_XTRACE="$opt_xtrace"
+            export DL_CHILD_INFO="$child_info"
+            export DL_LS_BIN="$ls_bin"
+            export DL_SORT_BIN="$sort_bin"
+            export PS4='+[$EPOCHREALTIME] [PID:$BASHPID SUB:$BASH_SUBSHELL] [${BASH_SOURCE[0]##*/}:${LINENO}:${FUNCNAME[0]:-MAIN}] '
+            exec "$env_bin" -u BASH_ENV -u ENV "$setsid_bin" "$launcher_path" "${exec_cmd[@]}"
+        ) >"$fifo_out" 2>"$fifo_err" &
+        child_pid=$!
+
+        child_pgid=""
+        local -i _spin=0
+        for (( _spin = 0; _spin < 500; ++_spin )); do
+            [[ -r "$child_info" ]] || { "$sleep_bin" 0.01; continue; }
+            child_pgid="$("$sed_bin" -n 's/^pgid=//p' -- "$child_info" 2>/dev/null)"
+            [[ -n "$child_pgid" ]] && break
+            "$sleep_bin" 0.01
+        done
+
+        if [[ -n "$opt_timeout" ]]; then
+            {
+                "$sleep_bin" "$opt_timeout"
+                : >| "$timeout_flag"
+                if [[ -n "$child_pgid" ]]; then
+                    kill -TERM -- "-$child_pgid" 2>/dev/null || :
+                    "$sleep_bin" 5
+                    kill -KILL -- "-$child_pgid" 2>/dev/null || :
+                else
+                    kill -TERM "$child_pid" 2>/dev/null || :
+                    "$sleep_bin" 5
+                    kill -KILL "$child_pid" 2>/dev/null || :
+                fi
+            } &
+            timeout_pid=$!
+        fi
+
+        wait "$child_pid"
+        exit_code=$?
+
+        if (( timeout_pid > 0 )); then
+            kill "$timeout_pid" 2>/dev/null || :
+            wait "$timeout_pid" 2>/dev/null || :
+        fi
+
+        [[ -e "$timeout_flag" ]] && timed_out=1
+        (( timed_out )) && exit_code=124
+
+        if [[ -n "$child_pgid" ]]; then
+            local deadline=$(( EPOCHSECONDS + 2 ))
+            while (( EPOCHSECONDS < deadline )); do
+                if ! "$ps_bin" -e -o pid=,pgid= 2>/dev/null | "$awk_bin" -v pgid="$child_pgid" '$2 == pgid { found = 1; exit } END { exit(found ? 0 : 1) }'; then
+                    break
+                fi
+                "$sleep_bin" 0.1
+            done
+
+            if "$ps_bin" -e -o pid=,ppid=,pgid=,sid=,stat=,comm=,args= 2>/dev/null | "$awk_bin" -v pgid="$child_pgid" '$3 == pgid' >"$lingering_log"; then
+                if [[ -s "$lingering_log" ]]; then
+                    lingering_pgroup=1
+                    kill -TERM -- "-$child_pgid" 2>/dev/null || :
+                    "$sleep_bin" 1
+                    kill -KILL -- "-$child_pgid" 2>/dev/null || :
+                else
+                    "$rm_bin" -f -- "$lingering_log" 2>/dev/null || :
+                fi
+            fi
+        fi
+
+        local collector_deadline=$(( EPOCHSECONDS + 3 ))
+        while kill -0 "$collector_pid" 2>/dev/null && (( EPOCHSECONDS < collector_deadline )); do
+            "$sleep_bin" 0.1
+        done
+
+        if kill -0 "$collector_pid" 2>/dev/null; then
+            {
+                printf '=== forced collector shutdown ===\n'
+                printf 'timestamp=%s\n' "$("$date_bin" '+%Y-%m-%dT%H:%M:%S%z')"
+                printf 'collector_pid=%s\n' "$collector_pid"
+                printf 'child_pgid=%q\n' "$child_pgid"
+                printf 'stdout_eof=%d\n' "$([[ -e "$stdout_eof_flag" ]] && printf 1 || printf 0)"
+                printf 'stderr_eof=%d\n' "$([[ -e "$stderr_eof_flag" ]] && printf 1 || printf 0)"
+                if [[ -n "$child_pgid" ]]; then
+                    "$ps_bin" -e -o pid=,ppid=,pgid=,sid=,stat=,comm=,args= 2>/dev/null | \
+                        "$awk_bin" -v pgid="$child_pgid" '$3 == pgid'
+                fi
+                [[ -n "$lsof_bin" ]] && "$lsof_bin" -nP -- "$fifo_out" "$fifo_err" 2>/dev/null || :
+                [[ -n "$fuser_bin" ]] && "$fuser_bin" -v -- "$fifo_out" "$fifo_err" 2>/dev/null || :
+                printf '\n'
+            } >>"$drain_diag" 2>/dev/null || :
+
+            if [[ ! -e "$stdout_eof_flag" ]]; then
+                forced_out=1
+                : >| "$forced_out_flag"
+            fi
+            if [[ ! -e "$stderr_eof_flag" ]]; then
+                forced_err=1
+                : >| "$forced_err_flag"
+            fi
+
+            kill -TERM "$collector_pid" 2>/dev/null || :
+            "$sleep_bin" 1
+            kill -KILL "$collector_pid" 2>/dev/null || :
+        fi
+
+        wait "$collector_pid" 2>/dev/null || :
+        [[ -e "$forced_out_flag" ]] && forced_out=1
+        [[ -e "$forced_err_flag" ]] && forced_err=1
+
+        if [[ -n "$sha256sum_bin" ]]; then
+            source_sha256_after="$("$sha256sum_bin" -- "$script_real_path" 2>/dev/null | "$awk_bin" '{print $1}')" || source_sha256_after="unavailable"
+            [[ -n "$source_sha256_after" ]] || source_sha256_after="unavailable"
+        fi
+
+        typeset -A child=(
+            prelude_loaded 0
+            strict_requested 0
+            xtrace_requested 0
+            opt_errexit 0
+            opt_nounset 0
+            opt_pipefail 0
+            opt_errtrace 0
+            opt_xtrace 0
+            xtrace_active 0
+            err_seen 0
+            final_exit_status -1
+            signal ""
+            signal_status 0
+            bashpid 0
+            depth 0
+        )
+
+        if [[ -r "$child_status_file" ]]; then
+            local key="" value=""
+            while IFS='=' read -r key value; do
+                [[ -n "$key" ]] || continue
+                child[$key]="$value"
+            done < "$child_status_file"
+        fi
+
+        child_prelude_loaded="${child[prelude_loaded]:-0}"
+        child_opt_errexit="${child[opt_errexit]:-0}"
+        child_opt_nounset="${child[opt_nounset]:-0}"
+        child_opt_pipefail="${child[opt_pipefail]:-0}"
+        child_opt_xtrace="${child[opt_xtrace]:-0}"
+        child_xtrace_active="${child[xtrace_active]:-0}"
+        child_err_seen="${child[err_seen]:-0}"
+        child_signal="${child[signal]:-}"
+
+        verdict="SUCCESS"
+        return_code=$exit_code
+
+        if (( ! child_prelude_loaded )); then
+            verdict="WRAPPER_FAILURE"
+            (( return_code == 0 )) && return_code=70
+        elif (( opt_strict )) && (( ! child_opt_errexit || ! child_opt_nounset || ! child_opt_pipefail )); then
+            verdict="STRICT_NOT_ACTIVE"
+            (( return_code == 0 )) && return_code=70
+        elif (( opt_xtrace )) && (( ! child_xtrace_active || ! child_opt_xtrace )); then
+            verdict="XTRACE_NOT_ACTIVE"
+            (( return_code == 0 )) && return_code=70
+        elif (( child_err_seen && exit_code == 0 )); then
+            if (( opt_strict )); then
+                verdict="ANOMALOUS_SUCCESS"
+                return_code=65
+            else
+                verdict="SUCCESS_WITH_ERRORS"
+            fi
+        elif (( timed_out )); then
+            verdict="TIMED_OUT"
+            return_code=124
+        elif (( exit_code > 128 )); then
+            verdict="INTERRUPTED"
+        elif (( exit_code != 0 )); then
+            verdict="FAILED"
+        fi
+
+        if (( lingering_pgroup )); then
+            if [[ "$verdict" == "SUCCESS" ]]; then
+                verdict="SUCCESS_WITH_LINGERING"
+            elif [[ "$verdict" == "FAILED" ]]; then
+                verdict="FAILED_WITH_LINGERING"
+            fi
+        fi
+
+        {
+            printf 'session_end=%s\n' "$("$date_bin" '+%Y-%m-%dT%H:%M:%S%z')"
+            printf 'source_sha256_after=%s\n' "$source_sha256_after"
+            printf 'source_changed_during_run=%s\n' "$([[ "$source_sha256_before" != "$source_sha256_after" ]] && printf true || printf false)"
+            printf 'child_exit_code=%d\n' "$exit_code"
+            printf 'return_code=%d\n' "$return_code"
+            printf 'verdict=%s\n' "$verdict"
+            printf 'prelude_loaded=%d\n' "$child_prelude_loaded"
+            printf 'child_opt_errexit=%d\n' "$child_opt_errexit"
+            printf 'child_opt_nounset=%d\n' "$child_opt_nounset"
+            printf 'child_opt_pipefail=%d\n' "$child_opt_pipefail"
+            printf 'child_opt_xtrace=%d\n' "$child_opt_xtrace"
+            printf 'child_xtrace_active=%d\n' "$child_xtrace_active"
+            printf 'child_err_seen=%d\n' "$child_err_seen"
+            printf 'child_signal=%q\n' "$child_signal"
+            printf 'timed_out=%d\n' "$timed_out"
+            printf 'lingering_pgroup=%d\n' "$lingering_pgroup"
+            printf 'forced_stdout=%d\n' "$forced_out"
+            printf 'forced_stderr=%d\n' "$forced_err"
+        } >>"$meta_log" 2>/dev/null || :
+
+        if (( opt_journal )) && [[ -n "$j_cursor" ]]; then
+            "$journalctl_bin" --after-cursor="$j_cursor" --no-pager >"$journal_log" 2>/dev/null || :
+            [[ -s "$journal_log" ]] || "$rm_bin" -f -- "$journal_log" 2>/dev/null || :
+        fi
+
+        if (( opt_quiet )); then
+            printf 'logs: verdict=%s return=%d child_exit=%d session=%s\n' "$verdict" "$return_code" "$exit_code" "$session_dir" >&2
+        else
+            local result_color="$c_green"
+            [[ "$verdict" != "SUCCESS" && "$verdict" != "SUCCESS_WITH_LINGERING" ]] && result_color="$c_red"
+            [[ "$verdict" == "TIMED_OUT" || "$verdict" == "INTERRUPTED" || "$verdict" == "SUCCESS_WITH_ERRORS" || "$verdict" == "SUCCESS_WITH_LINGERING" || "$verdict" == "FAILED_WITH_LINGERING" ]] && result_color="$c_yellow"
+
+            printf '\nResult: %s%s%s (%d)\n' "$result_color" "$verdict" "$c_reset" "$return_code" >&2
+            printf '  child_exit=%d  prelude=%d  strict[e=%d u=%d p=%d]  xtrace=%d  err_seen=%d  timeout=%d  lingering_pgroup=%d  forced_stdout=%d  forced_stderr=%d\n' \
+                "$exit_code" "$child_prelude_loaded" "$child_opt_errexit" "$child_opt_nounset" \
+                "$child_opt_pipefail" "$child_xtrace_active" "$child_err_seen" "$timed_out" \
+                "$lingering_pgroup" "$forced_out" "$forced_err" >&2
+            [[ -n "$child_signal" ]] && printf '  signal=%s\n' "$child_signal" >&2
+            [[ -s "$child_first_err_log" ]] && printf '  first_error=%s\n' "$child_first_err_log" >&2
+            [[ "$source_sha256_before" != "$source_sha256_after" ]] && printf '  source_changed_during_run=true\n' >&2
+
+            printf 'Artifacts stored at: %s%s%s\n' "$c_bold" "$session_dir" "$c_reset" >&2
+            printf '  ├─ metadata.txt\n' >&2
+            printf '  ├─ system_state.txt\n' >&2
+            printf '  ├─ stdout.log\n' >&2
+            printf '  ├─ stderr.log\n' >&2
+            printf '  ├─ combined.log\n' >&2
+            printf '  ├─ io_events.log\n' >&2
+            printf '  ├─ child_events.log\n' >&2
+            printf '  ├─ child_status.env\n' >&2
+            printf '  ├─ child_set_o.log\n' >&2
+            printf '  ├─ child_shopt.log\n' >&2
+            printf '  ├─ child_traps.log\n' >&2
+            [[ -s "$child_first_err_log" ]] && printf '  ├─ child_first_error.log\n' >&2
+            [[ -s "$error_dump" ]] && printf '  ├─ error_state_dump.txt\n' >&2
+            (( opt_xtrace )) && printf '  ├─ trace.log\n' >&2
+            (( opt_strace )) && printf '  ├─ strace.*\n' >&2
+            [[ -f "$resource_log" ]] && printf '  ├─ resource_usage.log\n' >&2
+            [[ -f "$shellcheck_log" ]] && printf '  ├─ shellcheck_preflight.log\n' >&2
+            [[ -f "$journal_log" ]] && printf '  ├─ systemd_journal.log\n' >&2
+            (( lingering_pgroup )) && printf '  ├─ lingering_processes.log\n' >&2
+            [[ -s "$drain_diag" ]] && printf '  └─ forced_drain_diagnostics.txt\n' >&2
+        fi
+
+        exit_code=$return_code
     } always {
-        # The ultimate guarantee: Subshells CANNOT execute this block.
-        # It will only trigger once, safely, when the entire wrapper concludes.
-        rm -f -- "$env_prelude" "$fifo_out" "$fifo_err" 2>/dev/null
+        umask "$old_umask" 2>/dev/null || :
+
+        (( timeout_pid > 0 )) && kill "$timeout_pid" 2>/dev/null || :
+        (( collector_pid > 0 )) && kill "$collector_pid" 2>/dev/null || :
+        (( child_pid > 0 )) && kill "$child_pid" 2>/dev/null || :
+
+        [[ -n "$env_prelude" ]] && "$rm_bin" -f -- "$env_prelude" 2>/dev/null
+        [[ -n "$launcher_path" ]] && "$rm_bin" -f -- "$launcher_path" 2>/dev/null
+        [[ -n "$collector_path" ]] && "$rm_bin" -f -- "$collector_path" 2>/dev/null
+        [[ -n "$fifo_out" ]] && "$rm_bin" -f -- "$fifo_out" 2>/dev/null
+        [[ -n "$fifo_err" ]] && "$rm_bin" -f -- "$fifo_err" 2>/dev/null
+        [[ -n "$timeout_flag" ]] && "$rm_bin" -f -- "$timeout_flag" 2>/dev/null
+        [[ -n "$forced_out_flag" ]] && "$rm_bin" -f -- "$forced_out_flag" 2>/dev/null
+        [[ -n "$forced_err_flag" ]] && "$rm_bin" -f -- "$forced_err_flag" 2>/dev/null
+        [[ -n "$stdout_eof_flag" ]] && "$rm_bin" -f -- "$stdout_eof_flag" 2>/dev/null
+        [[ -n "$stderr_eof_flag" ]] && "$rm_bin" -f -- "$stderr_eof_flag" 2>/dev/null
+
+        unfunction __logs_is_bash_shebang 2>/dev/null || :
     }
 
-    return $exit_code
+    return "$exit_code"
 }
+
+sc() { logs "$@"; }
