@@ -80,7 +80,7 @@ register_items() {
     register_template 2 "Zed Editor"     "zed"        "false" "zeditor"
     register_template 2 "Yazi"           "yazi"       "true"  "yazi"
     register_template 2 "Zathura"        "zathura"    "false" "zathura"
-    register_template 2 "Starship"       "starship"   "true"  "starship"
+    register_template 2 "Starship"       "starship"   "false"  ""
     register_template 2 "Tmux"           "tmux"       "false" "tmux"
     register_template 2 "Obsidian"       "obsidian"   "false" "obsidian"
 
