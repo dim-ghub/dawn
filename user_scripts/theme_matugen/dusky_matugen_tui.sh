@@ -22,7 +22,7 @@ shopt -s extglob
 # - Display Name:  What shows up in the TUI list.
 # - toml_key:      The exact string after [templates. (e.g., "my_new_app").
 # - default_state: "true" (uncommented) or "false" (commented) for the 'r' key / --default.
-# - check_cmd:     (Optional) The binary name to check for when using --smart. 
+# - check_cmd:     (Optional) The binary name to check for when using --smart.
 #                  If left blank, --smart falls back to the default_state.
 #
 # Note on Auto-Discovery:
@@ -50,6 +50,7 @@ declare -ri ITEM_START_ROW=$(( HEADER_ROWS + 1 ))
 declare -a TABS=("GTK & Qt" "System" "Apps" "Media & Misc")
 
 declare -A CHECK_CMDS=()
+
 # Registration syntax:
 # register_template <Tab_Index> <Display_Name> <TOML_Key> <Default_State> [Check_Command]
 register_items() {
@@ -91,7 +92,7 @@ register_items() {
     register_template 3 "Beeper"         "beeper"     "false" "beeper"
     register_template 3 "Spicetify"      "spicetify"  "false" "spicetify"
     register_template 3 "Cava"           "cava"       "true" ""
-    register_template 3 "Dump All Matugen Colors"    "master_dump"   "false" ""
+    register_template 3 "Dump All Matugen Colors" "master_dump" "false" ""
     register_template 3 "Btop"           "btop"       "true" ""
     register_template 3 "Pywalfox"       "pywalfox"   "true" "pywalfox"
 }
@@ -153,6 +154,7 @@ declare -ri MIN_TERM_COLS=$(( BOX_INNER_WIDTH + 2 ))
 declare -ri MIN_TERM_ROWS=$(( HEADER_ROWS + MAX_DISPLAY_ROWS + 5 ))
 
 declare -gi LAST_WRITE_CHANGED=0
+declare -gi UI_ACTIVE=0
 declare STATUS_MESSAGE=""
 
 declare LEFT_ARROW_ZONE="" RIGHT_ARROW_ZONE=""
@@ -171,10 +173,13 @@ set_status() { declare -g STATUS_MESSAGE="$1"; }
 clear_status() { declare -g STATUS_MESSAGE=""; }
 
 cleanup() {
-    printf '%s%s%s' "$MOUSE_OFF" "$CURSOR_SHOW" "$C_RESET" 2>/dev/null || :
-    [[ -n "${ORIGINAL_STTY:-}" ]] && stty "$ORIGINAL_STTY" 2>/dev/null || :
-    [[ -n "${_TMPFILE:-}" && -f "$_TMPFILE" ]] && rm -f "$_TMPFILE" 2>/dev/null || :
-    printf '\n' 2>/dev/null || :
+    if (( UI_ACTIVE )); then
+        printf '%s%s%s' "$MOUSE_OFF" "$CURSOR_SHOW" "$C_RESET" >/dev/tty 2>/dev/null || :
+        [[ -n "${ORIGINAL_STTY:-}" ]] && stty "$ORIGINAL_STTY" < /dev/tty 2>/dev/null || :
+        printf '\n' >/dev/tty 2>/dev/null || :
+    fi
+
+    [[ -n "${_TMPFILE:-}" && -f "$_TMPFILE" ]] && rm -f -- "$_TMPFILE" 2>/dev/null || :
 }
 
 trap cleanup EXIT
@@ -188,24 +193,31 @@ create_tmpfile() {
     target_dir=$(dirname -- "$WRITE_TARGET")
     target_base=$(basename -- "$WRITE_TARGET")
     if ! _TMPFILE=$(mktemp --tmpdir="$target_dir" ".${target_base}.tmp.XXXXXXXXXX" 2>/dev/null); then
-        _TMPFILE=""; _TMPMODE=""; return 1
+        _TMPFILE=""
+        _TMPMODE=""
+        return 1
     fi
-    _TMPMODE="atomic"; return 0
+    _TMPMODE="atomic"
+    return 0
 }
 
 commit_tmpfile() {
     [[ -n "${_TMPFILE:-}" && -f "$_TMPFILE" && "${_TMPMODE:-}" == "atomic" ]] || return 1
     chmod --reference="$WRITE_TARGET" -- "$_TMPFILE" 2>/dev/null || return 1
     mv -f -- "$_TMPFILE" "$WRITE_TARGET" || return 1
-    _TMPFILE=""; _TMPMODE=""; return 0
+    _TMPFILE=""
+    _TMPMODE=""
+    return 0
 }
 
 update_terminal_size() {
     local size
     if size=$(stty size < /dev/tty 2>/dev/null); then
-        TERM_ROWS=${size%% *}; TERM_COLS=${size##* }
+        TERM_ROWS=${size%% *}
+        TERM_COLS=${size##* }
     else
-        TERM_ROWS=0; TERM_COLS=0
+        TERM_ROWS=0
+        TERM_COLS=0
     fi
 }
 
@@ -229,11 +241,11 @@ strip_ansi() {
 register_template() {
     local -i tab_idx="$1"
     local label="$2" toml_key="$3" def_state="$4" check_cmd="${5:-}"
-    
+
     ITEM_MAP["${tab_idx}::${label}"]="${toml_key}|bool||||"
     DEFAULTS["${tab_idx}::${label}"]="$def_state"
     CHECK_CMDS["${toml_key}"]="$check_cmd"
-    
+
     local -n _reg_tab_ref="TAB_ITEMS_${tab_idx}"
     _reg_tab_ref+=("$label")
 }
@@ -276,12 +288,12 @@ auto_discover_templates() {
     # If unmapped blocks exist, spawn the 'Discovered' tab
     if (( ${#discovered[@]} > 0 )); then
         IFS=$'\n' read -r -d '' -a discovered < <(printf '%s\n' "${discovered[@]}" | sort) || true
-        
+
         local -i disc_tab_idx=${#TABS[@]}
         TABS+=("Discovered")
         TAB_COUNT=${#TABS[@]}
         declare -ga "TAB_ITEMS_${disc_tab_idx}=()"
-        
+
         for disc_key in "${discovered[@]}"; do
             # Discovered items default to on, and bypass the smart checker
             register_template "$disc_tab_idx" "$disc_key" "$disc_key" "true" ""
@@ -302,43 +314,165 @@ write_value_to_file() {
 
     TARGET_KEY="$toml_key" NEW_VALUE="$new_val" \
     LC_ALL=C awk '
-    BEGIN { in_block = 0; target_found = 0 }
-    
-    /^#?[[:space:]]*\[.*\]/ {
-        if (match($0, "^#?[[:space:]]*\\[templates\\." ENVIRON["TARGET_KEY"] "\\]")) {
-            in_block = 1
-            target_found = 1
-        } else {
-            in_block = 0
+    function is_blank(line) {
+        return line ~ /^[[:space:]]*$/
+    }
+
+    function is_comment(line) {
+        return line ~ /^[[:space:]]*#/
+    }
+
+    function strip_comment_prefix(line,    t) {
+        t = line
+        sub(/^[[:space:]]*#[[:space:]]?/, "", t)
+        return t
+    }
+
+    function is_toml_header(line,    t) {
+        t = line
+        sub(/^[[:space:]]*#?[[:space:]]*/, "", t)
+        return t ~ /^\[.*\][[:space:]]*(#.*)?$/
+    }
+
+    function template_name(line,    t) {
+        t = line
+        sub(/^[[:space:]]*#?[[:space:]]*/, "", t)
+        if (t !~ /^\[templates\.[^]]+\][[:space:]]*(#.*)?$/) {
+            return ""
+        }
+        sub(/^\[templates\./, "", t)
+        sub(/\][[:space:]]*(#.*)?$/, "", t)
+        return t
+    }
+
+    function count_token(str, tok,    n, p, step, rest) {
+        n = 0
+        rest = str
+        step = length(tok)
+        p = index(rest, tok)
+        while (p) {
+            n++
+            rest = substr(rest, p + step)
+            p = index(rest, tok)
+        }
+        return n
+    }
+
+    function update_multiline_state(line,    s, c) {
+        s = strip_comment_prefix(line)
+
+        if (!in_multiline) {
+            c = count_token(s, triple_sq)
+            if (c % 2 == 1) {
+                in_multiline = 1
+                multiline_token = triple_sq
+                return
+            }
+
+            c = count_token(s, triple_dq)
+            if (c % 2 == 1) {
+                in_multiline = 1
+                multiline_token = triple_dq
+            }
+            return
+        }
+
+        c = count_token(s, multiline_token)
+        if (c % 2 == 1) {
+            in_multiline = 0
+            multiline_token = ""
         }
     }
-    
+
     {
-        if (in_block) {
-            if (ENVIRON["NEW_VALUE"] == "true") {
-                sub(/^#[[:space:]]?/, "", $0)
-            } else if (ENVIRON["NEW_VALUE"] == "false") {
-                if ($0 !~ /^#/ && $0 !~ /^[[:space:]]*$/) {
-                    $0 = "# " $0
-                }
+        lines[++line_count] = $0
+    }
+
+    END {
+        triple_sq = sprintf("%c%c%c", 39, 39, 39)
+        triple_dq = "\"\"\""
+
+        start = 0
+        end = line_count
+        in_multiline = 0
+        multiline_token = ""
+
+        for (i = 1; i <= line_count; i++) {
+            if (template_name(lines[i]) == ENVIRON["TARGET_KEY"]) {
+                start = i
+                break
             }
         }
-        print $0
-    }
-    
-    END {
-        if (!target_found) exit 1
+
+        if (!start) {
+            exit 1
+        }
+
+        for (i = start + 1; i <= line_count; i++) {
+            if (!in_multiline && is_toml_header(lines[i])) {
+                end = i - 1
+                break
+            }
+
+            if (!in_multiline && is_blank(lines[i]) && i + 3 <= line_count) {
+                c1 = lines[i + 1]
+                c2 = lines[i + 2]
+                c3 = lines[i + 3]
+
+                s1 = strip_comment_prefix(c1)
+                s2 = strip_comment_prefix(c2)
+                s3 = strip_comment_prefix(c3)
+
+                if (is_comment(c1) && is_comment(c2) && is_comment(c3) &&
+                    s1 ~ /^-{3,}$/ &&
+                    s2 !~ /^[[:space:]]*$/ &&
+                    s2 !~ /^[[:space:]]*\[/ &&
+                    s2 !~ /=/ &&
+                    s3 ~ /^-{3,}$/) {
+
+                    j = i + 4
+                    while (j <= line_count && is_blank(lines[j])) {
+                        j++
+                    }
+
+                    if (j > line_count || is_toml_header(lines[j])) {
+                        end = i - 1
+                        break
+                    }
+                }
+            }
+
+            update_multiline_state(lines[i])
+        }
+
+        for (i = 1; i <= line_count; i++) {
+            line = lines[i]
+
+            if (i >= start && i <= end) {
+                if (ENVIRON["NEW_VALUE"] == "true") {
+                    sub(/^#[[:space:]]?/, "", line)
+                } else if (ENVIRON["NEW_VALUE"] == "false") {
+                    if (line !~ /^#/ && line !~ /^[[:space:]]*$/) {
+                        line = "# " line
+                    }
+                }
+            }
+
+            print line
+        }
     }
     ' "$CONFIG_FILE" > "$_TMPFILE" || {
         rm -f -- "$_TMPFILE" 2>/dev/null || :
-        _TMPFILE=""; _TMPMODE=""
+        _TMPFILE=""
+        _TMPMODE=""
         set_status "Key not found: ${toml_key}"
         return 1
     }
 
     commit_tmpfile || {
         rm -f -- "$_TMPFILE" 2>/dev/null || :
-        _TMPFILE=""; _TMPMODE=""
+        _TMPFILE=""
+        _TMPMODE=""
         set_status "Atomic save failed."
         return 1
     }
@@ -383,10 +517,10 @@ modify_value() {
     fi
 
     # Toggle Logic with Smart Checks
-    if [[ "$current" == "true" ]]; then 
+    if [[ "$current" == "true" ]]; then
         new_val="false"
         clear_status
-    else 
+    else
         new_val="true"
         cmd="${CHECK_CMDS["$key"]:-}"
         if [[ -n "$cmd" ]] && ! command -v "$cmd" &>/dev/null; then
@@ -445,12 +579,17 @@ reset_defaults() {
 compute_scroll_window() {
     local -i count=$1
     if (( count == 0 )); then
-        SELECTED_ROW=0; SCROLL_OFFSET=0; _vis_start=0; _vis_end=0; return
+        SELECTED_ROW=0
+        SCROLL_OFFSET=0
+        _vis_start=0
+        _vis_end=0
+        return
     fi
     if (( SELECTED_ROW < 0 )); then SELECTED_ROW=0; fi
     if (( SELECTED_ROW >= count )); then SELECTED_ROW=$(( count - 1 )); fi
 
-    if (( SELECTED_ROW < SCROLL_OFFSET )); then SCROLL_OFFSET=$SELECTED_ROW
+    if (( SELECTED_ROW < SCROLL_OFFSET )); then
+        SCROLL_OFFSET=$SELECTED_ROW
     elif (( SELECTED_ROW >= SCROLL_OFFSET + MAX_DISPLAY_ROWS )); then
         SCROLL_OFFSET=$(( SELECTED_ROW - MAX_DISPLAY_ROWS + 1 ))
     fi
@@ -470,14 +609,22 @@ render_scroll_indicator() {
     local -i count=$3 boundary=$4
 
     if [[ "$position" == "above" ]]; then
-        if (( SCROLL_OFFSET > 0 )); then _rsi_buf+="${C_GREY}    ▲ (more above)${CLR_EOL}${C_RESET}"$'\n'
-        else _rsi_buf+="${CLR_EOL}"$'\n'; fi
+        if (( SCROLL_OFFSET > 0 )); then
+            _rsi_buf+="${C_GREY}    ▲ (more above)${CLR_EOL}${C_RESET}"$'\n'
+        else
+            _rsi_buf+="${CLR_EOL}"$'\n'
+        fi
     else
         if (( count > MAX_DISPLAY_ROWS )); then
             local position_info="[$(( SELECTED_ROW + 1 ))/${count}]"
-            if (( boundary < count )); then _rsi_buf+="${C_GREY}    ▼ (more below) ${position_info}${CLR_EOL}${C_RESET}"$'\n'
-            else _rsi_buf+="${C_GREY}                   ${position_info}${CLR_EOL}${C_RESET}"$'\n'; fi
-        else _rsi_buf+="${CLR_EOL}"$'\n'; fi
+            if (( boundary < count )); then
+                _rsi_buf+="${C_GREY}    ▼ (more below) ${position_info}${CLR_EOL}${C_RESET}"$'\n'
+            else
+                _rsi_buf+="${C_GREY}                   ${position_info}${CLR_EOL}${C_RESET}"$'\n'
+            fi
+        else
+            _rsi_buf+="${CLR_EOL}"$'\n'
+        fi
     fi
 }
 
@@ -500,8 +647,11 @@ render_item_list() {
             *)               display="${C_WHITE}${val}${C_RESET}" ;;
         esac
 
-        if (( ${#item} > ITEM_PADDING )); then printf -v padded_item "%-${max_len}s…" "${item:0:max_len}"
-        else printf -v padded_item "%-${ITEM_PADDING}s" "$item"; fi
+        if (( ${#item} > ITEM_PADDING )); then
+            printf -v padded_item "%-${max_len}s…" "${item:0:max_len}"
+        else
+            printf -v padded_item "%-${ITEM_PADDING}s" "$item"
+        fi
 
         if (( ri == SELECTED_ROW )); then
             _ril_buf+="${C_CYAN} ➤ ${C_INVERSE}${padded_item}${C_RESET} : ${display}${CLR_EOL}"$'\n'
@@ -511,7 +661,9 @@ render_item_list() {
     done
 
     local -i rows_rendered=$(( _ril_ve - _ril_vs ))
-    for (( ri = rows_rendered; ri < MAX_DISPLAY_ROWS; ri++ )); do _ril_buf+="${CLR_EOL}"$'\n'; done
+    for (( ri = rows_rendered; ri < MAX_DISPLAY_ROWS; ri++ )); do
+        _ril_buf+="${CLR_EOL}"$'\n'
+    done
 }
 
 draw_main_view() {
@@ -536,7 +688,8 @@ draw_main_view() {
 
     local tab_line
     local -i max_tab_width=$(( BOX_INNER_WIDTH - 6 ))
-    LEFT_ARROW_ZONE="" RIGHT_ARROW_ZONE=""
+    LEFT_ARROW_ZONE=""
+    RIGHT_ARROW_ZONE=""
 
     while true; do
         tab_line="${C_MAGENTA}│ "
@@ -547,18 +700,20 @@ draw_main_view() {
         if (( TAB_SCROLL_START > 0 )); then
             tab_line+="${C_YELLOW}«${C_RESET} "
             LEFT_ARROW_ZONE="$current_col:$(( current_col + 1 ))"
-            used_len=$(( used_len + 2 )); current_col=$(( current_col + 2 ))
+            used_len=$(( used_len + 2 ))
+            current_col=$(( current_col + 2 ))
         else
             tab_line+="  "
-            used_len=$(( used_len + 2 )); current_col=$(( current_col + 2 ))
+            used_len=$(( used_len + 2 ))
+            current_col=$(( current_col + 2 ))
         fi
 
         for (( i = TAB_SCROLL_START; i < TAB_COUNT; i++ )); do
             local name="${TABS[i]}"
             local display_name="$name"
-            
+
             local -i tab_name_len=${#name}
-            local -i chunk_len=$(( tab_name_len + 4 )) 
+            local -i chunk_len=$(( tab_name_len + 4 ))
             local -i reserve=0
 
             (( i < TAB_COUNT - 1 )) && reserve=2
@@ -572,15 +727,19 @@ draw_main_view() {
                     local -i avail_label=$(( max_tab_width - used_len - reserve - 4 ))
                     (( avail_label < 1 )) && avail_label=1
                     if (( tab_name_len > avail_label )); then
-                        if (( avail_label == 1 )); then display_name="…"
-                        else display_name="${name:0:avail_label-1}…"; fi
+                        if (( avail_label == 1 )); then
+                            display_name="…"
+                        else
+                            display_name="${name:0:avail_label-1}…"
+                        fi
                         tab_name_len=${#display_name}
                         chunk_len=$(( tab_name_len + 4 ))
                     fi
                     zone_start=$current_col
                     tab_line+="${C_CYAN}${C_INVERSE} ${display_name} ${C_RESET}${C_MAGENTA}│ "
                     TAB_ZONES+=("${zone_start}:$(( zone_start + tab_name_len + 1 ))")
-                    used_len=$(( used_len + chunk_len )); current_col=$(( current_col + chunk_len ))
+                    used_len=$(( used_len + chunk_len ))
+                    current_col=$(( current_col + chunk_len ))
                     if (( i < TAB_COUNT - 1 )); then
                         tab_line+="${C_YELLOW}» ${C_RESET}"
                         RIGHT_ARROW_ZONE="$current_col:$(( current_col + 1 ))"
@@ -595,15 +754,23 @@ draw_main_view() {
             fi
 
             zone_start=$current_col
-            if (( i == CURRENT_TAB )); then tab_line+="${C_CYAN}${C_INVERSE} ${display_name} ${C_RESET}${C_MAGENTA}│ "
-            else tab_line+="${C_GREY} ${display_name} ${C_MAGENTA}│ "; fi
+            if (( i == CURRENT_TAB )); then
+                tab_line+="${C_CYAN}${C_INVERSE} ${display_name} ${C_RESET}${C_MAGENTA}│ "
+            else
+                tab_line+="${C_GREY} ${display_name} ${C_MAGENTA}│ "
+            fi
             TAB_ZONES+=("${zone_start}:$(( zone_start + tab_name_len + 1 ))")
-            used_len=$(( used_len + chunk_len )); current_col=$(( current_col + chunk_len ))
+            used_len=$(( used_len + chunk_len ))
+            current_col=$(( current_col + chunk_len ))
         done
 
         local -i pad=$(( BOX_INNER_WIDTH - used_len - 1 ))
-        if (( pad > 0 )); then printf -v pad_buf '%*s' "$pad" ''; tab_line+="$pad_buf"; fi
-        tab_line+="${C_MAGENTA}│${C_RESET}"; break
+        if (( pad > 0 )); then
+            printf -v pad_buf '%*s' "$pad" ''
+            tab_line+="$pad_buf"
+        fi
+        tab_line+="${C_MAGENTA}│${C_RESET}"
+        break
     done
 
     buf+="${tab_line}${CLR_EOL}"$'\n'
@@ -619,14 +786,20 @@ draw_main_view() {
     render_scroll_indicator buf "below" "$count" "$_vis_end"
 
     buf+=$'\n'"${C_CYAN} [Tab] Category  [r] Reset  [←/→ h/l/Enter] Toggle  [q] Quit${C_RESET}${CLR_EOL}"$'\n'
-    if [[ -n "$STATUS_MESSAGE" ]]; then buf+="${C_CYAN} Status: ${C_RED}${STATUS_MESSAGE}${C_RESET}${CLR_EOL}${CLR_EOS}"
-    else buf+="${C_CYAN} File: ${C_WHITE}${CONFIG_FILE}${C_RESET}${CLR_EOL}${CLR_EOS}"; fi
+    if [[ -n "$STATUS_MESSAGE" ]]; then
+        buf+="${C_CYAN} Status: ${C_RED}${STATUS_MESSAGE}${C_RESET}${CLR_EOL}${CLR_EOS}"
+    else
+        buf+="${C_CYAN} File: ${C_WHITE}${CONFIG_FILE}${C_RESET}${CLR_EOL}${CLR_EOS}"
+    fi
     printf '%s' "$buf"
 }
 
 draw_ui() {
     update_terminal_size
-    if ! terminal_size_ok; then draw_small_terminal_notice; return; fi
+    if ! terminal_size_ok; then
+        draw_small_terminal_notice
+        return
+    fi
     draw_main_view
 }
 
@@ -675,14 +848,17 @@ adjust() {
 switch_tab() {
     local -i dir=${1:-1}
     CURRENT_TAB=$(( (CURRENT_TAB + dir + TAB_COUNT) % TAB_COUNT ))
-    SELECTED_ROW=0; SCROLL_OFFSET=0
+    SELECTED_ROW=0
+    SCROLL_OFFSET=0
     load_active_values
 }
 
 set_tab() {
     local -i idx=$1
     if (( idx != CURRENT_TAB && idx >= 0 && idx < TAB_COUNT )); then
-        CURRENT_TAB=$idx; SELECTED_ROW=0; SCROLL_OFFSET=0
+        CURRENT_TAB=$idx
+        SELECTED_ROW=0
+        SCROLL_OFFSET=0
         load_active_values
     fi
 }
@@ -691,7 +867,7 @@ handle_mouse() {
     local input="$1"
     local -i button x y i start end
     local zone body="${input#'[<'}"
-    
+
     [[ "$body" == "$input" ]] && return 0
     local terminator="${body: -1}"
     [[ "$terminator" != "M" && "$terminator" != "m" ]] && return 0
@@ -701,7 +877,9 @@ handle_mouse() {
     IFS=';' read -r field1 field2 field3 <<< "$body"
     [[ ! "$field1" =~ ^[0-9]+$ || ! "$field2" =~ ^[0-9]+$ || ! "$field3" =~ ^[0-9]+$ ]] && return 0
 
-    button=$field1; x=$field2; y=$field3
+    button=$field1
+    x=$field2
+    y=$field3
 
     (( button == 64 )) && { navigate -1; return 0; }
     (( button == 65 )) && { navigate 1; return 0; }
@@ -709,16 +887,20 @@ handle_mouse() {
 
     if (( y == TAB_ROW )); then
         if [[ -n "$LEFT_ARROW_ZONE" ]]; then
-            start="${LEFT_ARROW_ZONE%%:*}"; end="${LEFT_ARROW_ZONE##*:}"
+            start="${LEFT_ARROW_ZONE%%:*}"
+            end="${LEFT_ARROW_ZONE##*:}"
             (( x >= start && x <= end )) && { switch_tab -1; return 0; }
         fi
         if [[ -n "$RIGHT_ARROW_ZONE" ]]; then
-            start="${RIGHT_ARROW_ZONE%%:*}"; end="${RIGHT_ARROW_ZONE##*:}"
+            start="${RIGHT_ARROW_ZONE%%:*}"
+            end="${RIGHT_ARROW_ZONE##*:}"
             (( x >= start && x <= end )) && { switch_tab 1; return 0; }
         fi
         for (( i = 0; i < TAB_COUNT; i++ )); do
             [[ -z "${TAB_ZONES[i]:-}" ]] && continue
-            zone="${TAB_ZONES[i]}"; start="${zone%%:*}"; end="${zone##*:}"
+            zone="${TAB_ZONES[i]}"
+            start="${zone%%:*}"
+            end="${zone##*:}"
             (( x >= start && x <= end )) && { set_tab "$(( i + TAB_SCROLL_START ))"; return 0; }
         done
     fi
@@ -767,16 +949,16 @@ handle_key_main() {
     esac
 
     case "$key" in
-        k|K)               navigate -1 ;;
-        j|J)               navigate 1 ;;
-        l|L|h|H)           adjust ;;
-        g)                 navigate_end 0 ;;
-        G)                 navigate_end 1 ;;
-        $'\t')             switch_tab 1 ;;
-        r|R)               reset_defaults ;;
-        ''|$'\n')          adjust ;;
+        k|K)                    navigate -1 ;;
+        j|J)                    navigate 1 ;;
+        l|L|h|H)                adjust ;;
+        g)                      navigate_end 0 ;;
+        G)                      navigate_end 1 ;;
+        $'\t')                  switch_tab 1 ;;
+        r|R)                    reset_defaults ;;
+        ''|$'\n')               adjust ;;
         $'\x7f'|$'\x08'|$'\e\n') adjust ;;
-        q|Q|$'\x03')       exit 0 ;;
+        q|Q|$'\x03')            exit 0 ;;
     esac
 }
 
@@ -786,11 +968,15 @@ handle_input_router() {
         if read_escape_seq escape_seq; then
             key="$escape_seq"
             [[ "$key" == "" || "$key" == $'\n' ]] && key=$'\e\n'
-        else key="ESC"; fi
+        else
+            key="ESC"
+        fi
     fi
 
     if ! terminal_size_ok; then
-        case "$key" in q|Q|$'\x03') exit 0 ;; esac
+        case "$key" in
+            q|Q|$'\x03') exit 0 ;;
+        esac
         return 0
     fi
     handle_key_main "$key"
@@ -799,13 +985,12 @@ handle_input_router() {
 # --- Autonomous CLI Router ---
 run_autonomous_flags() {
     local action="$1"
-    
-    local toml_key check_cmd final_state
-    local -i changes=0
+    local idx_label toml_key check_cmd final_state
+    local -i changes=0 failures=0
 
     for idx_label in "${!ITEM_MAP[@]}"; do
         IFS='|' read -r toml_key _ <<< "${ITEM_MAP[$idx_label]}"
-        
+
         if [[ "$action" == "--default" ]]; then
             final_state="${DEFAULTS[$idx_label]:-false}"
         elif [[ "$action" == "--smart" ]]; then
@@ -821,25 +1006,45 @@ run_autonomous_flags() {
             fi
         fi
 
+        clear_status
         if write_value_to_file "$toml_key" "$final_state"; then
             (( LAST_WRITE_CHANGED )) && changes=1
+        else
+            log_err "${toml_key}: ${STATUS_MESSAGE:-write failed}"
+            failures=1
         fi
     done
 
-    (( changes )) && post_write_action
+    if (( changes && ! failures )); then
+        post_write_action
+    fi
+
+    if (( failures )); then
+        exit 1
+    fi
+
     exit 0
 }
 
 main() {
     if (( BASH_VERSINFO[0] < 5 )); then log_err "Bash 5.0+ required"; exit 1; fi
-    
+
     local _dep
     for _dep in awk realpath mktemp; do
-        if ! command -v "$_dep" &>/dev/null; then log_err "Missing dependency: ${_dep}"; exit 1; fi
+        if ! command -v "$_dep" &>/dev/null; then
+            log_err "Missing dependency: ${_dep}"
+            exit 1
+        fi
     done
 
-    if [[ ! -f "$CONFIG_FILE" ]]; then log_err "Config not found: $CONFIG_FILE"; exit 1; fi
-    if [[ ! -w "$CONFIG_FILE" ]]; then log_err "Config not writable: $CONFIG_FILE"; exit 1; fi
+    if [[ ! -f "$CONFIG_FILE" ]]; then
+        log_err "Config not found: $CONFIG_FILE"
+        exit 1
+    fi
+    if [[ ! -w "$CONFIG_FILE" ]]; then
+        log_err "Config not writable: $CONFIG_FILE"
+        exit 1
+    fi
 
     resolve_write_target
     populate_config_cache
@@ -848,7 +1053,9 @@ main() {
 
     # CLI Flags Processing
     case "${1:-}" in
-        --default|--smart) run_autonomous_flags "$1" ;;
+        --default|--smart)
+            run_autonomous_flags "$1"
+            ;;
         --help|-h)
             printf "Usage: %s [FLAG]\n\n" "$0"
             printf "Options:\n"
@@ -859,10 +1066,14 @@ main() {
             ;;
     esac
 
-    if [[ ! -t 0 ]]; then log_err "TTY required for interactive mode."; exit 1; fi
+    if [[ ! -t 0 ]]; then
+        log_err "TTY required for interactive mode."
+        exit 1
+    fi
 
     ORIGINAL_STTY=$(stty -g 2>/dev/null) || ORIGINAL_STTY=""
     stty -icanon -echo min 1 time 0 2>/dev/null
+    UI_ACTIVE=1
 
     printf '%s%s%s%s' "$MOUSE_ON" "$CURSOR_HIDE" "$CLR_SCREEN" "$CURSOR_HOME"
     load_active_values
