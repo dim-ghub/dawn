@@ -215,6 +215,9 @@ alias git_dusky_add_list='(cd $HOME && git_dusky add --pathspec-from-file=.git_d
 # 4. Delta/Diff Alias
 alias gitdelta='git_dusky_add_list && git_dusky diff HEAD'
 
+# 5. Lazygit Bare Repo Alias
+alias lazygit_dusky='lazygit --git-dir=$HOME/dusky/ --work-tree=$HOME'
+
 # unlock block_devices
 alias unlock='$HOME/user_scripts/drives/drive_manager.sh unlock'
 
