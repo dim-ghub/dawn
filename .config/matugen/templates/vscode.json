@@ -18,7 +18,7 @@
   "window.controlsStyle": "hidden",
   "workbench.colorTheme": "Material Code",
   "material-code.colors": {
-    "primary": "{{colors.surface.dark.hex}}",
+    "primary": "{{colors.primary.dark.hex}}",
     "foreground": "{{colors.on_surface.dark.hex}}",
     "mutedForeground": "{{colors.primary.dark.hex}}",
     "background": "{{colors.surface.dark.hex}}",
@@ -32,18 +32,18 @@
     "error": "{{colors.error.dark.hex}}",
     "errorForeground": "{{colors.on_error.dark.hex}}",
     "success": "{{colors.tertiary.dark.hex}}",
-    "warning": "{{colors.error_container.light.hex}}",
-    "syntax.comment": "{{colors.outline.dark.hex}}",
+    "warning": "{{colors.error_container.dark.hex}}",
+    "syntax.comment": "{{colors.on_surface_variant.dark.hex}}",
     "syntax.string": "{{colors.tertiary.dark.hex}}",
-    "syntax.keyword": "{{colors.primary.dark.hex}}",
+    "syntax.keyword": "{{colors.secondary.dark.hex}}",
     "syntax.variable": "{{colors.on_surface.dark.hex}}",
     "syntax.attribute": "{{colors.primary.dark.hex}}",
     "syntax.property": "{{colors.on_secondary_container.dark.hex}}",
     "syntax.function": "{{colors.primary.dark.hex}}",
     "syntax.constant": "{{colors.tertiary.dark.hex}}",
-    "syntax.bracket1": "{{colors.outline.dark.hex}}",
+    "syntax.bracket1": "{{colors.secondary_fixed.dark.hex}}",
     "syntax.bracket2": "{{colors.tertiary.dark.hex}}",
-    "syntax.bracket3": "{{colors.on_surface.dark.hex}}",
-    "syntax.bracket4": "{{colors.outline_variant.dark.hex}}"
+    "syntax.bracket3": "{{colors.tertiary_container.dark.hex}}",
+    "syntax.bracket4": "{{colors.primary_container.dark.hex}}"
   }
 }
