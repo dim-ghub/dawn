@@ -63,6 +63,19 @@ readonly -a OPTS_CONTRAST=(
      1.0
 )
 
+# New Matugen V2+ parameter arrays
+readonly -a OPTS_INDEX=(
+    0
+    1
+    2
+    3
+)
+
+readonly -a OPTS_BASE16=(
+    disable
+    wal
+)
+
 readonly -a ROFI_CMD=(
     uwsm-app
     --
@@ -199,6 +212,8 @@ main() {
     local selected_mode=""
     local selected_type=""
     local selected_contrast=""
+    local selected_index=""
+    local selected_base16=""
 
     require_commands
     validate_controller
@@ -206,14 +221,20 @@ main() {
     run_menu "Mode" OPTS_MODE selected_mode || return 0
     run_menu "Scheme" OPTS_SCHEME selected_type || return 0
     run_menu "Contrast" OPTS_CONTRAST selected_contrast || return 0
+    
+    # New Matugen V2 prompts
+    run_menu "Color Index (0=Primary)" OPTS_INDEX selected_index || return 0
+    run_menu "Base16 Backend" OPTS_BASE16 selected_base16 || return 0
 
-    log_info "Applying settings: Mode=$selected_mode, Type=$selected_type, Contrast=$selected_contrast"
+    log_info "Applying settings: Mode=$selected_mode, Type=$selected_type, Contrast=$selected_contrast, Index=$selected_index, Base16=$selected_base16"
 
     if ! "$THEME_CTL" set \
         --no-wall \
         --mode "$selected_mode" \
         --type "$selected_type" \
-        --contrast "$selected_contrast"; then
+        --contrast "$selected_contrast" \
+        --index "$selected_index" \
+        --base16 "$selected_base16"; then
         fatal "Failed to apply theme settings via $THEME_CTL" "Failed to apply changes. Check logs."
     fi
 

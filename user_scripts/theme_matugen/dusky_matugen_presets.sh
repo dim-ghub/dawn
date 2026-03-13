@@ -1,54 +1,15 @@
 #!/usr/bin/env bash
 # -----------------------------------------------------------------------------
-# Dusky Matugen Presets v4.0.4 (Template-Aligned + Favorites)
+# Dusky Matugen Presets v4.0.5 (Matugen V2 Aligned)
 # -----------------------------------------------------------------------------
 # Target: Arch Linux / Hyprland / Matugen / Wayland
 #
-# v4.0.4 CHANGELOG:
-#   - FIX: CRITICAL — Guarded all bare (( expr )) comparisons that can
-#     evaluate to 0/false against set -e. This is the exact bug class
-#     documented in Master Template v3.9.2:
-#       (( count > 0 )) returns exit code 1 when false.
-#       Under set -e, exit code 1 = immediate script termination.
-#     Affected functions: rebuild_fav_lookup(), save_favorites(),
-#     add_favorite(), unfavorite_by_hex(), remove_favorite(),
-#     navigate(), and all (( count == 0 )) guards.
-#     Fix: Added || : guards, or restructured to if (( )); then ... fi
-#     which is immune to set -e (the if statement catches the exit code).
-#
-# v4.0.3 CHANGELOG:
-#   - FEAT: [f] now toggles favorite status. Pressing [f] on an already-
-#     favorited color removes it from favorites without needing to switch
-#     to the ★ Favs tab. Removal matches by hex value (case-insensitive)
-#     to correctly find the favorite even if the label was suffixed due
-#     to a name collision during add.
-#
-# v4.0.2 CHANGELOG:
-#   - FEAT: Visual ♥ indicator on color tabs for items already in favorites.
-#     Uses U+2665 (BLACK HEART SUIT) — single-cell width, present in all
-#     standard terminal fonts since Unicode 1.1 (1993).
-#   - OPTIM: Favorite lookup uses associative array (O(1) per item).
-#   - FIX: Padding calculation accounts for indicator prefix.
-#
-# v4.0.1 CHANGELOG:
-#   - FIX: Corrected { ... fi mismatch in save_favorites().
-#   - FIX: Corrected unset quoting for associative array keys.
-#   - FIX: Guarded empty array expansion against set -u.
-#   - AUDIT: Full line-by-line review for set -euo pipefail safety.
-#
-# v4.0.0 CHANGELOG:
-#   - ALIGN: Full alignment with Dusky TUI Engine Master v3.9.2.
-#   - ALIGN: shopt -s extglob, CLR_EOS, pre-computed H_LINE, strip_ansi().
-#   - ALIGN: read_escape_seq returns 1 on timeout (bare ESC detection).
-#   - ALIGN: Input router architecture, Alt+Enter/Backspace reverse-action.
-#   - ALIGN: Scroll indicators with position info.
-#   - ALIGN: Tab switching uses clean modulo wrapping.
-#   - ALIGN: TTY check, symlink-safe writes (cat > target), temp file guard.
-#   - ALIGN: compute_scroll_window(), render_scroll_indicator() extracted.
-#   - ALIGN: Guarded bare (( expr )) against set -e.
-#   - FIX: Mouse click on color tabs requires value-area click to trigger.
-#   - FEAT: Favorites system with persistent storage at theme_preset_fav.
-#   - FEAT: [f] to toggle, [x] to remove from Favs tab, dedicated ★ Favs tab.
+# v4.0.5 CHANGELOG (Matugen V2 Integration):
+#   - FEAT: Added support for Base16 Backend generation (disable/wal).
+#   - FEAT: Added support for Source Color Index extraction (0-3).
+#   - SYNC: Perfectly mirrors state.conf schema with theme_ctl.sh.
+#   - OPTIM: UI Status Bar reformatted to fit 80-char width constraint.
+#   - FIX: apply_matugen uses Bash arrays to conditionally build commands.
 # -----------------------------------------------------------------------------
 
 set -euo pipefail
@@ -62,10 +23,10 @@ export LC_NUMERIC=C
 # =============================================================================
 
 declare -r APP_TITLE="Dusky Matugen Presets"
-declare -r APP_VERSION="v4.0.4"
+declare -r APP_VERSION="v4.0.5"
 
 # --- State & Favorites Paths ---
-declare -r USE_STATE_FILE=false
+declare -r USE_STATE_FILE=true
 declare -r STATE_DIR="${HOME}/.config/dusky/settings/dusky_theme"
 declare -r STATE_FILE="${STATE_DIR}/state.conf"
 declare -r FAVORITES_FILE="${STATE_DIR}/theme_preset_fav"
@@ -90,14 +51,15 @@ declare -ri ITEM_START_Y=$(( HEADER_LINES + 1 ))
 declare -ra TABS=("★ Favs" "Vibrant" "Neon" "Deep" "Pastel" "Mono" "Custom" "Settings")
 
 # Favorite indicator — U+2665 BLACK HEART SUIT
-# Single-cell width in all monospace terminals. Part of Unicode 1.1 (1993).
 declare -r FAV_ICON="♥"
 
-# Global Settings (Defaults)
+# Global Settings (Defaults - V2 Updated)
 declare -A SETTINGS=(
     ["type"]="scheme-fidelity"
     ["mode"]="dark"
     ["contrast"]="0.0"
+    ["index"]="0"
+    ["base16"]="disable"
 )
 
 # =============================================================================
@@ -125,7 +87,6 @@ declare -r CURSOR_SHOW=$'\033[?25h'
 declare -r MOUSE_ON=$'\033[?1000h\033[?1002h\033[?1006h'
 declare -r MOUSE_OFF=$'\033[?1000l\033[?1002l\033[?1006l'
 
-# Increased timeout for SSH/remote reliability (template v3.9.2 value)
 declare -r ESC_READ_TIMEOUT=0.10
 
 # --- Pre-computed Constants (Template pattern) ---
@@ -146,16 +107,15 @@ declare -a TAB_ZONES=()
 declare ORIGINAL_STTY=""
 declare _TMPFILE=""
 
-# Initialized to empty so nothing shows as ACTIVE on startup
 declare LAST_APPLIED_HEX=""
 declare LAST_STATUS_MSG=""
 
-# Tab index constants for readability
+# Tab index constants
 declare -ri FAVORITES_TAB=0
 declare -ri CUSTOM_TAB=6
 declare -ri SETTINGS_TAB=7
 
-# Favorite hex lookup — rebuilt after mutations for O(1) per-item checks
+# Favorite hex lookup
 declare -A FAV_HEX_LOOKUP=()
 
 # =============================================================================
@@ -164,7 +124,6 @@ declare -A FAV_HEX_LOOKUP=()
 
 declare -A ITEM_MAP=()
 
-# Initialize tab arrays dynamically (template pattern)
 for (( _ti = 0; _ti < TAB_COUNT; _ti++ )); do
     declare -ga "TAB_ITEMS_${_ti}=()"
 done
@@ -183,7 +142,6 @@ cleanup() {
     if [[ -n "${ORIGINAL_STTY:-}" ]]; then
         stty "$ORIGINAL_STTY" 2>/dev/null || :
     fi
-    # Secure temp file cleanup (template pattern)
     if [[ -n "${_TMPFILE:-}" && -f "$_TMPFILE" ]]; then
         rm -f "$_TMPFILE" 2>/dev/null || :
     fi
@@ -194,7 +152,6 @@ trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
-# Robust ANSI stripping using extglob parameter expansion (template v3.9.0)
 strip_ansi() {
     local v="$1"
     v="${v//$'\033'\[*([0-9;:?<=>])@([@A-Z\[\\\]^_\`a-z\{|\}~])/}"
@@ -230,8 +187,6 @@ register() {
 }
 
 register_items() {
-    # --- TAB 0: FAVORITES (populated dynamically from file) ---
-
     # --- TAB 1: VIBRANT ---
     register 1 "Hyper Red"         "#FF0000"
     register 1 "Electric Blue"     "#0000FF"
@@ -326,24 +281,17 @@ register_items() {
     register 6 "Input RGB Values"  "ACTION_INPUT_RGB"
     register 6 "Regenerate Last"   "ACTION_REGEN"
 
-    # --- TAB 7: SETTINGS ---
+    # --- TAB 7: SETTINGS (V2 Updated) ---
     register 7 "Scheme Type"       "type|cycle|scheme-fidelity,scheme-content,scheme-fruit-salad,scheme-vibrant,scheme-rainbow,scheme-neutral,scheme-tonal-spot,scheme-expressive,scheme-monochrome"
     register 7 "Mode"              "mode|cycle|dark,light"
     register 7 "Contrast"          "contrast|float|-1.0|1.0|0.1"
+    register 7 "Color Index"       "index|cycle|0,1,2,3"
+    register 7 "Base16 Backend"    "base16|cycle|disable,wal"
 }
 
 # =============================================================================
 # ▼ FAVORITES SYSTEM ▼
 # =============================================================================
-# File format (one per line): LABEL|#HEXCODE
-# Lines starting with # are comments. Empty lines are skipped.
-# Duplicates are prevented by hex value (case-insensitive).
-#
-# SAFETY NOTE (Master Template v3.9.2 bug class):
-#   All (( expr )) that can evaluate to 0 MUST be guarded against set -e.
-#   Bare (( 0 )) returns exit code 1, which under set -e = instant death.
-#   Use: if (( expr )); then ... fi  — the if-statement catches the exit code.
-#   Or:  (( expr )) || :             — the || : suppresses the failure.
 
 rebuild_fav_lookup() {
     FAV_HEX_LOOKUP=()
@@ -459,7 +407,6 @@ unfavorite_by_hex() {
 }
 
 toggle_favorite() {
-    # Only allow toggling from color tabs (not settings, custom, or favorites)
     if (( CURRENT_TAB == FAVORITES_TAB || CURRENT_TAB == CUSTOM_TAB || CURRENT_TAB == SETTINGS_TAB )); then
         LAST_STATUS_MSG="${C_YELLOW}Navigate to a color tab to manage favorites${C_RESET}"
         return 0
@@ -477,7 +424,6 @@ toggle_favorite() {
         return 0
     fi
 
-    # Toggle: if already favorited, remove; otherwise add
     if [[ -n "${FAV_HEX_LOOKUP["${val^^}"]:-}" ]]; then
         unfavorite_by_hex "$val"
     else
@@ -551,12 +497,11 @@ load_state() {
         value="${value//\"/}"
 
         case "${key}" in
-            THEME_MODE)
-                [[ -n "${value}" ]] && SETTINGS["mode"]="${value}"
-                ;;
-            MATUGEN_TYPE)
-                [[ -n "${value}" ]] && SETTINGS["type"]="${value}"
-                ;;
+            THEME_MODE)         [[ -n "${value}" ]] && SETTINGS["mode"]="${value}" ;;
+            MATUGEN_TYPE)       [[ -n "${value}" ]] && SETTINGS["type"]="${value}" ;;
+            SOURCE_COLOR_INDEX) [[ -n "${value}" ]] && SETTINGS["index"]="${value}" ;;
+            BASE16_BACKEND)     [[ -n "${value}" ]] && SETTINGS["base16"]="${value}" ;;
+            LAST_APPLIED_HEX)   [[ -n "${value}" ]] && LAST_APPLIED_HEX="${value}" ;;
             MATUGEN_CONTRAST)
                 if [[ -n "${value}" ]]; then
                     if [[ "${value}" == "disable" ]]; then
@@ -565,9 +510,6 @@ load_state() {
                         SETTINGS["contrast"]="${value}"
                     fi
                 fi
-                ;;
-            LAST_APPLIED_HEX)
-                [[ -n "${value}" ]] && LAST_APPLIED_HEX="${value}"
                 ;;
         esac
     done < "${STATE_FILE}"
@@ -590,10 +532,12 @@ save_state() {
         return 1
     }
 
-    printf '# Dusky Theme State File\nTHEME_MODE=%s\nMATUGEN_TYPE=%s\nMATUGEN_CONTRAST=%s\nLAST_APPLIED_HEX=%s\n' \
+    printf '# Dusky Theme State File\nTHEME_MODE=%s\nMATUGEN_TYPE=%s\nMATUGEN_CONTRAST=%s\nSOURCE_COLOR_INDEX=%s\nBASE16_BACKEND=%s\nLAST_APPLIED_HEX=%s\n' \
         "${SETTINGS["mode"]}" \
         "${SETTINGS["type"]}" \
         "${contrast_val}" \
+        "${SETTINGS["index"]}" \
+        "${SETTINGS["base16"]}" \
         "${LAST_APPLIED_HEX}" > "${tmpfile}"
 
     cat "$tmpfile" > "$STATE_FILE"
@@ -609,15 +553,21 @@ apply_matugen() {
     local type="${SETTINGS["type"]}"
     local mode="${SETTINGS["mode"]}"
     local contrast="${SETTINGS["contrast"]}"
-
+    local base16="${SETTINGS["base16"]}"
+    
     LAST_APPLIED_HEX="${hex}"
     save_state
 
-    if matugen color hex "${hex}" \
-        --type "${type}" \
-        --mode "${mode}" \
-        --contrast "${contrast}" >/dev/null 2>&1; then
-        LAST_STATUS_MSG="${C_GREEN}✓ Applied: ${hex} (${type}, ${mode}, contrast: ${contrast})${C_RESET}"
+    # Construct the array dynamically to prevent empty string errors.
+    # Note: --source-color-index is intentionally omitted here as it only 
+    # applies to 'matugen image', not 'matugen color hex'.
+    local -a cmd=(matugen)
+    [[ "$base16" != "disable" ]] && cmd+=(--base16-backend "$base16")
+    cmd+=(color hex "$hex" --type "$type" --mode "$mode")
+    [[ "$contrast" != "disable" && "$contrast" != "0.0" ]] && cmd+=(--contrast "$contrast")
+
+    if "${cmd[@]}" >/dev/null 2>&1; then
+        LAST_STATUS_MSG="${C_GREEN}✓ Applied: ${hex} (${type}, ${mode}, Cont: ${contrast}, B16: ${base16})${C_RESET}"
     else
         LAST_STATUS_MSG="${C_RED}✗ Failed to apply: ${hex}${C_RESET}"
     fi
@@ -647,10 +597,6 @@ validate_hex() {
 }
 
 validate_rgb_component() {
-    # SAFETY: (( 10#$1 >= 0 && 10#$1 <= 255 )) can return 1 if false.
-    # But here it's the last command in && chain after [[ ]], so the
-    # function itself returns the result. Callers use it in if-statements
-    # which are immune to set -e. Verified safe.
     [[ -n "${1:-}" && $1 =~ ^[0-9]+$ ]] && (( 10#$1 >= 0 && 10#$1 <= 255 ))
 }
 
@@ -846,7 +792,7 @@ draw_ui() {
     buf+="${pad_buf}│${C_RESET}${CLR_EOL}"$'\n'
 
     # --- Status Line ---
-    local status_content="Mode: ${SETTINGS[mode]} | Type: ${SETTINGS[type]} | Contrast: ${SETTINGS[contrast]}"
+    local status_content="Mode: ${SETTINGS[mode]} | Type: ${SETTINGS[type]} | Cont: ${SETTINGS[contrast]} | Idx: ${SETTINGS[index]} | B16: ${SETTINGS[base16]}"
     local -i raw_len=${#status_content}
 
     if (( raw_len > BOX_INNER_WIDTH - 2 )); then raw_len=$(( BOX_INNER_WIDTH - 2 )); fi
@@ -854,7 +800,7 @@ draw_ui() {
     right_pad=$(( BOX_INNER_WIDTH - raw_len - left_pad ))
 
     printf -v pad_buf '%*s' "$left_pad" ''
-    buf+="${C_MAGENTA}│${pad_buf}${C_MAGENTA}Mode: ${C_CYAN}${SETTINGS[mode]} ${C_MAGENTA}| Type: ${C_CYAN}${SETTINGS[type]} ${C_MAGENTA}| Contrast: ${C_CYAN}${SETTINGS[contrast]}${C_RESET}"
+    buf+="${C_MAGENTA}│${pad_buf}${C_MAGENTA}Mode: ${C_CYAN}${SETTINGS[mode]} ${C_MAGENTA}| Type: ${C_CYAN}${SETTINGS[type]} ${C_MAGENTA}| Cont: ${C_CYAN}${SETTINGS[contrast]} ${C_MAGENTA}| Idx: ${C_CYAN}${SETTINGS[index]} ${C_MAGENTA}| B16: ${C_CYAN}${SETTINGS[base16]}${C_RESET}"
     printf -v pad_buf '%*s' "$right_pad" ''
     buf+="${pad_buf}${C_MAGENTA}│${C_RESET}${CLR_EOL}"$'\n'
 
@@ -980,7 +926,7 @@ draw_ui() {
         buf+="${CLR_EOL}"$'\n'
     fi
 
-    # Footer — context-sensitive
+    # Footer
     if (( CURRENT_TAB == FAVORITES_TAB )); then
         if (( count > 0 )); then
             buf+="${C_CYAN} [Enter] Apply  [x] Remove  [Tab] Switch  [↑↓/jk] Nav  [q] Quit${C_RESET}${CLR_EOL}"$'\n'
@@ -1081,14 +1027,11 @@ handle_mouse() {
 
     button=$field1; x=$field2; y=$field3
 
-    # Scroll wheel
     if (( button == 64 )); then navigate -1; return 0; fi
     if (( button == 65 )); then navigate 1; return 0; fi
 
-    # Only process press events
     [[ "$terminator" != "M" ]] && return 0
 
-    # Tab bar clicks
     if (( y == TAB_ROW )); then
         for (( i = 0; i < TAB_COUNT; i++ )); do
             zone="${TAB_ZONES[i]}"
@@ -1099,7 +1042,6 @@ handle_mouse() {
         return 0
     fi
 
-    # Item area click
     local -i effective_start=$(( ITEM_START_Y + 1 ))
     if (( y >= effective_start && y < effective_start + MAX_DISPLAY_ROWS )); then
         local -i clicked_idx=$(( y - effective_start + SCROLL_OFFSET ))

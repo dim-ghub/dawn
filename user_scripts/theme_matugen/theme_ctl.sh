@@ -15,6 +15,7 @@
 #
 # Usage:
 #   theme_ctl set --mode dark --type scheme-vibrant
+#   theme_ctl set --index 1 --base16 wal
 #   theme_ctl set --no-wall --mode light
 #   theme_ctl random
 #   theme_ctl refresh
@@ -42,6 +43,8 @@ readonly FLOCK_TIMEOUT_SEC=30
 readonly DEFAULT_MODE="dark"
 readonly DEFAULT_TYPE="scheme-tonal-spot"
 readonly DEFAULT_CONTRAST="0"
+readonly DEFAULT_COLOR_INDEX="0"
+readonly DEFAULT_BASE16="disable"
 
 readonly DAEMON_POLL_INTERVAL=0.1
 readonly DAEMON_POLL_LIMIT=50
@@ -50,6 +53,8 @@ readonly DAEMON_POLL_LIMIT=50
 THEME_MODE=""
 MATUGEN_TYPE=""
 MATUGEN_CONTRAST=""
+SOURCE_COLOR_INDEX=""
+BASE16_BACKEND=""
 STATE_NEEDS_REWRITE=0
 LOCK_FD=""
 
@@ -143,11 +148,15 @@ read_state() {
     THEME_MODE="$DEFAULT_MODE"
     MATUGEN_TYPE="$DEFAULT_TYPE"
     MATUGEN_CONTRAST="$DEFAULT_CONTRAST"
+    SOURCE_COLOR_INDEX="$DEFAULT_COLOR_INDEX"
+    BASE16_BACKEND="$DEFAULT_BASE16"
     STATE_NEEDS_REWRITE=0
 
     local -i saw_mode=0
     local -i saw_type=0
     local -i saw_contrast=0
+    local -i saw_index=0
+    local -i saw_base16=0
     local key value
 
     [[ -f "$STATE_FILE" ]] || {
@@ -179,6 +188,14 @@ read_state() {
                 MATUGEN_CONTRAST="$value"
                 saw_contrast=1
                 ;;
+            SOURCE_COLOR_INDEX)
+                SOURCE_COLOR_INDEX="$value"
+                saw_index=1
+                ;;
+            BASE16_BACKEND)
+                BASE16_BACKEND="$value"
+                saw_base16=1
+                ;;
         esac
     done < "$STATE_FILE"
 
@@ -191,6 +208,12 @@ read_state() {
             ;;
     esac
 
+    if ! [[ "$SOURCE_COLOR_INDEX" =~ ^[0-9]+$ ]]; then
+        warn "Invalid SOURCE_COLOR_INDEX. Resetting to ${DEFAULT_COLOR_INDEX}."
+        SOURCE_COLOR_INDEX="$DEFAULT_COLOR_INDEX"
+        STATE_NEEDS_REWRITE=1
+    fi
+
     if [[ -z "$MATUGEN_TYPE" ]]; then
         MATUGEN_TYPE="$DEFAULT_TYPE"
         STATE_NEEDS_REWRITE=1
@@ -201,19 +224,30 @@ read_state() {
         STATE_NEEDS_REWRITE=1
     fi
 
+    if [[ -z "$BASE16_BACKEND" ]]; then
+        BASE16_BACKEND="$DEFAULT_BASE16"
+        STATE_NEEDS_REWRITE=1
+    fi
+
     (( saw_mode )) || STATE_NEEDS_REWRITE=1
     (( saw_type )) || STATE_NEEDS_REWRITE=1
     (( saw_contrast )) || STATE_NEEDS_REWRITE=1
+    (( saw_index )) || STATE_NEEDS_REWRITE=1
+    (( saw_base16 )) || STATE_NEEDS_REWRITE=1
 }
 
 write_state() {
     local mode="$1"
     local type="$2"
     local contrast="$3"
+    local index="$4"
+    local base16="$5"
 
     local -i wrote_mode=0
     local -i wrote_type=0
     local -i wrote_contrast=0
+    local -i wrote_index=0
+    local -i wrote_base16=0
     local -i had_content=0
     local line
 
@@ -244,6 +278,18 @@ write_state() {
                         wrote_contrast=1
                     fi
                     ;;
+                SOURCE_COLOR_INDEX=*)
+                    if (( ! wrote_index )); then
+                        printf 'SOURCE_COLOR_INDEX=%s\n' "$index"
+                        wrote_index=1
+                    fi
+                    ;;
+                BASE16_BACKEND=*)
+                    if (( ! wrote_base16 )); then
+                        printf 'BASE16_BACKEND=%s\n' "$base16"
+                        wrote_base16=1
+                    fi
+                    ;;
                 *)
                     printf '%s\n' "$line"
                     ;;
@@ -258,6 +304,8 @@ write_state() {
     (( wrote_mode )) || printf 'THEME_MODE=%s\n' "$mode" >> "$_TEMP_FILE"
     (( wrote_type )) || printf 'MATUGEN_TYPE=%s\n' "$type" >> "$_TEMP_FILE"
     (( wrote_contrast )) || printf 'MATUGEN_CONTRAST=%s\n' "$contrast" >> "$_TEMP_FILE"
+    (( wrote_index )) || printf 'SOURCE_COLOR_INDEX=%s\n' "$index" >> "$_TEMP_FILE"
+    (( wrote_base16 )) || printf 'BASE16_BACKEND=%s\n' "$base16" >> "$_TEMP_FILE"
 
     mv -fT -- "$_TEMP_FILE" "$STATE_FILE"
     _TEMP_FILE=""
@@ -267,6 +315,8 @@ write_state() {
     THEME_MODE="$mode"
     MATUGEN_TYPE="$type"
     MATUGEN_CONTRAST="$contrast"
+    SOURCE_COLOR_INDEX="$index"
+    BASE16_BACKEND="$base16"
     STATE_NEEDS_REWRITE=0
 }
 
@@ -276,9 +326,9 @@ init_state() {
 
     if [[ ! -s "$STATE_FILE" ]]; then
         log "Initializing new state file at ${STATE_FILE}..."
-        write_state "$THEME_MODE" "$MATUGEN_TYPE" "$MATUGEN_CONTRAST"
+        write_state "$THEME_MODE" "$MATUGEN_TYPE" "$MATUGEN_CONTRAST" "$SOURCE_COLOR_INDEX" "$BASE16_BACKEND"
     elif (( STATE_NEEDS_REWRITE )); then
-        write_state "$THEME_MODE" "$MATUGEN_TYPE" "$MATUGEN_CONTRAST"
+        write_state "$THEME_MODE" "$MATUGEN_TYPE" "$MATUGEN_CONTRAST" "$SOURCE_COLOR_INDEX" "$BASE16_BACKEND"
     else
         write_public_state "$THEME_MODE"
     fi
@@ -491,12 +541,16 @@ generate_colors() {
 
     ensure_swaync_running
 
-    log "Matugen: Mode=[${THEME_MODE}] Type=[${MATUGEN_TYPE}] Contrast=[${MATUGEN_CONTRAST}]"
+    log "Matugen: Mode=[${THEME_MODE}] Type=[${MATUGEN_TYPE}] Contrast=[${MATUGEN_CONTRAST}] Index=[${SOURCE_COLOR_INDEX}] Base16=[${BASE16_BACKEND}]"
 
-    cmd=(matugen --mode "$THEME_MODE")
+    cmd=(matugen)
+    [[ "$BASE16_BACKEND" != "disable" ]] && cmd+=(--base16-backend "$BASE16_BACKEND")
+    cmd+=(--mode "$THEME_MODE")
     [[ "$MATUGEN_TYPE" != "disable" ]] && cmd+=(--type "$MATUGEN_TYPE")
     [[ "$MATUGEN_CONTRAST" != "disable" ]] && cmd+=(--contrast "$MATUGEN_CONTRAST")
+    
     cmd+=(image "$img")
+    cmd+=(--source-color-index "$SOURCE_COLOR_INDEX")
 
     "${cmd[@]}" || die "Matugen generation failed"
 
@@ -581,15 +635,17 @@ Commands:
               --mode <light|dark>
               --type <scheme-*|disable>
               --contrast <num|disable>
-              --defaults  Reset all settings to defaults
-              --no-wall   Prevent wallpaper change
+              --index <0|1|2|3>    Set Matugen source color extraction index
+              --base16 <wal|disable> Set Base16 backend generation
+              --defaults           Reset all settings to defaults
+              --no-wall            Prevent wallpaper change
   random    Cycle to next wallpaper and apply theme.
   refresh   Regenerate colors for current wallpaper.
   apply     Alias of refresh.
   get       Show current configuration.
 
 Examples:
-  theme_ctl set --mode dark --type scheme-vibrant
+  theme_ctl set --mode dark --index 1 --base16 wal
   theme_ctl set --no-wall --mode light
   theme_ctl random
   theme_ctl refresh
@@ -610,6 +666,9 @@ cmd_set() {
     local desired_mode="$THEME_MODE"
     local desired_type="$MATUGEN_TYPE"
     local desired_contrast="$MATUGEN_CONTRAST"
+    local desired_index="$SOURCE_COLOR_INDEX"
+    local desired_base16="$BASE16_BACKEND"
+    
     local mode_request_kind=""
     local -i do_refresh=0
     local -i mode_changed=0
@@ -635,10 +694,23 @@ cmd_set() {
                 desired_contrast="$2"
                 shift 2
                 ;;
+            --index)
+                [[ -n "${2:-}" ]] || die "--index requires a value (e.g., 0, 1, 2)"
+                [[ "$2" =~ ^[0-9]+$ ]] || die "--index must be a positive integer"
+                desired_index="$2"
+                shift 2
+                ;;
+            --base16)
+                [[ -n "${2:-}" ]] || die "--base16 requires a value (e.g., wal, disable)"
+                desired_base16="$2"
+                shift 2
+                ;;
             --defaults)
                 desired_mode="$DEFAULT_MODE"
                 desired_type="$DEFAULT_TYPE"
                 desired_contrast="$DEFAULT_CONTRAST"
+                desired_index="$DEFAULT_COLOR_INDEX"
+                desired_base16="$DEFAULT_BASE16"
                 mode_request_kind="defaults"
                 shift
                 ;;
@@ -657,14 +729,17 @@ cmd_set() {
     done
 
     [[ "$desired_mode" != "$THEME_MODE" ]] && mode_changed=1
-    [[ "$desired_type" != "$MATUGEN_TYPE" || "$desired_contrast" != "$MATUGEN_CONTRAST" ]] && do_refresh=1
+    
+    if [[ "$desired_type" != "$MATUGEN_TYPE" || "$desired_contrast" != "$MATUGEN_CONTRAST" || "$desired_index" != "$SOURCE_COLOR_INDEX" || "$desired_base16" != "$BASE16_BACKEND" ]]; then
+        do_refresh=1
+    fi
 
     if [[ "$mode_request_kind" == "explicit" && "$desired_mode" == "$THEME_MODE" ]]; then
         same_mode_requested=1
     fi
 
     if (( mode_changed || do_refresh )); then
-        write_state "$desired_mode" "$desired_type" "$desired_contrast"
+        write_state "$desired_mode" "$desired_type" "$desired_contrast" "$desired_index" "$desired_base16"
     fi
 
     if (( ! skip_wall )) && (( mode_changed || same_mode_requested )); then
