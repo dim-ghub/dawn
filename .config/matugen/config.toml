@@ -58,7 +58,7 @@ output_path = '~/.config/matugen/generated/hyprlock-colors.conf'
 [templates.waybar]
 input_path  = '~/.config/matugen/templates/colors.css'
 output_path = '~/.config/matugen/generated/waybar-colors.css'
-post_hook = "pkill -USR2 -x waybar"
+post_hook   = "pkill -USR2 -x waybar || :"
 
 [templates.swayosd]
 input_path  = '~/.config/matugen/templates/swayosd-colors.css'
@@ -237,7 +237,7 @@ post_hook   = '''
 if command -v cava >/dev/null 2>&1; then
   mkdir -p "$HOME/.config/cava/themes"
   ln -nfs "$HOME/.config/matugen/generated/cava-colors.ini" "$HOME/.config/cava/themes/cava-colors.ini"
-  pkill -USR1 cava
+  pkill -USR1 -x cava || :
 fi
 '''
 
