@@ -46,8 +46,8 @@
   },
 
   "clock": {
-    "format": "󰥔 {:%H:%M}",
-    //"format": "󰥔 {:%I:%M}", //24 hour format for teh clock.
+    "format": "󰥔 {:%I:%M}",
+    //"format": "󰥔 {:%H:%M}", //24 hour format for the clock.
     "format-alt": "󰃭 {:%A, %B %d}",
     "tooltip-format": "<tt><span size='12pt' font='JetBrainsMono Nerd Font'>{calendar}</span></tt>",
     "on-click-right": "uwsm-app -- gnome-clocks",
