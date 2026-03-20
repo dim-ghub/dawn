@@ -36,9 +36,9 @@ register_items() {
 
     # Tab 0: Playback
     register 0 "Blend Voices"           'BLEND_VOICES|bool||||' "True"
-    register 0 "Primary Voice"          'VOICE_1|cycle||'"${all_voices}"'||' '"af_sarah"'
+    register 0 "Primary Voice"          'VOICE_1|cycle||'"${all_voices}"'||' '"af_heart"'
     register 0 "Primary Voice Weight"   'VOICE_1_WEIGHT|float||0.1|0.9|0.1' "0.4"
-    register 0 "Secondary Voice"        'VOICE_2|cycle||'"${all_voices}"'||' '"af_nicole"'
+    register 0 "Secondary Voice"        'VOICE_2|cycle||'"${all_voices}"'||' '"af_bella"'
     register 0 "Speech Speed"           'SPEED|float||0.5|2.0|0.1' "1.0"
     register 0 "MPV Playback Speed"     'MPV_SPEED|float||0.5|2.0|0.1' "1.0"
 

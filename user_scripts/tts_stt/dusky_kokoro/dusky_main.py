@@ -56,7 +56,7 @@ LOCK_FILE = Path("/tmp/dusky_kokoro.lock")
 BLEND_VOICES = True
 VOICE_1 = "af_heart"
 VOICE_1_WEIGHT = 0.4
-VOICE_2 = "af_nicole"
+VOICE_2 = "af_bella"
 
 if BLEND_VOICES:
     # Uses round() to prevent Python floating point errors (e.g. 0.79999999)
