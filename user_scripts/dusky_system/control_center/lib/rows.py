@@ -1852,10 +1852,11 @@ class ExpanderRow(DynamicIconMixin, Adw.ExpanderRow):
 
 
 
-class AsyncSelectorRow(DynamicIconMixin, Adw.ComboRow):
+class AsyncSelectorRow(DynamicIconMixin, Adw.PreferencesRow):
     """
-    A generalized widget that fetches a JSON array of dictionaries,
-    populates a native Adw.ComboRow, and executes a command.
+    A generalized widget matching a Vertical UI paradigm:
+    Top: Title & Description
+    Bottom: Controls (Refresh + Dropdown + Optional Action Button)
     """
     __gtype_name__ = "DuskyAsyncSelectorRow"
 
@@ -1866,7 +1867,7 @@ class AsyncSelectorRow(DynamicIconMixin, Adw.ComboRow):
         context: RowContext | None = None,
     ) -> None:
         super().__init__()
-        self.add_css_class("action-row")
+        self.set_activatable(False)
 
         self._state = WidgetState()
         self.properties = properties
@@ -1880,32 +1881,57 @@ class AsyncSelectorRow(DynamicIconMixin, Adw.ComboRow):
         self.display_template = str(properties.get("display_template", "{id}"))
         self.sort_order = str(properties.get("sort", "none")).lower()
         self.auto_refresh = bool(properties.get("auto_refresh", False))
+        self.auto_execute = bool(properties.get("auto_execute", False))
+        self._programmatic_update = False
+
+        raw_timeout = properties.get("command_timeout", 60.0)
+        try:
+            command_timeout = float(raw_timeout)
+        except (TypeError, ValueError):
+            command_timeout = 60.0
+        self.command_timeout = command_timeout if command_timeout > 0 else 60.0
 
         button_text = str(properties.get("button_text", "Execute"))
         button_style = str(properties.get("style", "default")).lower()
 
         self.json_data: list[dict] = []
         self._fetch_in_progress = False
+        self._fetch_process: subprocess.Popen | None = None
 
-        title = str(properties.get("title", "Unnamed"))
-        self.set_title(GLib.markup_escape_text(title))
-        if sub := properties.get("description", ""):
-            self.set_subtitle(GLib.markup_escape_text(str(sub)))
+        main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+        main_box.set_margin_top(12)
+        main_box.set_margin_bottom(12)
+        main_box.set_margin_start(12)
+        main_box.set_margin_end(12)
 
+        top_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
         icon_config = properties.get("icon", DEFAULT_ICON)
         self.icon_widget = self._create_icon_widget(icon_config)
-        self.add_prefix(self.icon_widget)
+        self.icon_widget.set_valign(Gtk.Align.CENTER)
+        top_box.append(self.icon_widget)
 
-        # --- NATIVE COMBO ROW SETUP ---
-        self.string_list = Gtk.StringList.new([])
-        self.set_model(self.string_list)
-        # ------------------------------
+        text_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        text_box.set_valign(Gtk.Align.CENTER)
+        text_box.set_hexpand(True)
 
-        # Suffix Controls
-        self.controls_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
-        self.controls_box.set_valign(Gtk.Align.CENTER)
+        title_str = str(properties.get("title", "Unnamed"))
+        title_label = Gtk.Label(xalign=0)
+        title_label.set_markup(f"<b>{GLib.markup_escape_text(title_str)}</b>")
+        title_label.set_wrap(True)
+        text_box.append(title_label)
+
+        if sub_str := properties.get("description", ""):
+            sub_label = Gtk.Label(label=sub_str, xalign=0)
+            sub_label.add_css_class("dim-label")
+            sub_label.set_wrap(True)
+            text_box.append(sub_label)
+
+        top_box.append(text_box)
+
+        bottom_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
 
         self.refresh_btn = Gtk.Button(icon_name="view-refresh-symbolic")
+        self.refresh_btn.set_valign(Gtk.Align.CENTER)
         self.refresh_btn.set_tooltip_text("Load Data")
         self.refresh_btn.connect("clicked", self._on_refresh_clicked)
         self.refresh_btn.add_css_class("flat")
@@ -1913,27 +1939,58 @@ class AsyncSelectorRow(DynamicIconMixin, Adw.ComboRow):
         if self.auto_refresh:
             self.refresh_btn.set_visible(False)
 
-        self.action_btn = Gtk.Button(label=button_text)
-        self.action_btn.connect("clicked", self._on_action_clicked)
-        self.action_btn.set_sensitive(False)
+        self.model = Gtk.StringList.new([])
+        self.dropdown = Gtk.DropDown(model=self.model)
+        self.dropdown.set_valign(Gtk.Align.CENTER)
+        self.dropdown.set_hexpand(True)
+        self.dropdown.connect("notify::selected", self._on_dropdown_selected)
 
-        if button_style == "destructive":
-            self.action_btn.add_css_class("destructive-action")
-        elif button_style == "suggested":
-            self.action_btn.add_css_class("suggested-action")
-        else:
-            self.action_btn.add_css_class("default-action")
+        factory = Gtk.SignalListItemFactory()
+        factory.connect("setup", self._on_dropdown_setup)
+        factory.connect("bind", self._on_dropdown_bind)
+        self.dropdown.set_factory(factory)
 
-        self.controls_box.append(self.refresh_btn)
-        self.controls_box.append(self.action_btn)
-        
-        # Add the controls to the ComboRow suffix
-        self.add_suffix(self.controls_box)
+        bottom_box.append(self.refresh_btn)
+        bottom_box.append(self.dropdown)
+
+        self.has_action = isinstance(self.on_action, dict) and (
+            (self.on_action.get("type") == "exec" and bool(self.on_action.get("command")))
+            or (self.on_action.get("type") == "redirect" and bool(self.on_action.get("page")))
+        )
+
+        self.action_btn = None
+        if self.has_action and not self.auto_execute:
+            self.action_btn = Gtk.Button(label=button_text)
+            self.action_btn.set_valign(Gtk.Align.CENTER)
+            self.action_btn.connect("clicked", self._on_action_clicked)
+            self.action_btn.set_sensitive(False)
+
+            if button_style == "destructive":
+                self.action_btn.add_css_class("destructive-action")
+            elif button_style == "suggested":
+                self.action_btn.add_css_class("suggested-action")
+            else:
+                self.action_btn.add_css_class("default-action")
+
+            bottom_box.append(self.action_btn)
+
+        main_box.append(top_box)
+        main_box.append(bottom_box)
+        self.set_child(main_box)
 
         self.connect("map", self._on_map)
 
         if _is_dynamic_icon(icon_config) and isinstance(icon_config, dict):
             self._start_icon_update_loop(icon_config)
+
+    @contextmanager
+    def _suppress_change_signal(self):
+        """Context manager to prevent dropdown signals from firing during UI updates."""
+        self._programmatic_update = True
+        try:
+            yield
+        finally:
+            self._programmatic_update = False
 
     def _create_icon_widget(self, icon: object) -> Gtk.Image:
         if isinstance(icon, dict) and icon.get("type") == "file":
@@ -1949,6 +2006,17 @@ class AsyncSelectorRow(DynamicIconMixin, Adw.ComboRow):
         img.add_css_class("action-row-prefix-icon")
         return img
 
+    def _on_dropdown_setup(self, factory: Gtk.SignalListItemFactory, list_item: Gtk.ListItem) -> None:
+        label = Gtk.Label(xalign=0)
+        label.set_ellipsize(Pango.EllipsizeMode.END)
+        list_item.set_child(label)
+
+    def _on_dropdown_bind(self, factory: Gtk.SignalListItemFactory, list_item: Gtk.ListItem) -> None:
+        label = list_item.get_child()
+        string_obj = list_item.get_item()
+        if label and string_obj:
+            label.set_text(string_obj.get_string())
+
     def _on_map(self, _widget: Gtk.Widget) -> None:
         if self.auto_refresh and not self.json_data and not self._fetch_in_progress:
             self._on_refresh_clicked(self.refresh_btn)
@@ -1958,19 +2026,77 @@ class AsyncSelectorRow(DynamicIconMixin, Adw.ComboRow):
             return
         self._fetch_in_progress = True
         self.refresh_btn.set_sensitive(False)
-        self.action_btn.set_sensitive(False)
+        if self.action_btn:
+            self.action_btn.set_sensitive(False)
         _submit_task_safe(self._fetch_data_async, self._state)
 
+    def _kill_and_reap_process(self, proc: subprocess.Popen) -> None:
+        if proc.poll() is None:
+            try:
+                proc.kill()
+            except Exception:
+                pass
+        try:
+            proc.communicate(timeout=2)
+        except Exception:
+            pass
+
+    def _cancel_active_fetch(self) -> None:
+        with self._state.lock:
+            proc = self._fetch_process
+
+        if proc is None or proc.poll() is not None:
+            return
+
+        try:
+            proc.kill()
+        except Exception:
+            pass
+
     def _fetch_data_async(self) -> None:
+        with self._state.lock:
+            if self._state.is_destroyed:
+                return
+
+        proc: subprocess.Popen | None = None
+
         try:
             argv = (
                 shlex.split(self.list_command)
                 if not _SHELL_METACHAR.intersection(self.list_command)
                 else ["/bin/sh", "-c", self.list_command]
             )
-            res = subprocess.run(argv, capture_output=True, text=True, check=True)
 
-            output = res.stdout.strip()
+            proc = subprocess.Popen(
+                argv,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+
+            with self._state.lock:
+                self._fetch_process = proc
+                destroyed = self._state.is_destroyed
+
+            if destroyed:
+                self._kill_and_reap_process(proc)
+                return
+
+            try:
+                stdout, stderr = proc.communicate(timeout=self.command_timeout)
+            except subprocess.TimeoutExpired:
+                self._kill_and_reap_process(proc)
+                raise TimeoutError(f"Command timed out after {self.command_timeout:g} seconds")
+
+            if proc.returncode != 0:
+                raise subprocess.CalledProcessError(
+                    proc.returncode,
+                    argv,
+                    output=stdout,
+                    stderr=stderr,
+                )
+
+            output = stdout.strip()
             parsed_data = json.loads(output) if output else []
 
             if not isinstance(parsed_data, list):
@@ -1982,6 +2108,11 @@ class AsyncSelectorRow(DynamicIconMixin, Adw.ComboRow):
         except Exception as e:
             log.error("AsyncSelector fetch failed: %s", e)
             GLib.idle_add(self._on_fetch_failed)
+        finally:
+            if proc is not None:
+                with self._state.lock:
+                    if self._fetch_process is proc:
+                        self._fetch_process = None
 
     def _update_ui(self, parsed_data: list[dict]) -> bool:
         self._fetch_in_progress = False
@@ -2007,20 +2138,17 @@ class AsyncSelectorRow(DynamicIconMixin, Adw.ComboRow):
             except Exception:
                 strings.append("Format Error")
 
-        # Graceful empty state handling
         if not strings:
-            strings.append("(No Snapshots)")
+            strings.append("(No Data)")
             self.json_data = []
 
-        self.string_list.splice(0, self.string_list.get_n_items(), strings)
-
-        has_valid_action = isinstance(self.on_action, dict) and (
-            (self.on_action.get("type") == "exec" and bool(self.on_action.get("command")))
-            or (self.on_action.get("type") == "redirect" and bool(self.on_action.get("page")))
-        )
+        with self._suppress_change_signal():
+            self.model.splice(0, self.model.get_n_items(), strings)
 
         self.refresh_btn.set_sensitive(True)
-        self.action_btn.set_sensitive(bool(self.json_data) and has_valid_action)
+        if self.action_btn:
+            self.action_btn.set_sensitive(bool(self.json_data) and self.has_action)
+
         return GLib.SOURCE_REMOVE
 
     def _on_fetch_failed(self) -> bool:
@@ -2030,18 +2158,35 @@ class AsyncSelectorRow(DynamicIconMixin, Adw.ComboRow):
                 return GLib.SOURCE_REMOVE
 
         self.json_data.clear()
-        self.string_list.splice(0, self.string_list.get_n_items(), [])
+
+        with self._suppress_change_signal():
+            self.model.splice(0, self.model.get_n_items(), [])
+
+        if self.auto_refresh:
+            self.refresh_btn.set_visible(True)
+
         self.refresh_btn.set_sensitive(True)
-        self.action_btn.set_sensitive(False)
+        if self.action_btn:
+            self.action_btn.set_sensitive(False)
 
         if self.toast_overlay:
-            utility.toast(self.toast_overlay, "✖ Failed to fetch data (Check logs)", 4)
+            utility.toast(self.toast_overlay, "✖ Failed to fetch data", 4)
 
         return GLib.SOURCE_REMOVE
 
-    def _on_action_clicked(self, _btn: Gtk.Button) -> None:
-        # Pull selection natively from the Adw.ComboRow
-        selected_idx = self.get_selected()
+    def _on_dropdown_selected(self, _dropdown: Gtk.DropDown, _param: GObject.ParamSpec) -> None:
+        """Triggered whenever the dropdown selection changes."""
+        if self._programmatic_update or not self.has_action or not self.auto_execute:
+            return
+
+        selected_idx = self.dropdown.get_selected()
+        if not self.json_data or selected_idx == Gtk.INVALID_LIST_POSITION or selected_idx >= len(self.json_data):
+            return
+
+        self._on_action_clicked()
+
+    def _on_action_clicked(self, _btn: Gtk.Button | None = None) -> None:
+        selected_idx = self.dropdown.get_selected()
         if selected_idx == Gtk.INVALID_LIST_POSITION or selected_idx >= len(self.json_data):
             return
 
@@ -2055,8 +2200,15 @@ class AsyncSelectorRow(DynamicIconMixin, Adw.ComboRow):
                 def __missing__(self, key):
                     return f"{{{key}}}"
 
-            final_cmd = cmd_template.format_map(SafeDict(selected_dict))
             title = str(self.properties.get("title", "Action"))
+
+            try:
+                final_cmd = cmd_template.format_map(SafeDict(selected_dict))
+            except Exception as e:
+                log.error("AsyncSelector action formatting failed: %s", e)
+                utility.toast(self.toast_overlay, f"✖ Failed: {title}", 4)
+                return
+
             is_term = bool(self.on_action.get("terminal", False))
 
             success = utility.execute_command(final_cmd, title, is_term)
@@ -2069,8 +2221,9 @@ class AsyncSelectorRow(DynamicIconMixin, Adw.ComboRow):
 
     def do_unroot(self) -> None:
         sources = self._state.mark_destroyed_and_get_sources()
+        self._cancel_active_fetch()
         _batch_source_remove(*sources)
-        Adw.ComboRow.do_unroot(self)
+        Adw.PreferencesRow.do_unroot(self)
 
 # =============================================================================
 # GRID CARDS
