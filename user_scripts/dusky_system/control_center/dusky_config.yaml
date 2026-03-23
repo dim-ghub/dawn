@@ -298,7 +298,7 @@ pages:
                 display_max_length: 45
               on_action:
                 type: "exec"
-                command: "sudo ~/user_scripts/btrfs_snapshots/cc/bash_wrapper_for_cc.sh '{raw_date}'"
+                command: "sudo ~/user_scripts/btrfs_snapshots/cc/bash_wrapper_for_cc.sh '{raw_date}' '{description}'"
 
         - type: section
           properties:
