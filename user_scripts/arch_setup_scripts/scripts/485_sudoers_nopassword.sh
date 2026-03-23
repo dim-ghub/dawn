@@ -600,6 +600,7 @@ main() {
     target_user="$(resolve_target_user "${REQUESTED_USER}")"
     validate_target_user "${target_user}"
 
+    # Fetch the actual absolute home directory of the target user
     local user_home
     user_home="$(getent passwd "${target_user}" | cut -d: -f6)"
 
@@ -630,9 +631,10 @@ main() {
     local resolved_bin
 
     for bin in "${unique_queue[@]}"; do
+        # Dynamically replace a leading literal ~/ with the user's absolute home directory
         resolved_bin="${bin}"
-        if [[ "${resolved_bin}" == ~/* ]]; then
-            resolved_bin="${user_home}/${resolved_bin#~/}"
+        if [[ "${resolved_bin}" == "~/"* ]]; then
+            resolved_bin="${user_home}/${resolved_bin#"~/"}"
         fi
 
         if process_binary "${resolved_bin}" "${target_user}"; then
