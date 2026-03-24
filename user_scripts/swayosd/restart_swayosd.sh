@@ -4,7 +4,7 @@
 # SWAYOSD ROBUST RESTART SCRIPT (UWSM COMPLIANT)
 # ================================================================
 # Safely restarts swayosd-server with proper process management
-# Priority: uwsm-app → systemd-run → setsid (fallback)
+# Priority: uwsm-app → systemd-run → rc-service → setsid (fallback)
 # ================================================================
 
 set -euo pipefail
@@ -76,18 +76,19 @@ fi
 # ─────────────────────────────────────────────────────────────────
 
 if command -v uwsm-app >/dev/null 2>&1; then
-    # UWSM native: wraps process in active UWSM session scope
     uwsm-app -- "$SERVER_BIN" >/dev/null 2>&1 &
 
 elif command -v systemd-run >/dev/null 2>&1; then
-    # Systemd: transient scope under user session
-    # Include PID + timestamp to guarantee uniqueness using Bash 5.3 non-forking capture
     unit_name="swayosd-$$-${ date +%s; }"
     systemd-run --user --scope --unit="$unit_name" \
         -- "$SERVER_BIN" >/dev/null 2>&1 &
 
+elif command -v rc-service >/dev/null 2>&1 && rc-service -l 2>/dev/null | grep -q "swayosd"; then
+    rc-service swayosd restart 2>/dev/null || rc-service swayosd start 2>/dev/null || {
+        setsid "$SERVER_BIN" >/dev/null 2>&1 &
+    }
+
 else
-    # Legacy fallback: create new session for full detachment
     setsid "$SERVER_BIN" >/dev/null 2>&1 &
 fi
 

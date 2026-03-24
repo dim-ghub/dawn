@@ -1,0 +1,19 @@
+#!/sbin/openrc-run
+
+name="Dusky Sliders Service"
+description="Dusky sliders daemon for system controls"
+command="/usr/bin/python3"
+command_args="/home/dim/duskyRC/user_scripts/sliders/dusky_sliders.py"
+command_background="yes"
+pidfile="/run/${RC_SVCNAME}.pid"
+output_log="/var/log/${RC_SVCNAME}.log"
+error_log="/var/log/${RC_SVCNAME}.err"
+
+depend() {
+    need localmount
+    after waybar
+}
+
+start_pre() {
+    checkpath --directory --owner root:root --mode 0755 /run 2>/dev/null || true
+}

@@ -1,0 +1,17 @@
+#!/sbin/openrc-run
+
+name="swww-daemon"
+description="Wallpaper daemon for Wayland"
+command="/usr/bin/swww-daemon"
+command_args="--format xrgb"
+command_background="yes"
+pidfile="/run/${RC_SVCNAME}.pid"
+
+depend() {
+    need localmount
+    after hyprland
+}
+
+start_pre() {
+    checkpath --directory --owner root:root --mode 0755 /run 2>/dev/null || true
+}

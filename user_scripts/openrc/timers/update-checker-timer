@@ -1,0 +1,18 @@
+#!/sbin/openrc-run
+
+name="Dusky Update Checker Timer"
+description="Timer to run update checker periodically"
+command="/bin/sh"
+command_args="-c 'while true; do sleep 3600; /home/dim/duskyRC/user_scripts/update_dusky/update_checker/update_checker.sh --num; done'"
+command_background="yes"
+pidfile="/run/${RC_SVCNAME}.pid"
+output_log="/var/log/${RC_SVCNAME}.log"
+error_log="/var/log/${RC_SVCNAME}.err"
+
+depend() {
+    need localmount
+}
+
+start_pre() {
+    checkpath --directory --owner root:root --mode 0755 /run 2>/dev/null || true
+}

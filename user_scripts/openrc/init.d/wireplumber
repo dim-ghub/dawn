@@ -1,0 +1,16 @@
+#!/sbin/openrc-run
+
+name="WirePlumber"
+description="Session manager for PipeWire"
+command="/usr/bin/wireplumber"
+command_background="yes"
+pidfile="/run/${RC_SVCNAME}.pid"
+
+depend() {
+    need localmount
+    after pipewire
+}
+
+start_pre() {
+    checkpath --directory --owner root:root --mode 0755 /run 2>/dev/null || true
+}

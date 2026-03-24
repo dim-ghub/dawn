@@ -26,20 +26,20 @@ shopt -s inherit_errexit
 # --- ARGUMENT PARSING (before trap so RUN_MODE is always set) ---
 RUN_MODE="run"
 case "${1:-}" in
-    --reset) RUN_MODE="reset" ;;
-    --setup) RUN_MODE="setup" ;;
-    --help|-h)
-        printf "Usage: %s [--setup|--reset]\n\n" "$(basename "$0")"
-        printf "  (no args)  Start or stop WayClick (toggle)\n"
-        printf "  --setup    Install dependencies and build the environment only\n"
-        printf "  --reset    Stop WayClick and delete the environment\n"
-        exit 0
-        ;;
-    "") ;;
-    *)
-        printf "Unknown option: %s\nRun '%s --help' for usage.\n" "$1" "$(basename "$0")"
-        exit 1
-        ;;
+--reset) RUN_MODE="reset" ;;
+--setup) RUN_MODE="setup" ;;
+--help | -h)
+	printf "Usage: %s [--setup|--reset]\n\n" "$(basename "$0")"
+	printf "  (no args)  Start or stop WayClick (toggle)\n"
+	printf "  --setup    Install dependencies and build the environment only\n"
+	printf "  --reset    Stop WayClick and delete the environment\n"
+	exit 0
+	;;
+"") ;;
+*)
+	printf "Unknown option: %s\nRun '%s --help' for usage.\n" "$1" "$(basename "$0")"
+	exit 1
+	;;
 esac
 
 # ╔════════════════════════════════════════════════════════════════════════════╗
@@ -114,79 +114,79 @@ readonly C_RESET=$'\033[0m'
 # --- UTILITY FUNCTIONS ---
 
 update_state() {
-    local status="$1"
-    local dir state_tmp
-    dir="${STATE_FILE%/*}"
-    state_tmp="${STATE_FILE}.tmp.$$"
+	local status="$1"
+	local dir state_tmp
+	dir="${STATE_FILE%/*}"
+	state_tmp="${STATE_FILE}.tmp.$$"
 
-    mkdir -p "$dir" 2>/dev/null || true
+	mkdir -p "$dir" 2>/dev/null || true
 
-    printf '%s\n' "$status" > "$state_tmp" && mv -f "$state_tmp" "$STATE_FILE"
+	printf '%s\n' "$status" >"$state_tmp" && mv -f "$state_tmp" "$STATE_FILE"
 }
 
 cleanup() {
-    tput cnorm 2>/dev/null || true
-    if [[ "${RUN_MODE:-run}" != "setup" ]] && [[ -n "${STATE_FILE:-}" ]]; then
-        update_state "False"
-    fi
+	tput cnorm 2>/dev/null || true
+	if [[ "${RUN_MODE:-run}" != "setup" ]] && [[ -n "${STATE_FILE:-}" ]]; then
+		update_state "False"
+	fi
 }
 
 notify_user() {
-    command -v notify-send >/dev/null 2>&1 && \
-        notify-send -t 2000 --app-name="WayClick" "WayClick Elite" "$1"
+	command -v notify-send >/dev/null 2>&1 &&
+		notify-send -t 2000 --app-name="WayClick" "WayClick Elite" "$1"
 }
 
 trap cleanup EXIT INT TERM
 
 # --- 0. ROOT CHECK ---
-if (( EUID == 0 )); then
-    printf "%b[CRITICAL]%b Do not run this script as root.\n" "${C_RED}" "${C_RESET}"
-    exit 1
+if ((EUID == 0)); then
+	printf "%b[CRITICAL]%b Do not run this script as root.\n" "${C_RED}" "${C_RESET}"
+	exit 1
 fi
 
 # --- 1. RESET MODE ---
 if [[ "$RUN_MODE" == "reset" ]]; then
-    if pgrep -u "$USER" -f "$RUNNER_SCRIPT" >/dev/null 2>&1; then
-        printf "%b[RESET]%b Stopping running instance...\n" "${C_YELLOW}" "${C_RESET}"
-        notify_user "Disabled"
+	if pgrep -u "$USER" -f "$RUNNER_SCRIPT" >/dev/null 2>&1; then
+		printf "%b[RESET]%b Stopping running instance...\n" "${C_YELLOW}" "${C_RESET}"
+		notify_user "Disabled"
 
-        pkill -TERM -u "$USER" -f "$RUNNER_SCRIPT" 2>/dev/null || true
+		pkill -TERM -u "$USER" -f "$RUNNER_SCRIPT" 2>/dev/null || true
 
-        wait_count=0
-        while pgrep -u "$USER" -f "$RUNNER_SCRIPT" >/dev/null 2>&1 && (( wait_count++ < 20 )); do
-            sleep 0.1
-        done
+		wait_count=0
+		while pgrep -u "$USER" -f "$RUNNER_SCRIPT" >/dev/null 2>&1 && ((wait_count++ < 20)); do
+			sleep 0.1
+		done
 
-        pkill -KILL -u "$USER" -f "$RUNNER_SCRIPT" 2>/dev/null || true
-    fi
+		pkill -KILL -u "$USER" -f "$RUNNER_SCRIPT" 2>/dev/null || true
+	fi
 
-    if [[ -d "$VENV_DIR" ]]; then
-        rm -rf "$VENV_DIR"
-        rm -f "$BASE_DIR"/.build_marker_*
-        rm -f "$RUNNER_SCRIPT"
-        printf "%b[RESET]%b Environment deleted successfully.\n" "${C_GREEN}" "${C_RESET}"
-    else
-        printf "%b[RESET]%b Nothing to clean (environment not found).\n" "${C_BLUE}" "${C_RESET}"
-    fi
-    exit 0
+	if [[ -d "$VENV_DIR" ]]; then
+		rm -rf "$VENV_DIR"
+		rm -f "$BASE_DIR"/.build_marker_*
+		rm -f "$RUNNER_SCRIPT"
+		printf "%b[RESET]%b Environment deleted successfully.\n" "${C_GREEN}" "${C_RESET}"
+	else
+		printf "%b[RESET]%b Nothing to clean (environment not found).\n" "${C_BLUE}" "${C_RESET}"
+	fi
+	exit 0
 fi
 
 # --- 2. TOGGLE (run mode only) ---
 if [[ "$RUN_MODE" == "run" ]]; then
-    if pgrep -u "$USER" -f "$RUNNER_SCRIPT" >/dev/null 2>&1; then
-        printf "%b[TOGGLE]%b Stopping active instance...\n" "${C_YELLOW}" "${C_RESET}"
-        notify_user "Disabled"
+	if pgrep -u "$USER" -f "$RUNNER_SCRIPT" >/dev/null 2>&1; then
+		printf "%b[TOGGLE]%b Stopping active instance...\n" "${C_YELLOW}" "${C_RESET}"
+		notify_user "Disabled"
 
-        pkill -TERM -u "$USER" -f "$RUNNER_SCRIPT" 2>/dev/null || true
+		pkill -TERM -u "$USER" -f "$RUNNER_SCRIPT" 2>/dev/null || true
 
-        wait_count=0
-        while pgrep -u "$USER" -f "$RUNNER_SCRIPT" >/dev/null 2>&1 && (( wait_count++ < 20 )); do
-            sleep 0.1
-        done
+		wait_count=0
+		while pgrep -u "$USER" -f "$RUNNER_SCRIPT" >/dev/null 2>&1 && ((wait_count++ < 20)); do
+			sleep 0.1
+		done
 
-        pkill -KILL -u "$USER" -f "$RUNNER_SCRIPT" 2>/dev/null || true
-        exit 0
-    fi
+		pkill -KILL -u "$USER" -f "$RUNNER_SCRIPT" 2>/dev/null || true
+		exit 0
+	fi
 fi
 
 # --- 3. INTERACTIVE DETECTION ---
@@ -196,110 +196,124 @@ fi
 declare -a NEEDED_DEPS=()
 AUDIO_PKGS_INSTALLED=false
 
-command -v uv >/dev/null 2>&1          || NEEDED_DEPS+=("uv")
+command -v uv >/dev/null 2>&1 || NEEDED_DEPS+=("uv")
 command -v notify-send >/dev/null 2>&1 || NEEDED_DEPS+=("libnotify")
 
 # Runtime audio stack (always required regardless of build marker)
 audio_deps=("pipewire" "pipewire-audio" "pipewire-pulse" "wireplumber")
 for dep in "${audio_deps[@]}"; do
-    if ! pacman -Qq "$dep" >/dev/null 2>&1; then
-        NEEDED_DEPS+=("$dep")
-        AUDIO_PKGS_INSTALLED=true
-    fi
+	if ! pacman -Qq "$dep" >/dev/null 2>&1; then
+		NEEDED_DEPS+=("$dep")
+		AUDIO_PKGS_INSTALLED=true
+	fi
 done
 
 # Build-time deps (only needed if native compilation hasn't been done yet)
 if [[ ! -f "$BASE_DIR/.build_marker_v10" ]]; then
-    command -v gcc >/dev/null 2>&1 || NEEDED_DEPS+=("gcc")
+	command -v gcc >/dev/null 2>&1 || NEEDED_DEPS+=("gcc")
 
-    # SDL headers/libs for pygame-ce, portmidi for MIDI, freetype2 for fonts,
-    # pkgconf so Meson finds libraries via .pc files, libuv for uvloop.
-    build_deps=("sdl2" "sdl2_mixer" "sdl2_image" "sdl2_ttf" "portmidi" "freetype2" "pkgconf" "libuv")
-    for dep in "${build_deps[@]}"; do
-        pacman -Qq "$dep" >/dev/null 2>&1 || NEEDED_DEPS+=("$dep")
-    done
+	# SDL headers/libs for pygame-ce, portmidi for MIDI, freetype2 for fonts,
+	# pkgconf so Meson finds libraries via .pc files, libuv for uvloop.
+	build_deps=("sdl2" "sdl2_mixer" "sdl2_image" "sdl2_ttf" "portmidi" "freetype2" "pkgconf" "libuv")
+	for dep in "${build_deps[@]}"; do
+		pacman -Qq "$dep" >/dev/null 2>&1 || NEEDED_DEPS+=("$dep")
+	done
 fi
 
-if (( ${#NEEDED_DEPS[@]} > 0 )); then
-    if $INTERACTIVE; then
-        clear
-        printf "%b
+if ((${#NEEDED_DEPS[@]} > 0)); then
+	if $INTERACTIVE; then
+		clear
+		printf "%b
 ╔════════════════════════════════════════════════════════════════╗
 ║  %bWAYCLICK ELITE%b                                                ║
 ║  %bHotplug • User Mode • Native CPU • Contained%b                  ║
 ╚════════════════════════════════════════════════════════════════╝
 %b" "${C_CYAN}" "${C_GREEN}" "${C_CYAN}" "${C_DIM}" "${C_CYAN}" "${C_RESET}"
 
-        printf "%b[SETUP]%b Missing system dependencies:%b %s%b\n" \
-            "${C_YELLOW}" "${C_RESET}" "${C_CYAN}" "${NEEDED_DEPS[*]}" "${C_RESET}"
-        printf "       Requesting sudo to install via pacman...\n"
+		printf "%b[SETUP]%b Missing system dependencies:%b %s%b\n" \
+			"${C_YELLOW}" "${C_RESET}" "${C_CYAN}" "${NEEDED_DEPS[*]}" "${C_RESET}"
+		printf "       Requesting sudo to install via pacman...\n"
 
-        if sudo pacman -S --needed --noconfirm "${NEEDED_DEPS[@]}"; then
-            printf "%b[SUCCESS]%b Dependencies installed.\n" "${C_GREEN}" "${C_RESET}"
-        else
-            printf "%b[ERROR]%b Installation failed.\n" "${C_RED}" "${C_RESET}"
-            exit 1
-        fi
-    else
-        notify_user "Missing dependencies (${NEEDED_DEPS[*]}). Run in terminal first."
-        exit 1
-    fi
+		if sudo pacman -S --needed --noconfirm "${NEEDED_DEPS[@]}"; then
+			printf "%b[SUCCESS]%b Dependencies installed.\n" "${C_GREEN}" "${C_RESET}"
+		else
+			printf "%b[ERROR]%b Installation failed.\n" "${C_RED}" "${C_RESET}"
+			exit 1
+		fi
+	else
+		notify_user "Missing dependencies (${NEEDED_DEPS[*]}). Run in terminal first."
+		exit 1
+	fi
 fi
 
 # --- 5. PIPEWIRE SERVICE ACTIVATION ---
 # On fresh installs, PipeWire services may be installed but not started.
 # If we just installed audio packages, PipeWire needs a restart to discover
 # the new ALSA SPA plugins and create audio device nodes.
-if $AUDIO_PKGS_INSTALLED || ! systemctl --user is-active pipewire.service >/dev/null 2>&1; then
-    printf "%b[AUDIO]%b Activating PipeWire audio services...\n" "${C_BLUE}" "${C_RESET}"
-    systemctl --user enable pipewire.service pipewire-pulse.service wireplumber.service 2>/dev/null || true
-    systemctl --user restart pipewire.service pipewire-pulse.service wireplumber.service 2>/dev/null || true
-    sleep 1
+_pw_active=false
+if command -v systemctl >/dev/null 2>&1; then
+	systemctl --user is-active pipewire.service >/dev/null 2>&1 && _pw_active=true
+elif command -v rc-service >/dev/null 2>&1; then
+	rc-service pipewire status >/dev/null 2>&1 && _pw_active=true
+fi
+
+if $AUDIO_PKGS_INSTALLED || ! $_pw_active; then
+	printf "%b[AUDIO]%b Activating PipeWire audio services...\n" "${C_BLUE}" "${C_RESET}"
+	if command -v systemctl >/dev/null 2>&1; then
+		systemctl --user enable pipewire.service pipewire-pulse.service wireplumber.service 2>/dev/null || true
+		systemctl --user restart pipewire.service pipewire-pulse.service wireplumber.service 2>/dev/null || true
+	elif command -v rc-service >/dev/null 2>&1; then
+		rc-update add pipewire default 2>/dev/null || true
+		rc-update add wireplumber default 2>/dev/null || true
+		rc-service pipewire restart 2>/dev/null || true
+		rc-service wireplumber restart 2>/dev/null || true
+	fi
+	sleep 1
 fi
 
 # --- 6a. CONFIG FILE CHECK ---
 if [[ ! -f "${CONFIG_DIR}/config.json" ]]; then
-    if $INTERACTIVE; then
-        while [[ ! -f "${CONFIG_DIR}/config.json" ]]; do
-            printf "\n%b[ACTION REQUIRED]%b Missing config.json in: %s\n" \
-                "${C_YELLOW}" "${C_RESET}" "${CONFIG_DIR}"
-            mkdir -p "$CONFIG_DIR" 2>/dev/null || true
-            printf "       Please ensure 'config.json' exists in this folder.\n"
-            printf "       %bPress Enter to re-scan...%b" "${C_DIM}" "${C_RESET}"
-            read -r
-        done
-        printf "%b[CHECK]%b Configuration found.\n" "${C_GREEN}" "${C_RESET}"
-    else
-        notify_user "Missing config.json in ~/.config/wayclick. Run in terminal."
-        exit 1
-    fi
+	if $INTERACTIVE; then
+		while [[ ! -f "${CONFIG_DIR}/config.json" ]]; do
+			printf "\n%b[ACTION REQUIRED]%b Missing config.json in: %s\n" \
+				"${C_YELLOW}" "${C_RESET}" "${CONFIG_DIR}"
+			mkdir -p "$CONFIG_DIR" 2>/dev/null || true
+			printf "       Please ensure 'config.json' exists in this folder.\n"
+			printf "       %bPress Enter to re-scan...%b" "${C_DIM}" "${C_RESET}"
+			read -r
+		done
+		printf "%b[CHECK]%b Configuration found.\n" "${C_GREEN}" "${C_RESET}"
+	else
+		notify_user "Missing config.json in ~/.config/wayclick. Run in terminal."
+		exit 1
+	fi
 fi
 
 # --- 6b. AUDIO PACK CHECK ---
 if [[ ! -d "${CONFIG_DIR}/${AUDIO_PACK}" ]]; then
-    if $INTERACTIVE; then
-        printf "\n%b[ERROR]%b Audio pack '%b%s%b' not found in: %s\n" \
-            "${C_RED}" "${C_RESET}" "${C_CYAN}" "$AUDIO_PACK" "${C_RESET}" "${CONFIG_DIR}"
+	if $INTERACTIVE; then
+		printf "\n%b[ERROR]%b Audio pack '%b%s%b' not found in: %s\n" \
+			"${C_RED}" "${C_RESET}" "${C_CYAN}" "$AUDIO_PACK" "${C_RESET}" "${CONFIG_DIR}"
 
-        mapfile -t available < <(find "$CONFIG_DIR" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null | sort)
+		mapfile -t available < <(find "$CONFIG_DIR" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null | sort)
 
-        if (( ${#available[@]} > 0 )); then
-            printf "       Available packs:\n"
-            for pack in "${available[@]}"; do
-                printf "         %b→%b %s\n" "${C_CYAN}" "${C_RESET}" "$pack"
-            done
-            printf "\n       Update %bAUDIO_PACK%b at the top of this script to one of the above.\n" \
-                "${C_GREEN}" "${C_RESET}"
-        else
-            printf "       No audio packs found. Create a subdirectory with .wav files:\n"
-            printf "         %bmkdir -p %s/my_sounds && cp *.wav %s/my_sounds/%b\n" \
-                "${C_DIM}" "${CONFIG_DIR}" "${CONFIG_DIR}" "${C_RESET}"
-        fi
-        exit 1
-    else
-        notify_user "Audio pack '$AUDIO_PACK' not found. Run in terminal."
-        exit 1
-    fi
+		if ((${#available[@]} > 0)); then
+			printf "       Available packs:\n"
+			for pack in "${available[@]}"; do
+				printf "         %b→%b %s\n" "${C_CYAN}" "${C_RESET}" "$pack"
+			done
+			printf "\n       Update %bAUDIO_PACK%b at the top of this script to one of the above.\n" \
+				"${C_GREEN}" "${C_RESET}"
+		else
+			printf "       No audio packs found. Create a subdirectory with .wav files:\n"
+			printf "         %bmkdir -p %s/my_sounds && cp *.wav %s/my_sounds/%b\n" \
+				"${C_DIM}" "${CONFIG_DIR}" "${CONFIG_DIR}" "${C_RESET}"
+		fi
+		exit 1
+	else
+		notify_user "Audio pack '$AUDIO_PACK' not found. Run in terminal."
+		exit 1
+	fi
 fi
 
 # --- ENVIRONMENT SETUP ---
@@ -307,54 +321,54 @@ fi
 mkdir -p "$BASE_DIR" 2>/dev/null || true
 
 if [[ ! -d "$VENV_DIR" ]]; then
-    if ! $INTERACTIVE; then
-        notify_user "Environment not built! Run in terminal once to initialize."
-        exit 1
-    fi
-    printf "%b[BUILD]%b Initializing UV environment...\n" "${C_BLUE}" "${C_RESET}"
-    uv venv "$VENV_DIR" --python 3.14 --quiet
+	if ! $INTERACTIVE; then
+		notify_user "Environment not built! Run in terminal once to initialize."
+		exit 1
+	fi
+	printf "%b[BUILD]%b Initializing UV environment...\n" "${C_BLUE}" "${C_RESET}"
+	uv venv "$VENV_DIR" --python 3.14 --quiet
 fi
 
 MARKER_FILE="$BASE_DIR/.build_marker_v10"
 
 if [[ ! -f "$MARKER_FILE" ]]; then
-    if ! $INTERACTIVE; then
-        notify_user "First run setup required! Run in terminal to build native extensions."
-        exit 1
-    fi
+	if ! $INTERACTIVE; then
+		notify_user "First run setup required! Run in terminal to build native extensions."
+		exit 1
+	fi
 
-    printf "%b[BUILD]%b Compiling dependencies with NATIVE CPU FLAGS (LTO / march=native)...\n" \
-        "${C_YELLOW}" "${C_RESET}"
+	printf "%b[BUILD]%b Compiling dependencies with NATIVE CPU FLAGS (LTO / march=native)...\n" \
+		"${C_YELLOW}" "${C_RESET}"
 
-    export CFLAGS="-march=native -mtune=native -O3 -pipe -fno-plt -fno-semantic-interposition -fno-math-errno -fno-trapping-math -flto=auto -ffat-lto-objects -ffp-contract=fast -DNDEBUG"
-    export CXXFLAGS="$CFLAGS"
-    export LDFLAGS="-Wl,-O2,--sort-common,--as-needed,-z,now,--relax -flto=auto"
+	export CFLAGS="-march=native -mtune=native -O3 -pipe -fno-plt -fno-semantic-interposition -fno-math-errno -fno-trapping-math -flto=auto -ffat-lto-objects -ffp-contract=fast -DNDEBUG"
+	export CXXFLAGS="$CFLAGS"
+	export LDFLAGS="-Wl,-O2,--sort-common,--as-needed,-z,now,--relax -flto=auto"
 
-    # --no-binary targets ONLY our runtime libraries (evdev, pygame-ce).
-    # Build tools (cmake, ninja, scikit-build-core) use pre-built wheels.
-    # This avoids needing 'make' on fresh installs while still compiling
-    # the hot-path C extensions with native CPU flags.
-    uv pip install --python "$PYTHON_BIN" \
-        --no-binary evdev --no-binary pygame-ce \
-        --no-cache \
-        --compile-bytecode \
-        evdev pygame-ce
+	# --no-binary targets ONLY our runtime libraries (evdev, pygame-ce).
+	# Build tools (cmake, ninja, scikit-build-core) use pre-built wheels.
+	# This avoids needing 'make' on fresh installs while still compiling
+	# the hot-path C extensions with native CPU flags.
+	uv pip install --python "$PYTHON_BIN" \
+		--no-binary evdev --no-binary pygame-ce \
+		--no-cache \
+		--compile-bytecode \
+		evdev pygame-ce
 
-    printf "%b[BUILD]%b Attempting uvloop (optional, faster event loop)...\n" "${C_BLUE}" "${C_RESET}"
-    uv pip install --python "$PYTHON_BIN" \
-        --no-binary uvloop \
-        --no-cache \
-        --compile-bytecode \
-        uvloop 2>/dev/null \
-        && printf "%b[SUCCESS]%b uvloop installed.\n" "${C_GREEN}" "${C_RESET}" \
-        || printf "%b[INFO]%b uvloop skipped (optional). Standard asyncio will be used.\n" "${C_YELLOW}" "${C_RESET}"
+	printf "%b[BUILD]%b Attempting uvloop (optional, faster event loop)...\n" "${C_BLUE}" "${C_RESET}"
+	uv pip install --python "$PYTHON_BIN" \
+		--no-binary uvloop \
+		--no-cache \
+		--compile-bytecode \
+		uvloop 2>/dev/null &&
+		printf "%b[SUCCESS]%b uvloop installed.\n" "${C_GREEN}" "${C_RESET}" ||
+		printf "%b[INFO]%b uvloop skipped (optional). Standard asyncio will be used.\n" "${C_YELLOW}" "${C_RESET}"
 
-    touch "$MARKER_FILE"
-    printf "%b[SUCCESS]%b Native build complete.\n" "${C_GREEN}" "${C_RESET}"
+	touch "$MARKER_FILE"
+	printf "%b[SUCCESS]%b Native build complete.\n" "${C_GREEN}" "${C_RESET}"
 fi
 
 # --- PYTHON RUNNER GENERATION ---
-cat > "$RUNNER_SCRIPT" << 'PYTHON_EOF'
+cat >"$RUNNER_SCRIPT" <<'PYTHON_EOF'
 import asyncio
 import gc
 import os
@@ -614,59 +628,62 @@ PYTHON_EOF
 
 # --- SETUP MODE EXIT ---
 if [[ "$RUN_MODE" == "setup" ]]; then
-    printf "\n%b[SETUP]%b Setup complete! Run '%b%s%b' to start WayClick.\n" \
-        "${C_GREEN}" "${C_RESET}" "${C_CYAN}" "$(basename "$0")" "${C_RESET}"
+	printf "\n%b[SETUP]%b Setup complete! Run '%b%s%b' to start WayClick.\n" \
+		"${C_GREEN}" "${C_RESET}" "${C_CYAN}" "$(basename "$0")" "${C_RESET}"
 
-    # Non-blocking group reminder (setup doesn't need it, but runtime does)
-    if ! id -nG "$USER" | grep -qw input; then
-        printf "%b[NOTE]%b  User '%s' is not in the 'input' group (required to run).\n" \
-            "${C_YELLOW}" "${C_RESET}" "$USER"
-        printf "        Run: %bsudo usermod -aG input %s%b (then logout/login)\n" \
-            "${C_CYAN}" "$USER" "${C_RESET}"
-    fi
-    exit 0
+	# Non-blocking group reminder (setup doesn't need it, but runtime does)
+	if ! id -nG "$USER" | grep -qw input; then
+		printf "%b[NOTE]%b  User '%s' is not in the 'input' group (required to run).\n" \
+			"${C_YELLOW}" "${C_RESET}" "$USER"
+		printf "        Run: %bsudo usermod -aG input %s%b (then logout/login)\n" \
+			"${C_CYAN}" "$USER" "${C_RESET}"
+	fi
+	exit 0
 fi
 
 # --- 7. GROUP PERMISSION CHECK (run mode only — after build so first run completes setup) ---
 if ! id -nG "$USER" | grep -qw input; then
-    if $INTERACTIVE; then
-        printf "%b[PERM]%b User '%s' is not in the 'input' group.\n" \
-            "${C_RED}" "${C_RESET}" "$USER"
-        read -rp "Run 'sudo usermod -aG input $USER'? [Y/n] " -n 1
-        echo
-        if [[ ${REPLY:-Y} =~ ^[Yy]$ ]]; then
-            sudo usermod -aG input "$USER"
-            printf "%b[INFO]%b Group added. %bLOGOUT REQUIRED%b for changes to apply.\n" \
-                "${C_GREEN}" "${C_RESET}" "${C_RED}" "${C_RESET}"
-            exit 0
-        else
-            exit 1
-        fi
-    else
-        notify_user "Permission error: User not in 'input' group. Run in terminal."
-        exit 1
-    fi
+	if $INTERACTIVE; then
+		printf "%b[PERM]%b User '%s' is not in the 'input' group.\n" \
+			"${C_RED}" "${C_RESET}" "$USER"
+		read -rp "Run 'sudo usermod -aG input $USER'? [Y/n] " -n 1
+		echo
+		if [[ ${REPLY:-Y} =~ ^[Yy]$ ]]; then
+			sudo usermod -aG input "$USER"
+			printf "%b[INFO]%b Group added. %bLOGOUT REQUIRED%b for changes to apply.\n" \
+				"${C_GREEN}" "${C_RESET}" "${C_RED}" "${C_RESET}"
+			exit 0
+		else
+			exit 1
+		fi
+	else
+		notify_user "Permission error: User not in 'input' group. Run in terminal."
+		exit 1
+	fi
 fi
 
 # --- EXECUTION ---
 printf "%b[RUN]%b Starting engine (pack: %b%s%b | buffer: %s samples)...\n" \
-    "${C_BLUE}" "${C_RESET}" "${C_CYAN}" "$AUDIO_PACK" "${C_RESET}" "$AUDIO_BUFFER_SIZE"
+	"${C_BLUE}" "${C_RESET}" "${C_CYAN}" "$AUDIO_PACK" "${C_RESET}" "$AUDIO_BUFFER_SIZE"
 
 $INTERACTIVE || notify_user "Enabled (${AUDIO_PACK})"
 
 update_state "True"
 
-EXCLUDED_KW_STR=$(IFS=, ; echo "${EXCLUDED_KEYWORDS[*]}")
+EXCLUDED_KW_STR=$(
+	IFS=,
+	echo "${EXCLUDED_KEYWORDS[*]}"
+)
 
 ENABLE_TRACKPADS="$ENABLE_TRACKPAD_SOUNDS" \
-WC_AUTO_DETECT="$AUTO_DETECT_TRACKPADS" \
-WC_EXCLUDED_KEYWORDS="$EXCLUDED_KW_STR" \
-WC_AUDIO_BUFFER="$AUDIO_BUFFER_SIZE" \
-WC_AUDIO_RATE="$AUDIO_SAMPLE_RATE" \
-WC_MIX_CHANNELS="$AUDIO_MIX_CHANNELS" \
-WC_POLL_INTERVAL="$HOTPLUG_POLL_SECONDS" \
-WC_DEBUG="$DEBUG_MODE" \
-PIPEWIRE_LATENCY="${AUDIO_BUFFER_SIZE}/${AUDIO_SAMPLE_RATE}" \
-"$PYTHON_BIN" -OO -B "$RUNNER_SCRIPT" "$CONFIG_DIR" "$AUDIO_PACK"
+	WC_AUTO_DETECT="$AUTO_DETECT_TRACKPADS" \
+	WC_EXCLUDED_KEYWORDS="$EXCLUDED_KW_STR" \
+	WC_AUDIO_BUFFER="$AUDIO_BUFFER_SIZE" \
+	WC_AUDIO_RATE="$AUDIO_SAMPLE_RATE" \
+	WC_MIX_CHANNELS="$AUDIO_MIX_CHANNELS" \
+	WC_POLL_INTERVAL="$HOTPLUG_POLL_SECONDS" \
+	WC_DEBUG="$DEBUG_MODE" \
+	PIPEWIRE_LATENCY="${AUDIO_BUFFER_SIZE}/${AUDIO_SAMPLE_RATE}" \
+	"$PYTHON_BIN" -OO -B "$RUNNER_SCRIPT" "$CONFIG_DIR" "$AUDIO_PACK"
 
 printf "\n%b[INFO]%b WayClick stopped.\n" "${C_BLUE}" "${C_RESET}"

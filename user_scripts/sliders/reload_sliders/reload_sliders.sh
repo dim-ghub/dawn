@@ -20,7 +20,11 @@ trap '' HUP
 # Configuration
 # -----------------------------------------------------------------------------
 readonly APP_NAME="Dusky Sliders"
-readonly SERVICE_NAME="dusky_sliders.service"
+if command -v systemctl >/dev/null 2>&1; then
+	readonly SERVICE_NAME="dusky_sliders.service"
+else
+	readonly SERVICE_NAME="dusky-sliders"
+fi
 readonly PROCESS_PATTERN='dusky_sliders\.py'
 readonly GUI_SCRIPT_PATH="${HOME}/user_scripts/sliders/dusky_sliders.py"
 
@@ -37,168 +41,188 @@ readonly SELF_PID=$$
 # Terminal Colors (TTY Detection)
 # -----------------------------------------------------------------------------
 if [[ -t 1 && -t 2 ]]; then
-    readonly C_RED=$'\e[31m' C_GREEN=$'\e[32m' C_YELLOW=$'\e[33m'
-    readonly C_BLUE=$'\e[34m' C_BOLD=$'\e[1m' C_RESET=$'\e[0m'
+	readonly C_RED=$'\e[31m' C_GREEN=$'\e[32m' C_YELLOW=$'\e[33m'
+	readonly C_BLUE=$'\e[34m' C_BOLD=$'\e[1m' C_RESET=$'\e[0m'
 else
-    readonly C_RED='' C_GREEN='' C_YELLOW='' C_BLUE='' C_BOLD='' C_RESET=''
+	readonly C_RED='' C_GREEN='' C_YELLOW='' C_BLUE='' C_BOLD='' C_RESET=''
 fi
 
 log_info() { printf '%s[INFO]%s %s\n' "${C_BLUE}" "${C_RESET}" "$*"; }
-log_ok()   { printf '%s[OK]%s %s\n' "${C_GREEN}" "${C_RESET}" "$*"; }
+log_ok() { printf '%s[OK]%s %s\n' "${C_GREEN}" "${C_RESET}" "$*"; }
 log_warn() { printf '%s[WARN]%s %s\n' "${C_YELLOW}" "${C_RESET}" "$*" >&2; }
-log_err()  { printf '%s[ERR]%s %s\n' "${C_RED}" "${C_RESET}" "$*" >&2; }
+log_err() { printf '%s[ERR]%s %s\n' "${C_RED}" "${C_RESET}" "$*" >&2; }
 
 # -----------------------------------------------------------------------------
 # Preflight Checks
 # -----------------------------------------------------------------------------
 preflight_checks() {
-    if ((EUID == 0)); then
-        log_err "This script manages a user service. Do not run as root."
-        return 1
-    fi
+	if ((EUID == 0)); then
+		log_err "This script manages a user service. Do not run as root."
+		return 1
+	fi
 
-    local -a missing=()
-    for cmd in pgrep systemctl journalctl python3; do
-        command -v "$cmd" &>/dev/null || missing+=("$cmd")
-    done
+	local -a missing=()
+	for cmd in pgrep python3; do
+		command -v "$cmd" &>/dev/null || missing+=("$cmd")
+	done
 
-    if ((${#missing[@]} > 0)); then
-        log_err "Missing required binaries: ${missing[*]}"
-        return 1
-    fi
+	if command -v systemctl >/dev/null 2>&1; then
+		missing+=("journalctl")
+	elif ! command -v rc-service >/dev/null 2>&1; then
+		missing+=("rc-service")
+	fi
+
+	if ((${#missing[@]} > 0)); then
+		log_err "Missing required binaries: ${missing[*]}"
+		return 1
+	fi
 }
 
 # -----------------------------------------------------------------------------
 # Process Management
 # -----------------------------------------------------------------------------
 get_target_pids() {
-    local pid
-    while IFS= read -r pid; do
-        if [[ "$pid" =~ ^[0-9]+$ ]] && ((pid != SELF_PID)); then
-            printf '%s\n' "$pid"
-        fi
-    done < <(pgrep -f -- "$PROCESS_PATTERN" 2>/dev/null || true)
+	local pid
+	while IFS= read -r pid; do
+		if [[ "$pid" =~ ^[0-9]+$ ]] && ((pid != SELF_PID)); then
+			printf '%s\n' "$pid"
+		fi
+	done < <(pgrep -f -- "$PROCESS_PATTERN" 2>/dev/null || true)
 }
 
 terminate_processes() {
-    (($# > 0)) || return 0
-    local -a pids=("$@")
-    local pid i all_exited
+	(($# > 0)) || return 0
+	local -a pids=("$@")
+	local pid i all_exited
 
-    log_info "Terminating instances (PIDs: ${pids[*]})..."
+	log_info "Terminating instances (PIDs: ${pids[*]})..."
 
-    for pid in "${pids[@]}"; do
-        kill -TERM -- "$pid" 2>/dev/null || true
-    done
+	for pid in "${pids[@]}"; do
+		kill -TERM -- "$pid" 2>/dev/null || true
+	done
 
-    for ((i = 0; i < GRACE_PERIOD_LOOPS; i++)); do
-        all_exited=1
-        for pid in "${pids[@]}"; do
-            if kill -0 -- "$pid" 2>/dev/null; then
-                all_exited=0
-                break
-            fi
-        done
+	for ((i = 0; i < GRACE_PERIOD_LOOPS; i++)); do
+		all_exited=1
+		for pid in "${pids[@]}"; do
+			if kill -0 -- "$pid" 2>/dev/null; then
+				all_exited=0
+				break
+			fi
+		done
 
-        if ((all_exited)); then
-            log_ok "Processes terminated gracefully."
-            return 0
-        fi
-        sleep "$GRACE_SLEEP_SEC"
-    done
+		if ((all_exited)); then
+			log_ok "Processes terminated gracefully."
+			return 0
+		fi
+		sleep "$GRACE_SLEEP_SEC"
+	done
 
-    log_warn "Grace period exceeded. Sending SIGKILL..."
-    for pid in "${pids[@]}"; do
-        kill -KILL -- "$pid" 2>/dev/null || true
-    done
-    
-    sleep "$POST_KILL_SETTLE_SEC"
-    log_ok "Forced termination complete."
+	log_warn "Grace period exceeded. Sending SIGKILL..."
+	for pid in "${pids[@]}"; do
+		kill -KILL -- "$pid" 2>/dev/null || true
+	done
+
+	sleep "$POST_KILL_SETTLE_SEC"
+	log_ok "Forced termination complete."
 }
 
 # -----------------------------------------------------------------------------
 # Service Management
 # -----------------------------------------------------------------------------
 start_and_verify_service() {
-    log_info "Starting systemd service: ${C_BOLD}${SERVICE_NAME}${C_RESET}"
+	if command -v systemctl >/dev/null 2>&1; then
+		log_info "Starting systemd service: ${C_BOLD}${SERVICE_NAME}${C_RESET}"
+		systemctl --user reset-failed -- "$SERVICE_NAME" 2>/dev/null || true
 
-    systemctl --user reset-failed -- "$SERVICE_NAME" 2>/dev/null || true
+		if ! systemctl --user start -- "$SERVICE_NAME"; then
+			log_err "systemctl start failed. Dumping logs:"
+			journalctl --user -u "$SERVICE_NAME" -n 15 --no-pager >&2
+			return 1
+		fi
 
-    if ! systemctl --user start -- "$SERVICE_NAME"; then
-        log_err "systemctl start failed. Dumping logs:"
-        journalctl --user -u "$SERVICE_NAME" -n 15 --no-pager >&2
-        return 1
-    fi
+		sleep "$SERVICE_INIT_DELAY_SEC"
 
-    sleep "$SERVICE_INIT_DELAY_SEC"
+		if ! systemctl --user is-active --quiet -- "$SERVICE_NAME"; then
+			log_err "Service started but immediately exited. Dumping logs:"
+			journalctl --user -u "$SERVICE_NAME" -n 10 --no-pager >&2
+			return 1
+		fi
+	elif command -v rc-service >/dev/null 2>&1; then
+		log_info "Starting OpenRC service: ${C_BOLD}${SERVICE_NAME}${C_RESET}"
 
-    if ! systemctl --user is-active --quiet -- "$SERVICE_NAME"; then
-        log_err "Service started but immediately exited. Dumping logs:"
-        journalctl --user -u "$SERVICE_NAME" -n 10 --no-pager >&2
-        return 1
-    fi
+		if ! rc-service "$SERVICE_NAME" start; then
+			log_err "rc-service start failed."
+			return 1
+		fi
+	else
+		log_err "No service manager found (systemd or OpenRC)."
+		return 1
+	fi
 
-    log_ok "Service is active."
+	log_ok "Service is active."
 }
 
 # -----------------------------------------------------------------------------
 # UI Activation
 # -----------------------------------------------------------------------------
 activate_ui() {
-    if [[ ! -f "$GUI_SCRIPT_PATH" ]]; then
-        log_warn "UI script not found at: $GUI_SCRIPT_PATH"
-        return 0
-    fi
+	if [[ ! -f "$GUI_SCRIPT_PATH" ]]; then
+		log_warn "UI script not found at: $GUI_SCRIPT_PATH"
+		return 0
+	fi
 
-    log_info "Activating UI window via D-Bus..."
+	log_info "Activating UI window via D-Bus..."
 
-    # GTK4 Adw.Application natively handles D-Bus activation.
-    # Running it sends the signal to the primary daemon and exits immediately.
-    if [[ -x "$GUI_SCRIPT_PATH" ]]; then
-        "$GUI_SCRIPT_PATH" >/dev/null 2>&1
-    else
-        python3 -- "$GUI_SCRIPT_PATH" >/dev/null 2>&1
-    fi
+	# GTK4 Adw.Application natively handles D-Bus activation.
+	# Running it sends the signal to the primary daemon and exits immediately.
+	if [[ -x "$GUI_SCRIPT_PATH" ]]; then
+		"$GUI_SCRIPT_PATH" >/dev/null 2>&1
+	else
+		python3 -- "$GUI_SCRIPT_PATH" >/dev/null 2>&1
+	fi
 }
 
 # -----------------------------------------------------------------------------
 # Main Orchestrator
 # -----------------------------------------------------------------------------
 main() {
-    local quiet_mode=0
-    
-    while (($# > 0)); do
-        case "$1" in
-            -q|--quiet) quiet_mode=1; shift ;;
-            *) shift ;;
-        esac
-    done
+	local quiet_mode=0
 
-    preflight_checks || return 1
+	while (($# > 0)); do
+		case "$1" in
+		-q | --quiet)
+			quiet_mode=1
+			shift
+			;;
+		*) shift ;;
+		esac
+	done
 
-    log_info "Initiating restart for ${C_BOLD}${APP_NAME}${C_RESET}..."
+	preflight_checks || return 1
 
-    local -a target_pids
-    mapfile -t target_pids < <(get_target_pids)
+	log_info "Initiating restart for ${C_BOLD}${APP_NAME}${C_RESET}..."
 
-    if ((${#target_pids[@]} > 0)); then
-        terminate_processes "${target_pids[@]}"
-    else
-        log_info "No running instances found. Environment is clean."
-    fi
+	local -a target_pids
+	mapfile -t target_pids < <(get_target_pids)
 
-    start_and_verify_service || return 1
+	if ((${#target_pids[@]} > 0)); then
+		terminate_processes "${target_pids[@]}"
+	else
+		log_info "No running instances found. Environment is clean."
+	fi
 
-    log_info "Waiting for DBus registration (${DBUS_REGISTRATION_DELAY_SEC}s)..."
-    sleep "$DBUS_REGISTRATION_DELAY_SEC"
-    
-    if (( quiet_mode == 0 )); then
-        activate_ui
-    else
-        log_info "Quiet mode enabled. Skipping UI activation."
-    fi
+	start_and_verify_service || return 1
 
-    log_ok "Restart sequence complete."
+	log_info "Waiting for DBus registration (${DBUS_REGISTRATION_DELAY_SEC}s)..."
+	sleep "$DBUS_REGISTRATION_DELAY_SEC"
+
+	if ((quiet_mode == 0)); then
+		activate_ui
+	else
+		log_info "Quiet mode enabled. Skipping UI activation."
+	fi
+
+	log_ok "Restart sequence complete."
 }
 
 main "$@"

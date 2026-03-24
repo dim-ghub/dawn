@@ -1,0 +1,18 @@
+#!/sbin/openrc-run
+
+name="Waybar Network Meter Daemon"
+description="Waybar network speed monitoring daemon"
+command="/home/dim/duskyRC/user_scripts/waybar/network/network_meter_daemon.sh"
+command_background="yes"
+pidfile="/run/${RC_SVCNAME}.pid"
+output_log="/var/log/${RC_SVCNAME}.log"
+error_log="/var/log/${RC_SVCNAME}.err"
+
+depend() {
+    need localmount
+    after firewall
+}
+
+start_pre() {
+    checkpath --directory --owner root:root --mode 0755 /run 2>/dev/null || true
+}

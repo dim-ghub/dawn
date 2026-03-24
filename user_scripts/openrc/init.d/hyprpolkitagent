@@ -1,0 +1,16 @@
+#!/sbin/openrc-run
+
+name="Hyprland PolicyKit Agent"
+description="PolicyKit agent for Hyprland"
+command="/usr/bin/hyprpolkitagent"
+command_background="yes"
+pidfile="/run/${RC_SVCNAME}.pid"
+
+depend() {
+    need localmount
+    after hyprland
+}
+
+start_pre() {
+    checkpath --directory --owner root:root --mode 0755 /run 2>/dev/null || true
+}

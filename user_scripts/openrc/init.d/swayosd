@@ -1,0 +1,16 @@
+#!/sbin/openrc-run
+
+name="SwayOSD"
+description="OSD for sway/wlroots"
+command="/usr/bin/swayosd-server"
+command_background="yes"
+pidfile="/run/${RC_SVCNAME}.pid"
+
+depend() {
+    need localmount
+    after hyprland
+}
+
+start_pre() {
+    checkpath --directory --owner root:root --mode 0755 /run 2>/dev/null || true
+}

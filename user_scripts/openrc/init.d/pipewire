@@ -1,0 +1,16 @@
+#!/sbin/openrc-run
+
+name="PipeWire Audio Service"
+description="Audio server for Wayland"
+command="/usr/bin/pipewire"
+command_background="yes"
+pidfile="/run/${RC_SVCNAME}.pid"
+
+depend() {
+    need localmount
+    after wireplumber
+}
+
+start_pre() {
+    checkpath --directory --owner root:root --mode 0755 /run 2>/dev/null || true
+}
