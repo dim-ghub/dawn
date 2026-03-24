@@ -9,6 +9,18 @@
 # 1. Strict Mode & Environment Setup
 set -euo pipefail
 
+# --- Detect Init System ---
+detect_init() {
+	if command -v systemctl >/dev/null 2>&1 && [[ -d /run/systemd/system ]]; then
+		echo "systemd"
+	elif command -v rc-service >/dev/null 2>&1; then
+		echo "openrc"
+	else
+		echo "unknown"
+	fi
+}
+readonly INIT_SYSTEM=$(detect_init)
+
 # 2. Output Formatting (Visual Feedback)
 GREEN=$'\033[0;32m'
 BLUE=$'\033[0;34m'
@@ -19,12 +31,15 @@ NC=$'\033[0m' # No Color
 log_info() { printf "${BLUE}[INFO]${NC} %s\n" "$1"; }
 log_success() { printf "${GREEN}[SUCCESS]${NC} %s\n" "$1"; }
 log_warn() { printf "${YELLOW}[WARN]${NC} %s\n" "$1"; }
-log_error() { printf "${RED}[ERROR]${NC} %s\n" "$1"; exit 1; }
+log_error() {
+	printf "${RED}[ERROR]${NC} %s\n" "$1"
+	exit 1
+}
 
 # 3. Root Privilege Check & Re-execution
 if [[ $EUID -ne 0 ]]; then
-   # We don't print "escalating" yet, strictly to keep the flow clean
-   exec sudo "$0" "$@"
+	# We don't print "escalating" yet, strictly to keep the flow clean
+	exec sudo "$0" "$@"
 fi
 
 # ==============================================================================
@@ -36,9 +51,9 @@ read -r CONFIRM_INSTALL
 CONFIRM_INSTALL=${CONFIRM_INSTALL:-Y}
 
 if [[ ! "$CONFIRM_INSTALL" =~ ^[Yy]$ ]]; then
-    echo ""
-    log_info "Okay, I won't set it up. Exiting."
-    exit 0
+	echo ""
+	log_info "Okay, I won't set it up. Exiting."
+	exit 0
 fi
 # ==============================================================================
 
@@ -48,8 +63,8 @@ REAL_USER="${SUDO_USER:-$(whoami)}"
 
 # If running as raw root (no sudo), ask for the user manually
 if [[ "$REAL_USER" == "root" ]]; then
-    log_warn "Running as raw root. Cannot auto-detect target user."
-    read -r -p "Enter the username to allow FTP access: " REAL_USER
+	log_warn "Running as raw root. Cannot auto-detect target user."
+	read -r -p "Enter the username to allow FTP access: " REAL_USER
 fi
 
 # Interactive Directory Selection
@@ -68,19 +83,24 @@ pacman -Sy --needed --noconfirm vsftpd firewalld
 # 6. Firewall Configuration
 log_info "Configuring Firewalld..."
 # Ensure service is running before using firewall-cmd
-systemctl enable --now firewalld
+if [[ "$INIT_SYSTEM" == "systemd" ]]; then
+	systemctl enable --now firewalld
+else
+	rc-update add firewalld default 2>/dev/null || true
+	rc-service firewalld start 2>/dev/null || true
+fi
 
 # Add rules idempotently
-firewall-cmd --permanent --add-service=ftp > /dev/null
-firewall-cmd --permanent --add-port=40000-40100/tcp > /dev/null
-firewall-cmd --reload > /dev/null
+firewall-cmd --permanent --add-service=ftp >/dev/null
+firewall-cmd --permanent --add-port=40000-40100/tcp >/dev/null
+firewall-cmd --reload >/dev/null
 log_success "Firewall rules applied (Port 21, 40000-40100)."
 
 # 7. VSFTPD Configuration Generation
 log_info "Generating /etc/vsftpd.conf..."
 
 # Backup is not required per instructions ("Clean"), enforcing overwrite.
-cat > /etc/vsftpd.conf <<EOF
+cat >/etc/vsftpd.conf <<EOF
 # --- Access Control ---
 # Allow anonymous FTP? (NO for security)
 anonymous_enable=NO
@@ -136,17 +156,17 @@ EOF
 # 8. User Allow List
 log_info "Configuring Allow List..."
 if ! grep -q "^${REAL_USER}$" /etc/vsftpd.userlist 2>/dev/null; then
-    echo "$REAL_USER" | tee -a /etc/vsftpd.userlist > /dev/null
-    log_success "Added '$REAL_USER' to /etc/vsftpd.userlist"
+	echo "$REAL_USER" | tee -a /etc/vsftpd.userlist >/dev/null
+	log_success "Added '$REAL_USER' to /etc/vsftpd.userlist"
 else
-    log_info "User '$REAL_USER' already in allow list."
+	log_info "User '$REAL_USER' already in allow list."
 fi
 
 # 9. Directory Permissions
 log_info "Setting up directory permissions..."
 if [[ ! -d "$FTP_ROOT" ]]; then
-    mkdir -p "$FTP_ROOT"
-    log_info "Created directory: $FTP_ROOT"
+	mkdir -p "$FTP_ROOT"
+	log_info "Created directory: $FTP_ROOT"
 fi
 
 # Applying specific instruction: chmod -R 777
@@ -155,7 +175,12 @@ log_success "Permissions set to 777 for $FTP_ROOT"
 
 # 10. Service Activation
 log_info "Starting vsftpd service..."
-systemctl enable --now vsftpd
+if [[ "$INIT_SYSTEM" == "systemd" ]]; then
+	systemctl enable --now vsftpd
+else
+	rc-update add vsftpd default 2>/dev/null || true
+	rc-service vsftpd start 2>/dev/null || true
+fi
 
 # 11. Final Status
 IP_ADDR=$(ip route get 1.1.1.1 2>/dev/null | grep -oP 'src \K\S+')
