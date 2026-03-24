@@ -11,7 +11,7 @@ shopt -s inherit_errexit 2>/dev/null || true
 
 # ---[ USER CONFIGURATION ]---
 # Paste your exact resolved.conf content between the 'EOF' markers.
-# We add '|| true' because 'read' returns exit code 1 on EOF, which would 
+# We add '|| true' because 'read' returns exit code 1 on EOF, which would
 # otherwise kill the script due to 'set -e'.
 
 read -r -d '' RESOLVED_CONFIG <<'EOF' || true
@@ -91,10 +91,10 @@ readonly C_RED=$'\e[1;31m'
 readonly C_YELLOW=$'\e[1;33m'
 
 # Logging Helpers (using %s to prevent format injection)
-log_info()    { printf "%s[INFO]%s %s\n" "$C_BLUE" "$C_RESET" "${1:-}"; }
+log_info() { printf "%s[INFO]%s %s\n" "$C_BLUE" "$C_RESET" "${1:-}"; }
 log_success() { printf "%s[OK]%s %s\n" "$C_GREEN" "$C_RESET" "${1:-}"; }
-log_warn()    { printf "%s[WARN]%s %s\n" "$C_YELLOW" "$C_RESET" "${1:-}" >&2; }
-log_error()   { printf "%s[ERROR]%s %s\n" "$C_RED" "$C_RESET" "${1:-}" >&2; }
+log_warn() { printf "%s[WARN]%s %s\n" "$C_YELLOW" "$C_RESET" "${1:-}" >&2; }
+log_error() { printf "%s[ERROR]%s %s\n" "$C_RED" "$C_RESET" "${1:-}" >&2; }
 
 # Error Trap
 trap 'log_error "Script failed on line $LINENO. Exiting."; exit 1' ERR
@@ -102,67 +102,103 @@ trap 'log_error "Script failed on line $LINENO. Exiting."; exit 1' ERR
 # ---[ ROOT ESCALATION ]---
 
 if [[ $EUID -ne 0 ]]; then
-    log_info "Root privileges required. Elevating..."
-    exec sudo "$0" "$@"
+	log_info "Root privileges required. Elevating..."
+	exec sudo "$0" "$@"
 fi
 
 # ---[ MAIN LOGIC ]---
 
 main() {
-    local target_conf="/etc/systemd/resolved.conf"
-    local stub_resolv="/run/systemd/resolve/stub-resolv.conf"
-    local etc_resolv="/etc/resolv.conf"
+	local target_conf="/etc/systemd/resolved.conf"
+	local stub_resolv="/run/systemd/resolve/stub-resolv.conf"
+	local etc_resolv="/etc/resolv.conf"
 
-    # 1. Dependency Check
-    if ! command -v systemctl &>/dev/null; then
-        log_error "systemd is required but not found."
-        exit 1
-    fi
+	# Detect init system
+	local init_system="unknown"
+	if command -v systemctl >/dev/null 2>&1 && [[ -d /run/systemd/system ]]; then
+		init_system="systemd"
+	elif command -v rc-service >/dev/null 2>&1; then
+		init_system="openrc"
+	fi
 
-    # 2. Write Configuration
-    log_info "Writing configuration to $target_conf..."
-    # Writing directly, no backups as requested
-    printf "%s\n" "$RESOLVED_CONFIG" > "$target_conf"
-    log_success "Configuration written."
+	# 1. Handle systemd-resolved vs OpenRC
+	if [[ "$init_system" == "openrc" ]]; then
+		log_info "OpenRC detected. Checking for systemd-resolved availability..."
 
-    # 3. Handle Symlink
-    log_info "Linking $etc_resolv -> $stub_resolv..."
-    # -s: symbolic, -f: force (overwrites existing file)
-    ln -sf "$stub_resolv" "$etc_resolv"
-    log_success "Symlink updated."
+		# On OpenRC, we can still use systemd-resolved if installed
+		if ! command -v systemd-resolved >/dev/null 2>&1; then
+			log_warn "systemd-resolved not installed. On Artix, consider using openresolv or unbound."
+			log_info "Installing openresolv: pacman -S openresolv"
+		fi
 
-    # 4. Service Management
-    log_info "Restarting systemd-resolved..."
-    
-    # Enable ensures it starts on boot.
-    # Restart forces the new config to load immediately.
-    systemctl enable systemd-resolved
-    systemctl restart systemd-resolved
-    
-    # 5. Wait for Stub File (Race Condition Protection)
-    # The stub file is created dynamically by the service. We wait briefly to ensure it exists.
-    local timeout=50 # 5 seconds (50 * 0.1s)
-    local count=0
-    while [[ ! -f "$stub_resolv" ]]; do
-        if (( count++ >= timeout )); then
-            log_warn "Timed out waiting for stub file at $stub_resolv."
-            log_warn "DNS might take a moment to initialize."
-            break
-        fi
-        sleep 0.1
-    done
+		# Check if systemd-resolved is installed
+		if command -v systemctl >/dev/null 2>&1; then
+			init_system="systemd"
+		else
+			log_error "No DNS resolver service available."
+			exit 1
+		fi
+	fi
 
-    # 6. Verification
-    if systemctl is-active --quiet systemd-resolved; then
-        log_success "Service is active."
-    else
-        log_error "Service failed to start."
-        systemctl status systemd-resolved --no-pager -n 5
-        exit 1
-    fi
+	# 2. Dependency Check
+	if [[ "$init_system" == "systemd" ]] && ! command -v systemctl &>/dev/null; then
+		log_error "systemd is required but not found."
+		exit 1
+	fi
 
-    printf "\n%s---[ DNS Status ]---%s\n" "$C_BLUE" "$C_RESET"
-    resolvectl status
+	# 3. Write Configuration
+	log_info "Writing configuration to $target_conf..."
+	printf "%s\n" "$RESOLVED_CONFIG" >"$target_conf"
+	log_success "Configuration written."
+
+	# 4. Handle Symlink
+	log_info "Linking $etc_resolv -> $stub_resolv..."
+	ln -sf "$stub_resolv" "$etc_resolv"
+	log_success "Symlink updated."
+
+	# 5. Service Management
+	log_info "Restarting systemd-resolved..."
+
+	if [[ "$init_system" == "systemd" ]]; then
+		systemctl enable systemd-resolved
+		systemctl restart systemd-resolved
+	else
+		rc-update add systemd-resolved default 2>/dev/null || true
+		rc-service systemd-resolved restart 2>/dev/null || true
+	fi
+
+	# 6. Wait for Stub File
+	local timeout=50
+	local count=0
+	while [[ ! -f "$stub_resolv" ]]; do
+		if ((count++ >= timeout)); then
+			log_warn "Timed out waiting for stub file at $stub_resolv."
+			log_warn "DNS might take a moment to initialize."
+			break
+		fi
+		sleep 0.1
+	done
+
+	# 7. Verification
+	if [[ "$init_system" == "systemd" ]]; then
+		if systemctl is-active --quiet systemd-resolved; then
+			log_success "Service is active."
+		else
+			log_error "Service failed to start."
+			systemctl status systemd-resolved --no-pager -n 5
+			exit 1
+		fi
+	else
+		if rc-service systemd-resolved status >/dev/null 2>&1; then
+			log_success "Service is active."
+		else
+			log_error "Service failed to start."
+			exit 1
+		fi
+	fi
+
+	printf "\n%s---[ DNS Status ]---%s\n" "$C_BLUE" "$C_RESET"
+	resolvectl status 2>/dev/null || log_warn "resolvectl not available"
 }
 
 main "$@"

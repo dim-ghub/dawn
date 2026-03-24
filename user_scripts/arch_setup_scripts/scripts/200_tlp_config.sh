@@ -726,103 +726,124 @@ log_error() { printf "${C_RED}[ERROR]${C_RESET} %s\n" "$1" >&2; }
 
 # 4. Root Privilege Check (Auto-Elevation)
 if [[ $EUID -ne 0 ]]; then
-    log_info "Root privileges required. Elevating..."
-    exec sudo "$0" "$@"
+	log_info "Root privileges required. Elevating..."
+	exec sudo "$0" "$@"
 fi
 
 # 5. Environment Validation
 if ! command -v tlp &>/dev/null; then
-    log_warn "TLP is not installed. Skipping TLP configuration to prevent Orchestrator failure."
-    exit 0
+	log_warn "TLP is not installed. Skipping TLP configuration to prevent Orchestrator failure."
+	exit 0
 fi
 
 # 6. Main Execution
 main() {
-    local target_file="/etc/tlp.conf"
-    
-    # ---------------------------------------------------------
-    # A. User Interaction & Warnings
-    # ---------------------------------------------------------
-    echo ""
-    log_warn "You are about to apply a TLP configuration tuned specifically for the:"
-    log_warn "ASUS TUF F15 Gaming Laptop"
-    echo ""
-    printf "  %bIf you do not own this specific device, it is HIGHLY advised not to apply this.%b\n" "${C_RED}" "${C_RESET}"
-    printf "  For other laptops, we recommend manually configuring %s to achieve\n" "$target_file"
-    printf "  the best battery life for your specific hardware.\n\n"
+	local target_file="/etc/tlp.conf"
 
-    read -r -p "Do you want to proceed with applying this configuration? [y/N] " response
-    if [[ ! "$response" =~ ^[yY]$ ]]; then
-        log_info "Operation cancelled by user."
-        exit 0
-    fi
+	# ---------------------------------------------------------
+	# A. User Interaction & Warnings
+	# ---------------------------------------------------------
+	echo ""
+	log_warn "You are about to apply a TLP configuration tuned specifically for the:"
+	log_warn "ASUS TUF F15 Gaming Laptop"
+	echo ""
+	printf "  %bIf you do not own this specific device, it is HIGHLY advised not to apply this.%b\n" "${C_RED}" "${C_RESET}"
+	printf "  For other laptops, we recommend manually configuring %s to achieve\n" "$target_file"
+	printf "  the best battery life for your specific hardware.\n\n"
 
-    # ---------------------------------------------------------
-    # B. Backup Logic
-    # ---------------------------------------------------------
-    # Detect the real user behind sudo to find the correct Home directory
-    local real_user="${SUDO_USER:-$USER}"
-    local real_home
-    # Use getent to strictly find the home dir (handles edge cases better than $HOME)
-    real_home=$(getent passwd "$real_user" | cut -d: -f6)
-    
-    local backup_dir="${real_home}/Documents"
-    local backup_file="${backup_dir}/tlp_backup.conf"
-    local file_existed=false
+	read -r -p "Do you want to proceed with applying this configuration? [y/N] " response
+	if [[ ! "$response" =~ ^[yY]$ ]]; then
+		log_info "Operation cancelled by user."
+		exit 0
+	fi
 
-    # Check if target exists before we touch it
-    if [[ -f "$target_file" ]]; then
-        file_existed=true
-        
-        # Ensure backup directory exists
-        if [[ ! -d "$backup_dir" ]]; then
-            log_info "Creating directory ${backup_dir}..."
-            mkdir -p "$backup_dir"
-            chown "$real_user:$(id -gn "$real_user")" "$backup_dir"
-        fi
+	# ---------------------------------------------------------
+	# B. Backup Logic
+	# ---------------------------------------------------------
+	# Detect the real user behind sudo to find the correct Home directory
+	local real_user="${SUDO_USER:-$USER}"
+	local real_home
+	# Use getent to strictly find the home dir (handles edge cases better than $HOME)
+	real_home=$(getent passwd "$real_user" | cut -d: -f6)
 
-        # Perform Backup
-        log_info "Backing up current config to ${backup_file}..."
-        cp "$target_file" "$backup_file"
-        
-        # Fix permissions so the regular user owns the backup, not root
-        chown "$real_user:$(id -gn "$real_user")" "$backup_file"
-        log_success "Backup verified."
-    fi
+	local backup_dir="${real_home}/Documents"
+	local backup_file="${backup_dir}/tlp_backup.conf"
+	local file_existed=false
 
-    # ---------------------------------------------------------
-    # C. Write Configuration
-    # ---------------------------------------------------------
-    if [[ "$file_existed" == "true" ]]; then
-        log_info "Overwriting existing file at ${target_file}..."
-    else
-        log_info "File did not exist. Creating new file at ${target_file}..."
-    fi
-    
-    if printf "%s" "${TLP_CONFIG_CONTENT}" > "${target_file}"; then
-        log_success "Configuration written successfully."
-    else
-        log_error "Failed to write to ${target_file}."
-        exit 1
-    fi
+	# Check if target exists before we touch it
+	if [[ -f "$target_file" ]]; then
+		file_existed=true
 
-    # ---------------------------------------------------------
-    # D. Reload Service
-    # ---------------------------------------------------------
-    log_info "Reloading TLP systemd service..."
-    
-    if systemctl reload tlp; then
-        log_success "TLP reloaded successfully."
-    else
-        # Fallback check: try to restart if reload fails (service might be stopped)
-        log_warn "Reload failed (service might be inactive). Attempting restart..."
-        if systemctl enable --now tlp; then
-             log_success "TLP enabled and started successfully."
-        else
-             log_error "Failed to start TLP."
-             exit 1
-        fi
-    fi
+		# Ensure backup directory exists
+		if [[ ! -d "$backup_dir" ]]; then
+			log_info "Creating directory ${backup_dir}..."
+			mkdir -p "$backup_dir"
+			chown "$real_user:$(id -gn "$real_user")" "$backup_dir"
+		fi
+
+		# Perform Backup
+		log_info "Backing up current config to ${backup_file}..."
+		cp "$target_file" "$backup_file"
+
+		# Fix permissions so the regular user owns the backup, not root
+		chown "$real_user:$(id -gn "$real_user")" "$backup_file"
+		log_success "Backup verified."
+	fi
+
+	# ---------------------------------------------------------
+	# C. Write Configuration
+	# ---------------------------------------------------------
+	if [[ "$file_existed" == "true" ]]; then
+		log_info "Overwriting existing file at ${target_file}..."
+	else
+		log_info "File did not exist. Creating new file at ${target_file}..."
+	fi
+
+	if printf "%s" "${TLP_CONFIG_CONTENT}" >"${target_file}"; then
+		log_success "Configuration written successfully."
+	else
+		log_error "Failed to write to ${target_file}."
+		exit 1
+	fi
+
+	# ---------------------------------------------------------
+	# D. Reload Service
+	# ---------------------------------------------------------
+	local init_system="unknown"
+	if command -v systemctl >/dev/null 2>&1 && [[ -d /run/systemd/system ]]; then
+		init_system="systemd"
+	elif command -v rc-service >/dev/null 2>&1; then
+		init_system="openrc"
+	fi
+
+	log_info "Reloading TLP service ($init_system)..."
+
+	if [[ "$init_system" == "systemd" ]]; then
+		if systemctl reload tlp; then
+			log_success "TLP reloaded successfully."
+		else
+			log_warn "Reload failed (service might be inactive). Attempting restart..."
+			if systemctl enable --now tlp; then
+				log_success "TLP enabled and started successfully."
+			else
+				log_error "Failed to start TLP."
+				exit 1
+			fi
+		fi
+	else
+		if rc-service tlp reload 2>/dev/null; then
+			log_success "TLP reloaded successfully."
+		else
+			log_warn "Reload failed. Attempting restart..."
+			rc-update add tlp default 2>/dev/null || true
+			if rc-service tlp start; then
+				log_success "TLP enabled and started successfully."
+			else
+				log_error "Failed to start TLP."
+				exit 1
+			fi
+		fi
+	fi
 }
 
 # Run Main
