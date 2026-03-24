@@ -8,15 +8,27 @@
 
 set -euo pipefail
 
+# --- Detect Init System ---
+detect_init() {
+	if command -v systemctl >/dev/null 2>&1 && [[ -d /run/systemd/system ]]; then
+		echo "systemd"
+	elif command -v rc-service >/dev/null 2>&1; then
+		echo "openrc"
+	else
+		echo "unknown"
+	fi
+}
+readonly INIT_SYSTEM=$(detect_init)
+
 # --- Auto-Elevation -----------------------------------------------------------
 if [[ $EUID -ne 0 ]]; then
-    if command -v sudo &>/dev/null; then
-        printf "Elevating permissions...\n"
-        exec sudo "$0" "$@"
-    else
-        printf "Error: This script requires root privileges and sudo is missing.\n" >&2
-        exit 1
-    fi
+	if command -v sudo &>/dev/null; then
+		printf "Elevating permissions...\n"
+		exec sudo "$0" "$@"
+	else
+		printf "Error: This script requires root privileges and sudo is missing.\n" >&2
+		exit 1
+	fi
 fi
 
 # --- Constants ----------------------------------------------------------------
@@ -39,121 +51,151 @@ AVATAR_TEMP_FILE=""
 SOURCE_DIR=""
 
 # --- Logging Functions --------------------------------------------------------
-log_info()    { printf '%b[INFO]%b %s\n' "${CYAN}" "${RESET}" "$1"; }
+log_info() { printf '%b[INFO]%b %s\n' "${CYAN}" "${RESET}" "$1"; }
 log_success() { printf '%b[OK]%b %s\n' "${GREEN}" "${RESET}" "$1"; }
-log_warn()    { printf '%b[WARN]%b %s\n' "${YELLOW}" "${RESET}" "$1" >&2; }
-log_error()   { printf '%b[ERROR]%b %s\n' "${RED}" "${RESET}" "$1" >&2; exit 1; }
+log_warn() { printf '%b[WARN]%b %s\n' "${YELLOW}" "${RESET}" "$1" >&2; }
+log_error() {
+	printf '%b[ERROR]%b %s\n' "${RED}" "${RESET}" "$1" >&2
+	exit 1
+}
 
 # --- Cleanup ------------------------------------------------------------------
 cleanup() {
-    [[ -n "${TEMP_DIR:-}" && -d "${TEMP_DIR}" ]] && rm -rf "${TEMP_DIR}"
-    [[ -n "${AVATAR_TEMP_FILE:-}" && -f "${AVATAR_TEMP_FILE}" ]] && rm -f "${AVATAR_TEMP_FILE}"
-    return 0
+	[[ -n "${TEMP_DIR:-}" && -d "${TEMP_DIR}" ]] && rm -rf "${TEMP_DIR}"
+	[[ -n "${AVATAR_TEMP_FILE:-}" && -f "${AVATAR_TEMP_FILE}" ]] && rm -f "${AVATAR_TEMP_FILE}"
+	return 0
 }
 trap cleanup EXIT INT TERM
 
 # --- Utility Functions --------------------------------------------------------
 require_command() {
-    command -v "$1" &>/dev/null || return 1
+	command -v "$1" &>/dev/null || return 1
 }
 
 prompt_yes_no() {
-    local prompt="$1"
-    local choice
-    printf '%s (y/N): ' "${prompt}"
-    read -r choice
-    [[ "${choice}" =~ ^[Yy]$ ]]
+	local prompt="$1"
+	local choice
+	printf '%s (y/N): ' "${prompt}"
+	read -r choice
+	[[ "${choice}" =~ ^[Yy]$ ]]
 }
 
 # --- Core Logic ---------------------------------------------------------------
 
 install_dependencies() {
-    log_info "Checking dependencies..."
-    require_command pacman || log_error "Pacman not found. This script is designed for Arch Linux."
+	log_info "Checking dependencies..."
+	require_command pacman || log_error "Pacman not found. This script is designed for Arch Linux."
 
-    local -a pkgs=(sddm qt6-svg qt6-virtualkeyboard qt6-multimedia-ffmpeg imagemagick git)
-    local -a needed=()
+	local -a pkgs=(sddm qt6-svg qt6-virtualkeyboard qt6-multimedia-ffmpeg imagemagick git)
+	local -a needed=()
 
-    for pkg in "${pkgs[@]}"; do
-        pacman -Qi "${pkg}" &>/dev/null || needed+=("${pkg}")
-    done
+	for pkg in "${pkgs[@]}"; do
+		pacman -Qi "${pkg}" &>/dev/null || needed+=("${pkg}")
+	done
 
-    if [[ ${#needed[@]} -gt 0 ]]; then
-        log_info "Installing missing dependencies: ${needed[*]}"
-        pacman -S --needed --noconfirm "${needed[@]}" || log_error "Failed to install dependencies."
-    else
-        log_success "All dependencies are installed."
-    fi
+	if [[ ${#needed[@]} -gt 0 ]]; then
+		log_info "Installing missing dependencies: ${needed[*]}"
+		pacman -S --needed --noconfirm "${needed[@]}" || log_error "Failed to install dependencies."
+	else
+		log_success "All dependencies are installed."
+	fi
 }
 
 check_conflicts() {
-    log_info "Checking for conflicting Display Managers..."
-    local -a dms=(gdm lightdm lxdm ly slim wdm)
-    local conflict="false"
+	log_info "Checking for conflicting Display Managers..."
+	local -a dms=(gdm lightdm lxdm ly slim wdm)
+	local conflict="false"
 
-    for dm in "${dms[@]}"; do
-        if systemctl is-active --quiet "${dm}.service"; then
-            log_warn "Conflicting DM running: ${dm}"
-            conflict="true"
-            if [[ "${AUTO_MODE}" == "true" ]] || prompt_yes_no "Disable and stop ${dm}?"; then
-                systemctl disable --now "${dm}.service"
-                log_success "${dm} disabled."
-            else
-                log_warn "Proceeding with ${dm} active. SDDM may fail to start."
-            fi
-        fi
-    done
+	for dm in "${dms[@]}"; do
+		_active=false
+		if [[ "$INIT_SYSTEM" == "systemd" ]]; then
+			systemctl is-active --quiet "${dm}.service" && _active=true
+		else
+			rc-service "$dm" status >/dev/null 2>&1 && _active=true
+		fi
 
-    if [[ "${conflict}" == "false" ]]; then
-        log_success "No conflicting DMs found active."
-    fi
+		if $_active; then
+			log_warn "Conflicting DM running: ${dm}"
+			conflict="true"
+			if [[ "${AUTO_MODE}" == "true" ]] || prompt_yes_no "Disable and stop ${dm}?"; then
+				if [[ "$INIT_SYSTEM" == "systemd" ]]; then
+					systemctl disable --now "${dm}.service"
+				else
+					rc-service "$dm" stop 2>/dev/null || true
+					rc-update del "$dm" default 2>/dev/null || true
+				fi
+				log_success "${dm} disabled."
+			else
+				log_warn "Proceeding with ${dm} active. SDDM may fail to start."
+			fi
+		fi
+	done
+
+	if [[ "${conflict}" == "false" ]]; then
+		log_success "No conflicting DMs found active."
+	fi
 }
 
 setup_sddm_service() {
-    if systemctl is-enabled --quiet sddm.service; then
-        log_success "SDDM service is already enabled."
-        return
-    fi
+	_enabled=false
+	if [[ "$INIT_SYSTEM" == "systemd" ]]; then
+		systemctl is-enabled --quiet sddm.service && _enabled=true
+	else
+		rc-update show default 2>/dev/null | grep -q "^[[:space:]]*sddm[[:space:]]" && _enabled=true
+	fi
 
-    if [[ "${AUTO_MODE}" == "true" ]]; then
-        systemctl enable sddm.service
-    else
-        printf '\nSDDM is not enabled. You can log in via TTY without it.\n'
-        if prompt_yes_no "Enable SDDM to start at boot?"; then
-            systemctl enable sddm.service
-            log_success "SDDM service enabled."
-        fi
-    fi
+	if $_enabled; then
+		log_success "SDDM service is already enabled."
+		return
+	fi
+
+	if [[ "${AUTO_MODE}" == "true" ]]; then
+		if [[ "$INIT_SYSTEM" == "systemd" ]]; then
+			systemctl enable sddm.service
+		else
+			rc-update add sddm default
+		fi
+	else
+		printf '\nSDDM is not enabled. You can log in via TTY without it.\n'
+		if prompt_yes_no "Enable SDDM to start at boot?"; then
+			if [[ "$INIT_SYSTEM" == "systemd" ]]; then
+				systemctl enable sddm.service
+			else
+				rc-update add sddm default
+			fi
+			log_success "SDDM service enabled."
+		fi
+	fi
 }
 
 get_source_files() {
-    if [[ -f "Main.qml" && -f "metadata.desktop" ]]; then
-        log_info "Local files detected. Installing from current directory..."
-        SOURCE_DIR="."
-    else
-        log_info "Local files not found. Cloning from GitHub..."
-        require_command git || log_error "Git missing. Cannot clone."
-        TEMP_DIR=$(mktemp -d)
-        git clone --depth 1 "${REPO_URL}" "${TEMP_DIR}" || log_error "Clone failed."
-        SOURCE_DIR="${TEMP_DIR}"
-    fi
+	if [[ -f "Main.qml" && -f "metadata.desktop" ]]; then
+		log_info "Local files detected. Installing from current directory..."
+		SOURCE_DIR="."
+	else
+		log_info "Local files not found. Cloning from GitHub..."
+		require_command git || log_error "Git missing. Cannot clone."
+		TEMP_DIR=$(mktemp -d)
+		git clone --depth 1 "${REPO_URL}" "${TEMP_DIR}" || log_error "Clone failed."
+		SOURCE_DIR="${TEMP_DIR}"
+	fi
 }
 
 install_theme() {
-    log_info "Installing theme to ${INSTALL_DIR}..."
-    [[ -d "${INSTALL_DIR}" ]] && rm -rf "${INSTALL_DIR}"
-    mkdir -p "${INSTALL_DIR}"
+	log_info "Installing theme to ${INSTALL_DIR}..."
+	[[ -d "${INSTALL_DIR}" ]] && rm -rf "${INSTALL_DIR}"
+	mkdir -p "${INSTALL_DIR}"
 
-    cp -r "${SOURCE_DIR}/"{backgrounds,components,configs,icons,Main.qml,metadata.desktop} "${INSTALL_DIR}/"
-    chmod -R 755 "${INSTALL_DIR}"
-    log_success "Theme files copied."
+	cp -r "${SOURCE_DIR}/"{backgrounds,components,configs,icons,Main.qml,metadata.desktop} "${INSTALL_DIR}/"
+	chmod -R 755 "${INSTALL_DIR}"
+	log_success "Theme files copied."
 }
 
 configure_sddm() {
-    log_info "Configuring SDDM..."
-    mkdir -p /etc/sddm.conf.d
+	log_info "Configuring SDDM..."
+	mkdir -p /etc/sddm.conf.d
 
-    cat > "${CONF_FILE}" <<EOF
+	cat >"${CONF_FILE}" <<EOF
 [Theme]
 Current=${THEME_NAME}
 
@@ -162,70 +204,76 @@ InputMethod=qtvirtualkeyboard
 GreeterEnvironment=QML2_IMPORT_PATH=${INSTALL_DIR}/components/,QT_IM_MODULE=qtvirtualkeyboard
 EOF
 
-    log_success "Config saved to ${CONF_FILE}"
+	log_success "Config saved to ${CONF_FILE}"
 }
 
 setup_avatar() {
-    if [[ "${AUTO_MODE}" == "true" ]]; then
-        return
-    fi
+	if [[ "${AUTO_MODE}" == "true" ]]; then
+		return
+	fi
 
-    printf '\n--- Avatar Setup ---\n'
-    prompt_yes_no "Do you want to set a user avatar now?" || return 0
+	printf '\n--- Avatar Setup ---\n'
+	prompt_yes_no "Do you want to set a user avatar now?" || return 0
 
-    local real_user="${SUDO_USER:-${USER}}"
-    local target_user
+	local real_user="${SUDO_USER:-${USER}}"
+	local target_user
 
-    printf 'Enter username [%s]: ' "${real_user}"
-    read -r target_user
-    target_user="${target_user:-${real_user}}"
+	printf 'Enter username [%s]: ' "${real_user}"
+	read -r target_user
+	target_user="${target_user:-${real_user}}"
 
-    if ! id "${target_user}" &>/dev/null; then
-        log_warn "User '${target_user}' does not exist. Skipping."
-        return
-    fi
+	if ! id "${target_user}" &>/dev/null; then
+		log_warn "User '${target_user}' does not exist. Skipping."
+		return
+	fi
 
-    local img_path
-    printf 'Enter path to image file: '
-    read -e -r img_path
+	local img_path
+	printf 'Enter path to image file: '
+	read -e -r img_path
 
-    # Tilde expansion
-    if [[ "${img_path}" == "~"* ]]; then
-        local user_home
-        user_home=$(getent passwd "${target_user}" | cut -d: -f6)
-        img_path="${user_home}${img_path:1}"
-    fi
+	# Tilde expansion
+	if [[ "${img_path}" == "~"* ]]; then
+		local user_home
+		user_home=$(getent passwd "${target_user}" | cut -d: -f6)
+		img_path="${user_home}${img_path:1}"
+	fi
 
-    if [[ ! -f "${img_path}" ]]; then
-        log_warn "Image file not found at: ${img_path}"
-        return
-    fi
+	if [[ ! -f "${img_path}" ]]; then
+		log_warn "Image file not found at: ${img_path}"
+		return
+	fi
 
-    log_info "Processing image..."
-    mkdir -p "${FACES_DIR}"
-    AVATAR_TEMP_FILE=$(mktemp)
+	log_info "Processing image..."
+	mkdir -p "${FACES_DIR}"
+	AVATAR_TEMP_FILE=$(mktemp)
 
-    if ! magick "${img_path}" -gravity center -crop 1:1 +repage -resize 256x256 "${AVATAR_TEMP_FILE}"; then
-        log_warn "Image processing failed."
-        return
-    fi
+	if ! magick "${img_path}" -gravity center -crop 1:1 +repage -resize 256x256 "${AVATAR_TEMP_FILE}"; then
+		log_warn "Image processing failed."
+		return
+	fi
 
-    mv "${AVATAR_TEMP_FILE}" "${FACES_DIR}/${target_user}.face.icon"
-    chmod 644 "${FACES_DIR}/${target_user}.face.icon"
-    AVATAR_TEMP_FILE=""
+	mv "${AVATAR_TEMP_FILE}" "${FACES_DIR}/${target_user}.face.icon"
+	chmod 644 "${FACES_DIR}/${target_user}.face.icon"
+	AVATAR_TEMP_FILE=""
 
-    log_success "Avatar updated for user '${target_user}'!"
+	log_success "Avatar updated for user '${target_user}'!"
 }
 
 # --- Main ---------------------------------------------------------------------
 
 while [[ $# -gt 0 ]]; do
-    case "$1" in
-        -a|--auto) AUTO_MODE="true"; log_info "Autonomous mode enabled." ;;
-        -h|--help) printf "Usage: %s [-a|--auto]\n" "$0"; exit 0 ;;
-        *) log_warn "Unknown arg: $1" ;;
-    esac
-    shift
+	case "$1" in
+	-a | --auto)
+		AUTO_MODE="true"
+		log_info "Autonomous mode enabled."
+		;;
+	-h | --help)
+		printf "Usage: %s [-a|--auto]\n" "$0"
+		exit 0
+		;;
+	*) log_warn "Unknown arg: $1" ;;
+	esac
+	shift
 done
 
 install_dependencies

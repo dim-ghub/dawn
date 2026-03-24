@@ -12,6 +12,18 @@
 # 1. Strict Safety & Error Handling
 set -euo pipefail
 
+# --- Detect Init System ---
+detect_init() {
+	if command -v systemctl >/dev/null 2>&1 && [[ -d /run/systemd/system ]]; then
+		echo "systemd"
+	elif command -v rc-service >/dev/null 2>&1; then
+		echo "openrc"
+	else
+		echo "unknown"
+	fi
+}
+readonly INIT_SYSTEM=$(detect_init)
+
 # 2. Configuration Content
 # This configuration is tuned for aggressive caching on systems with ample RAM.
 mapfile -d '' PRELOAD_CONFIG_CONTENT <<'EOF'
@@ -206,141 +218,160 @@ log_error() { printf "${C_RED}[ERROR]${C_RESET} %s\n" "$1" >&2; }
 
 # 4. Root Privilege Check
 if [[ $EUID -ne 0 ]]; then
-    log_info "Root privileges required. Elevating..."
-    exec sudo "$0" "$@"
+	log_info "Root privileges required. Elevating..."
+	exec sudo "$0" "$@"
 fi
 
 # 5. Environment Validation & Auto-Install
 if command -v preload &>/dev/null; then
-    log_info "Preload is already installed."
+	log_info "Preload is already installed."
 else
-    log_warn "Preload is not installed."
-    
-    # Detect the real user (Orchestra runs as root, so we need SUDO_USER)
-    real_user="${SUDO_USER:-$USER}"
-    
-    if [[ "$real_user" == "root" ]]; then
-        log_error "Cannot determine non-root user for AUR install. Install 'preload' manually."
-        exit 1
-    fi
+	log_warn "Preload is not installed."
 
-    # Determine AUR helper (Paru > Yay)
-    # FIX: We use 'bash -c' because 'command' is a shell builtin, and sudo cannot execute builtins directly.
-    aur_helper=""
-    if sudo -u "$real_user" bash -c "command -v paru" &>/dev/null; then
-        aur_helper="paru"
-    elif sudo -u "$real_user" bash -c "command -v yay" &>/dev/null; then
-        aur_helper="yay"
-    else
-        log_error "Neither 'paru' nor 'yay' found. Please install 'preload' manually."
-        exit 1
-    fi
+	# Detect the real user (Orchestra runs as root, so we need SUDO_USER)
+	real_user="${SUDO_USER:-$USER}"
 
-    log_info "Installing preload using ${aur_helper} as user: ${real_user}..."
-    if sudo -u "$real_user" "$aur_helper" -S --needed --noconfirm preload; then
-        log_success "Preload installed successfully."
-        sleep 0.5
-    else
-        log_error "Failed to install preload."
-        exit 1
-    fi
+	if [[ "$real_user" == "root" ]]; then
+		log_error "Cannot determine non-root user for AUR install. Install 'preload' manually."
+		exit 1
+	fi
+
+	# Determine AUR helper (Paru > Yay)
+	# FIX: We use 'bash -c' because 'command' is a shell builtin, and sudo cannot execute builtins directly.
+	aur_helper=""
+	if sudo -u "$real_user" bash -c "command -v paru" &>/dev/null; then
+		aur_helper="paru"
+	elif sudo -u "$real_user" bash -c "command -v yay" &>/dev/null; then
+		aur_helper="yay"
+	else
+		log_error "Neither 'paru' nor 'yay' found. Please install 'preload' manually."
+		exit 1
+	fi
+
+	log_info "Installing preload using ${aur_helper} as user: ${real_user}..."
+	if sudo -u "$real_user" "$aur_helper" -S --needed --noconfirm preload; then
+		log_success "Preload installed successfully."
+		sleep 0.5
+	else
+		log_error "Failed to install preload."
+		exit 1
+	fi
 fi
 
 # 6. Main Execution
 main() {
-    local target_file="/etc/preload.conf"
-    
-    # ---------------------------------------------------------
-    # A. User Interaction & Warnings
-    # ---------------------------------------------------------
-    echo ""
-    log_warn "You are about to apply a Preload configuration tuned specifically for:"
-    log_warn "High-Performance Systems (32GB+ RAM)"
-    echo ""
-    printf "  %bOptimization Note:%b This config is optimized for computers with 32GB of RAM and above.\n" "${C_GREEN}" "${C_RESET}"
-    printf "  You could also apply it on 16GB systems, but it is not explicitly recommended.\n"
-    printf "  %bPerformance Trade-off:%b This will cache shared libraries and binaries in RAM\n" "${C_RED}" "${C_RESET}"
-    printf "  to significantly speed up system responsiveness. This comes at the cost of\n"
-    printf "  increased RAM usage. If you want high RAM usage at the benefit of snappiness,\n"
-    printf "  please proceed.\n"
-    printf "  You can run this script now, and further tweak the settings later to your liking at:\n"
-    printf "  %bsudo nvim /etc/preload.conf%b\n\n" "${C_BLUE}" "${C_RESET}"
+	local target_file="/etc/preload.conf"
 
-    # Note: If running Orchestra in "Autonomous Mode", this prompt might be skipped or handled differently by the caller,
-    # but since this script handles its own 'read', it will pause unless piped 'yes'.
-    read -r -p "Do you want to proceed with applying this configuration? [y/N] " response
-    if [[ ! "$response" =~ ^[yY]$ ]]; then
-        log_info "Operation cancelled by user."
-        exit 0
-    fi
+	# ---------------------------------------------------------
+	# A. User Interaction & Warnings
+	# ---------------------------------------------------------
+	echo ""
+	log_warn "You are about to apply a Preload configuration tuned specifically for:"
+	log_warn "High-Performance Systems (32GB+ RAM)"
+	echo ""
+	printf "  %bOptimization Note:%b This config is optimized for computers with 32GB of RAM and above.\n" "${C_GREEN}" "${C_RESET}"
+	printf "  You could also apply it on 16GB systems, but it is not explicitly recommended.\n"
+	printf "  %bPerformance Trade-off:%b This will cache shared libraries and binaries in RAM\n" "${C_RED}" "${C_RESET}"
+	printf "  to significantly speed up system responsiveness. This comes at the cost of\n"
+	printf "  increased RAM usage. If you want high RAM usage at the benefit of snappiness,\n"
+	printf "  please proceed.\n"
+	printf "  You can run this script now, and further tweak the settings later to your liking at:\n"
+	printf "  %bsudo nvim /etc/preload.conf%b\n\n" "${C_BLUE}" "${C_RESET}"
 
-    # ---------------------------------------------------------
-    # B. Backup Logic
-    # ---------------------------------------------------------
-    local real_user="${SUDO_USER:-$USER}"
-    local real_home
-    real_home=$(getent passwd "$real_user" | cut -d: -f6)
-    
-    local backup_dir="${real_home}/Documents"
-    local backup_file="${backup_dir}/preload_backup.conf"
-    local file_existed=false
+	# Note: If running Orchestra in "Autonomous Mode", this prompt might be skipped or handled differently by the caller,
+	# but since this script handles its own 'read', it will pause unless piped 'yes'.
+	read -r -p "Do you want to proceed with applying this configuration? [y/N] " response
+	if [[ ! "$response" =~ ^[yY]$ ]]; then
+		log_info "Operation cancelled by user."
+		exit 0
+	fi
 
-    if [[ -f "$target_file" ]]; then
-        file_existed=true
-        if [[ ! -d "$backup_dir" ]]; then
-            log_info "Creating directory ${backup_dir}..."
-            mkdir -p "$backup_dir"
-            chown "$real_user:$(id -gn "$real_user")" "$backup_dir"
-        fi
+	# ---------------------------------------------------------
+	# B. Backup Logic
+	# ---------------------------------------------------------
+	local real_user="${SUDO_USER:-$USER}"
+	local real_home
+	real_home=$(getent passwd "$real_user" | cut -d: -f6)
 
-        log_info "Backing up current config to ${backup_file}..."
-        cp "$target_file" "$backup_file"
-        chown "$real_user:$(id -gn "$real_user")" "$backup_file"
-        log_success "Backup verified."
-        sleep 0.5 
-    fi
+	local backup_dir="${real_home}/Documents"
+	local backup_file="${backup_dir}/preload_backup.conf"
+	local file_existed=false
 
-    # ---------------------------------------------------------
-    # C. Write Configuration
-    # ---------------------------------------------------------
-    if [[ "$file_existed" == "true" ]]; then
-        log_info "Overwriting existing file at ${target_file}..."
-    else
-        log_info "File did not exist. Creating new file at ${target_file}..."
-    fi
-    
-    if printf "%s" "${PRELOAD_CONFIG_CONTENT}" > "${target_file}"; then
-        log_success "Configuration written successfully."
-        sleep 0.5
-    else
-        log_error "Failed to write to ${target_file}."
-        exit 1
-    fi
+	if [[ -f "$target_file" ]]; then
+		file_existed=true
+		if [[ ! -d "$backup_dir" ]]; then
+			log_info "Creating directory ${backup_dir}..."
+			mkdir -p "$backup_dir"
+			chown "$real_user:$(id -gn "$real_user")" "$backup_dir"
+		fi
 
-    # ---------------------------------------------------------
-    # D. Reload Service
-    # ---------------------------------------------------------
-    log_info "Managing Preload systemd service..."
+		log_info "Backing up current config to ${backup_file}..."
+		cp "$target_file" "$backup_file"
+		chown "$real_user:$(id -gn "$real_user")" "$backup_file"
+		log_success "Backup verified."
+		sleep 0.5
+	fi
 
-    if systemctl is-enabled preload.service &>/dev/null; then
-        log_info "Preload service is already enabled."
-    else
-        log_info "Enabling Preload service..."
-        if systemctl enable --now preload.service; then
-            log_success "Preload service enabled and started."
-            sleep 0.5
-        else
-            log_error "Failed to enable Preload service."
-            exit 1
-        fi
-    fi
+	# ---------------------------------------------------------
+	# C. Write Configuration
+	# ---------------------------------------------------------
+	if [[ "$file_existed" == "true" ]]; then
+		log_info "Overwriting existing file at ${target_file}..."
+	else
+		log_info "File did not exist. Creating new file at ${target_file}..."
+	fi
 
-    # Restart to apply new config
-    if systemctl restart preload.service; then
-        log_success "Preload configuration applied (Service Restarted)."
-    else
-        log_warn "Service restart failed. Please check 'systemctl status preload'."
-    fi
+	if printf "%s" "${PRELOAD_CONFIG_CONTENT}" >"${target_file}"; then
+		log_success "Configuration written successfully."
+		sleep 0.5
+	else
+		log_error "Failed to write to ${target_file}."
+		exit 1
+	fi
+
+	# ---------------------------------------------------------
+	# D. Reload Service
+	# ---------------------------------------------------------
+	log_info "Managing Preload service ($INIT_SYSTEM)..."
+
+	if [[ "$INIT_SYSTEM" == "systemd" ]]; then
+		if systemctl is-enabled preload.service &>/dev/null; then
+			log_info "Preload service is already enabled."
+		else
+			log_info "Enabling Preload service..."
+			if systemctl enable --now preload.service; then
+				log_success "Preload service enabled and started."
+				sleep 0.5
+			else
+				log_error "Failed to enable Preload service."
+				exit 1
+			fi
+		fi
+
+		if systemctl restart preload.service; then
+			log_success "Preload configuration applied (Service Restarted)."
+		else
+			log_warn "Service restart failed. Please check 'systemctl status preload'."
+		fi
+	else
+		# OpenRC
+		if rc-update show default 2>/dev/null | grep -q "preload"; then
+			log_info "Preload service is already enabled."
+		else
+			log_info "Enabling Preload service..."
+			if rc-update add preload default 2>/dev/null; then
+				log_success "Preload service enabled."
+			else
+				log_error "Failed to enable Preload service."
+			fi
+		fi
+
+		if rc-service preload restart 2>/dev/null; then
+			log_success "Preload configuration applied (Service Restarted)."
+		else
+			log_warn "Service restart failed. Please check 'rc-service preload status'."
+		fi
+	fi
 }
 
 # Run Main
