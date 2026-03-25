@@ -417,29 +417,29 @@ wait_for_process() {
     return 0
 }
 
-ensure_swww_running() {
-    process_running "swww-daemon" && return 0
+ensure_awww_running() {
+    process_running "awww-daemon" && return 0
 
-    log "Starting swww-daemon..."
+    log "Starting awww-daemon..."
 
-    if command -v systemctl >/dev/null 2>&1 && systemctl --user cat swww.service >/dev/null 2>&1; then
-        if systemctl --user start swww.service >/dev/null 2>&1; then
-            if wait_for_process "swww-daemon"; then
+    if command -v systemctl >/dev/null 2>&1 && systemctl --user cat awww.service >/dev/null 2>&1; then
+        if systemctl --user start awww.service >/dev/null 2>&1; then
+            if wait_for_process "awww-daemon"; then
                 return 0
             fi
-            warn "swww.service started, but swww-daemon did not appear in time. Falling back to direct launch."
+            warn "awww.service started, but awww-daemon did not appear in time. Falling back to direct launch."
         else
-            warn "Failed to start swww.service. Falling back to direct launch."
+            warn "Failed to start awww.service. Falling back to direct launch."
         fi
     fi
 
     if command -v uwsm-app >/dev/null 2>&1; then
-        uwsm-app -- swww-daemon --format xrgb >/dev/null 2>&1 99>&- &
+        uwsm-app -- awww-daemon --format xrgb >/dev/null 2>&1 99>&- &
     else
-        swww-daemon --format xrgb >/dev/null 2>&1 99>&- &
+        awww-daemon --format xrgb >/dev/null 2>&1 99>&- &
     fi
 
-    wait_for_process "swww-daemon" || die "swww-daemon failed to start"
+    wait_for_process "awww-daemon" || die "awww-daemon failed to start"
 }
 
 ensure_swaync_running() {
@@ -661,11 +661,11 @@ apply_wallpaper_selection() {
 
     log "Selected: ${wallpaper##*/}"
 
-    ensure_swww_running
-    swww img "$wallpaper" \
+    ensure_awww_running
+    awww img "$wallpaper" \
         --transition-type grow \
         --transition-duration 2 \
-        --transition-fps 60 || die "Failed to apply wallpaper with swww"
+        --transition-fps 60 || die "Failed to apply wallpaper with awww"
 
     update_wallpaper_tracker "$wallpaper_id"
 
@@ -678,9 +678,9 @@ regenerate_current() {
     local query_output line current_wallpaper="" resolved_wallpaper rel_path
     local primary_store secondary_store
 
-    ensure_swww_running
+    ensure_awww_running
 
-    query_output=$(swww query 2>&1) || die "swww query failed: $query_output"
+    query_output=$(awww query 2>&1) || die "awww query failed: $query_output"
 
     while IFS= read -r line; do
         [[ "$line" == *"currently displaying: image: "* ]] || continue
@@ -689,7 +689,7 @@ regenerate_current() {
     done <<< "$query_output"
 
     current_wallpaper=$(trim_trailing "$current_wallpaper")
-    [[ -n "$current_wallpaper" ]] || die "Could not determine current wallpaper from swww query"
+    [[ -n "$current_wallpaper" ]] || die "Could not determine current wallpaper from awww query"
 
     resolved_wallpaper="$current_wallpaper"
 
@@ -940,23 +940,23 @@ case "${1:-}" in
             usage
             exit 0
         fi
-        check_deps flock awk pgrep find sort swww swww-daemon matugen
+        check_deps flock awk pgrep find sort awww awww-daemon matugen
         run_locked cmd_set "$@"
         ;;
     next)
-        check_deps flock awk pgrep find sort swww swww-daemon matugen
+        check_deps flock awk pgrep find sort awww awww-daemon matugen
         run_locked next_command
         ;;
     prev|previous)
-        check_deps flock awk pgrep find sort swww swww-daemon matugen
+        check_deps flock awk pgrep find sort awww awww-daemon matugen
         run_locked prev_command
         ;;
     random)
-        check_deps flock awk pgrep find sort swww swww-daemon matugen
+        check_deps flock awk pgrep find sort awww awww-daemon matugen
         run_locked random_command
         ;;
     refresh|apply)
-        check_deps flock awk pgrep swww swww-daemon matugen
+        check_deps flock awk pgrep awww awww-daemon matugen
         run_locked regenerate_current
         ;;
     color)

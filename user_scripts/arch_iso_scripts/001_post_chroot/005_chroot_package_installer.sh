@@ -42,7 +42,7 @@ pkgs_appearance=(
 
 # Group 4: Desktop Experience
 pkgs_desktop=(
-"waybar" "swww" "hyprlock" "hypridle" "hyprsunset" "hyprpicker" "swaync" "swayosd" "rofi" "libdbusmenu-qt5" "libdbusmenu-glib" "brightnessctl"
+"waybar" "awww" "hyprlock" "hypridle" "hyprsunset" "hyprpicker" "swaync" "swayosd" "rofi" "libdbusmenu-qt5" "libdbusmenu-glib" "brightnessctl"
 )
 
 # Group 5: Audio & Bluetooth

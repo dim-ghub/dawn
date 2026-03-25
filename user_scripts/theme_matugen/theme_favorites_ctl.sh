@@ -15,8 +15,8 @@ touch "$FAV_FILE" "$CACHE_FILE" "$INDEX_FILE"
 
 # ---------------- DEPENDENCY CHECK ----------------
 
-if ! command -v swww >/dev/null 2>&1; then
-  notify-send "Favorites" "swww not installed"
+if ! command -v awww >/dev/null 2>&1; then
+  notify-send "Favorites" "awww not installed"
   exit 1
 fi
 
@@ -35,7 +35,7 @@ get_current_wallpaper() {
 
   local img=""
 
-  img=$(swww query 2>/dev/null | sed -n 's/.*image: //p')
+  img=$(awww query 2>/dev/null | sed -n 's/.*image: //p')
 
   if [[ -n "$img" && -f "$img" ]]; then
     echo "$img" >"$CACHE_FILE"
@@ -65,9 +65,9 @@ apply_wallpaper() {
   echo "$img" >"$CACHE_FILE"
 
   if [[ -x "$THEME_CTL" ]]; then
-    "$THEME_CTL" set "$img" 2>/dev/null || swww img "$img"
+    "$THEME_CTL" set "$img" 2>/dev/null || awww img "$img"
   else
-    swww img "$img"
+    awww img "$img"
   fi
 
   if [[ "$silent" != "1" ]]; then

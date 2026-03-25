@@ -46,7 +46,7 @@ trap '_cleanup' EXIT
 
 # --- RESOURCE CONFIGURATION ---
 
-declare -ra DEFAULT_PROCESSES=("hyprsunset" "swww-daemon" "waybar" "blueman-manager")
+declare -ra DEFAULT_PROCESSES=("hyprsunset" "awww-daemon" "waybar" "blueman-manager")
 declare -ra OPTIONAL_PROCESSES=("inotifywait" "wl-paste" "wl-copy" "firefox" "discord")
 
 declare -ra DEFAULT_SYSTEM_SERVICES=("firewalld" "vsftpd" "waydroid-container" "logrotate.timer" "sshd")

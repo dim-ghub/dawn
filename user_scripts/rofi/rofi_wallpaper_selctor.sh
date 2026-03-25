@@ -184,7 +184,7 @@ check_dependencies() {
   local -a missing=()
   local cmd
 
-  for cmd in rofi swww magick matugen uwsm-app setsid flock sha256sum find sort xargs cmp stat nproc gawk mktemp; do
+  for cmd in rofi awww magick matugen uwsm-app setsid flock sha256sum find sort xargs cmp stat nproc gawk mktemp; do
     command -v "$cmd" >/dev/null 2>&1 || missing+=("$cmd")
   done
 
@@ -631,12 +631,12 @@ cache_info_by_index() {
 }
 
 get_active_wallpaper_filename() {
-  local swww_out current_image
+  local awww_out current_image
 
   # UWSM Wrap applied
-  if IFS= read -r swww_out < <(uwsm-app -- swww query 2>/dev/null); then
-    if [[ $swww_out == *image:* ]]; then
-      current_image=${swww_out##*image: }
+  if IFS= read -r awww_out < <(uwsm-app -- awww query 2>/dev/null); then
+    if [[ $awww_out == *image:* ]]; then
+      current_image=${awww_out##*image: }
       current_image="${current_image#"${current_image%%[![:space:]]*}"}"
       current_image="${current_image%"${current_image##*[![:space:]]}"}"
 
@@ -861,14 +861,14 @@ apply_selection() {
   update_fav_state "$selection"
 
   # UWSM Wrap applied
-  if ! output=$(uwsm-app -- swww img "$full_path" \
+  if ! output=$(uwsm-app -- awww img "$full_path" \
     --transition-type grow \
     --transition-duration 2 \
     --transition-fps 60 2>&1); then
     die "Failed to set wallpaper." "$output"
   fi
 
-  [[ -n $output ]] && log_output INFO "swww: " "$output"
+  [[ -n $output ]] && log_output INFO "awww: " "$output"
 
   if [[ ! -x "$THEME_CTL" ]]; then
     die "Theme controller not found or not executable." "$THEME_CTL"
@@ -955,7 +955,7 @@ main() {
     die "Failed to resolve wallpaper path." "$selection"
   fi
 
-  # Release the lock BEFORE spawning swww/matugen and their background hooks
+  # Release the lock BEFORE spawning awww/matugen and their background hooks
   release_lock
 
   apply_selection "$full_path" "$selection"
