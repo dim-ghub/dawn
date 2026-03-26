@@ -44,7 +44,7 @@ backup_mirrorlist() {
 read -r -d '' FALLBACK_RAW_DATA << 'RAW_MIRROR_LIST' || true
 ##
 ## Arch Linux repository mirrorlist
-## Generated on 2026-02-22
+## Generated on 2026-03-26
 ##
 
 ## Worldwide
@@ -138,6 +138,7 @@ read -r -d '' FALLBACK_RAW_DATA << 'RAW_MIRROR_LIST' || true
 #Server = http://mirror.0xem.ma/arch/$repo/os/$arch
 #Server = https://mirror.0xem.ma/arch/$repo/os/$arch
 #Server = https://mirror.acadielinux.ca/mirror/arch/$repo/os/$arch
+#Server = https://mirror.allthingslinux.org/archlinux/$repo/os/$arch
 #Server = https://arch.mirror.winslow.cloud/$repo/os/$arch
 #Server = http://ca.mirrors.cicku.me/archlinux/$repo/os/$arch
 #Server = https://ca.mirrors.cicku.me/archlinux/$repo/os/$arch
@@ -194,9 +195,8 @@ read -r -d '' FALLBACK_RAW_DATA << 'RAW_MIRROR_LIST' || true
 #Server = http://mirrors.jxust.edu.cn/archlinux/$repo/os/$arch
 #Server = https://mirrors.jxust.edu.cn/archlinux/$repo/os/$arch
 #Server = http://mirror.lzu.edu.cn/archlinux/$repo/os/$arch
-#Server = http://mirrors.neusoft.edu.cn/archlinux/$repo/os/$arch
-#Server = https://mirrors.neusoft.edu.cn/archlinux/$repo/os/$arch
 #Server = http://mirrors.nju.edu.cn/archlinux/$repo/os/$arch
+#Server = https://mirrors.nju.edu.cn/archlinux/$repo/os/$arch
 #Server = http://mirror.nyist.edu.cn/archlinux/$repo/os/$arch
 #Server = https://mirror.nyist.edu.cn/archlinux/$repo/os/$arch
 #Server = https://mirrors.qlu.edu.cn/archlinux/$repo/os/$arch
@@ -314,6 +314,7 @@ read -r -d '' FALLBACK_RAW_DATA << 'RAW_MIRROR_LIST' || true
 #Server = http://mirror.trap.moe/archlinux/$repo/os/$arch
 #Server = https://mirror.trap.moe/archlinux/$repo/os/$arch
 #Server = http://ftp.u-strasbg.fr/linux/distributions/archlinux/$repo/os/$arch
+#Server = https://ftp.u-strasbg.fr/linux/distributions/archlinux/$repo/os/$arch
 #Server = https://mirror.wormhole.eu/archlinux/$repo/os/$arch
 #Server = http://arch.yourlabs.org/$repo/os/$arch
 #Server = https://arch.yourlabs.org/$repo/os/$arch
@@ -398,6 +399,8 @@ read -r -d '' FALLBACK_RAW_DATA << 'RAW_MIRROR_LIST' || true
 #Server = http://mirrors.purring.online/arch/$repo/os/$arch
 #Server = https://mirrors.purring.online/arch/$repo/os/$arch
 #Server = https://archlinux.richard-neumann.de/$repo/os/$arch
+#Server = http://archlinux.roshak.xyz/$repo/os/$arch
+#Server = https://archlinux.roshak.xyz/$repo/os/$arch
 #Server = http://ftp.halifax.rwth-aachen.de/archlinux/$repo/os/$arch
 #Server = https://ftp.halifax.rwth-aachen.de/archlinux/$repo/os/$arch
 #Server = http://linux.rz.rub.de/archlinux/$repo/os/$arch
@@ -416,6 +419,7 @@ read -r -d '' FALLBACK_RAW_DATA << 'RAW_MIRROR_LIST' || true
 #Server = https://arch.mirror.cloud.thatcyberlynx.de/$repo/os/$arch
 #Server = https://mirror.thereisno.page/archlinux/$repo/os/$arch
 #Server = http://ftp.tu-chemnitz.de/pub/linux/archlinux/$repo/os/$arch
+#Server = https://ftp.tu-chemnitz.de/pub/linux/archlinux/$repo/os/$arch
 #Server = http://mirror.ubrco.de/archlinux/$repo/os/$arch
 #Server = https://mirror.ubrco.de/archlinux/$repo/os/$arch
 #Server = http://ftp.uni-bayreuth.de/linux/archlinux/$repo/os/$arch
@@ -458,8 +462,10 @@ read -r -d '' FALLBACK_RAW_DATA << 'RAW_MIRROR_LIST' || true
 #Server = https://mirrors.abhy.me/archlinux/$repo/os/$arch
 #Server = https://mirror.del2.albony.in/archlinux/$repo/os/$arch
 #Server = https://mirror.maa.albony.in/archlinux/$repo/os/$arch
+#Server = https://mirror.bom.kat.cx/archlinux/$repo/os/$arch
 #Server = http://in.mirrors.cicku.me/archlinux/$repo/os/$arch
 #Server = https://in.mirrors.cicku.me/archlinux/$repo/os/$arch
+#Server = https://mirror.dawn.org.in/arch/$repo/os/$arch
 #Server = http://in-mirror.garudalinux.org/archlinux/$repo/os/$arch
 #Server = https://in-mirror.garudalinux.org/archlinux/$repo/os/$arch
 #Server = https://archlinux.kushwanthreddy.com/$repo/os/$arch
@@ -544,10 +550,6 @@ read -r -d '' FALLBACK_RAW_DATA << 'RAW_MIRROR_LIST' || true
 #Server = https://mirrors.atviras.lt/archlinux/$repo/os/$arch
 #Server = http://mirror.sinirlan.net/archlinux/$repo/os/$arch
 #Server = https://mirror.sinirlan.net/archlinux/$repo/os/$arch
-
-## Luxembourg
-#Server = http://arch-lux.spirex.me/$repo/os/$arch
-#Server = https://arch-lux.spirex.me/$repo/os/$arch
 
 ## Malaysia
 #Server = https://mirror.mrleong.net/archlinux/$repo/os/$arch
@@ -703,6 +705,8 @@ read -r -d '' FALLBACK_RAW_DATA << 'RAW_MIRROR_LIST' || true
 ## Russia
 #Server = http://archlinux.gay/archlinux/$repo/os/$arch
 #Server = https://archlinux.gay/archlinux/$repo/os/$arch
+#Server = http://mirror.cachy-arch.ru/archlinux/$repo/os/$arch
+#Server = https://mirror.cachy-arch.ru/archlinux/$repo/os/$arch
 #Server = http://ru.mirrors.cicku.me/archlinux/$repo/os/$arch
 #Server = https://ru.mirrors.cicku.me/archlinux/$repo/os/$arch
 #Server = http://mirror.kamtv.ru/archlinux/$repo/os/$arch
@@ -720,6 +724,8 @@ read -r -d '' FALLBACK_RAW_DATA << 'RAW_MIRROR_LIST' || true
 #Server = https://web.sketserv.ru/archlinux/$repo/os/$arch
 #Server = http://mirror.truenetwork.ru/archlinux/$repo/os/$arch
 #Server = https://mirror.truenetwork.ru/archlinux/$repo/os/$arch
+#Server = http://vlst.su/archlinux/$repo/os/$arch
+#Server = https://vlst.su/archlinux/$repo/os/$arch
 #Server = http://mirror.yandex.ru/archlinux/$repo/os/$arch
 #Server = https://mirror.yandex.ru/archlinux/$repo/os/$arch
 
@@ -1000,6 +1006,7 @@ read -r -d '' FALLBACK_RAW_DATA << 'RAW_MIRROR_LIST' || true
 #Server = https://losangeles.mirror.pkgbuild.com/$repo/os/$arch
 #Server = http://mirrors.gigenet.com/archlinux/$repo/os/$arch
 #Server = https://mirror.givebytes.net/archlinux/$repo/os/$arch
+#Server = https://mirror2.givebytes.net/archlinux/$repo/os/$arch
 #Server = https://arch.goober.cloud/$repo/os/$arch
 #Server = http://mirror.hasphetica.win/archlinux/$repo/os/$arch
 #Server = https://mirror.hasphetica.win/archlinux/$repo/os/$arch

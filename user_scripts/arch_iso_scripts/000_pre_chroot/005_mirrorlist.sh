@@ -1,16 +1,14 @@
 #!/usr/bin/env bash
 # ==============================================================================
-#  004_pacman_reflector.sh
-#  Context: Arch Linux ISO (Live Environment)
-#  Description: Updates mirrorlist using Reflector with a massive global fallback.
-#               Designed for high availability and manual execution.
+# MODULE: 001_mirrorlist.sh
+# CONTEXT: Arch ISO Environment
+# PURPOSE: Updates mirrorlist using Reflector or cachyos-rate-mirrors.
 # ==============================================================================
 
 set -euo pipefail
 
 # --- CONFIGURATION ---
 readonly TARGET_FILE="/etc/pacman.d/mirrorlist"
-# Default set to 'list' for global users.
 readonly DEFAULT_COUNTRY="list"
 
 # --- COLORS (conditional on TTY) ---
@@ -29,30 +27,38 @@ log_err()  { printf '%s!! %s%s\n' "$R" "$1" "$NC" >&2; }
 # --- PRE-FLIGHT CHECKS (ELEVATION) ---
 if [[ $EUID -ne 0 ]]; then
     log_warn "This script must be run as root. Elevating privileges..."
-    exec sudo "$0" "$@"
+    # The Arch ISO does not have `sudo` installed by default.
+    if command -v sudo &>/dev/null; then
+        exec sudo "$0" "$@"
+    else
+        exec su -c "$0 $*"
+    fi
 fi
 
-# --- INTERNET CHECK ---
-if ! ping -c 1 archlinux.org &>/dev/null; then
-    log_err "No internet connection detected."
-    log_warn "Please connect via 'iwctl' or Ethernet before running this script."
-    exit 1
-fi
+ensure_reflector() {
+    if ! command -v reflector &>/dev/null; then
+        log_warn "Reflector not found. Installing..."
+        # CRITICAL ISO SAFEGUARD: Never use -Syu in an ISO environment.
+        # It will fill the RAM (tmpfs) and crash the installation. Use -Sy only.
+        pacman -Sy --needed --noconfirm reflector || {
+            log_err "Failed to install reflector. Ensure you have an active internet connection."
+            exit 1
+        }
+    fi
+}
 
-if ! command -v reflector &>/dev/null; then
-    log_warn "Reflector not found. Installing..."
-    pacman -Syu --needed --noconfirm reflector
-fi
+backup_mirrorlist() {
+    if [[ -f "$TARGET_FILE" ]]; then
+        cp -a "$TARGET_FILE" "${TARGET_FILE}.bak"
+        log_info "Backed up existing mirrorlist to ${TARGET_FILE}.bak"
+    fi
+}
 
 # --- DATA STORE ---
-# INSTRUCTIONS: Paste the new Arch Mirrorlist content between 'RAW_MIRROR_LIST'
-# get the latest mirror list from here:
-# https://archlinux.org/mirrorlist/
-#
 read -r -d '' FALLBACK_RAW_DATA << 'RAW_MIRROR_LIST' || true
 ##
 ## Arch Linux repository mirrorlist
-## Generated on 2026-01-26
+## Generated on 2026-03-26
 ##
 
 ## Worldwide
@@ -146,6 +152,7 @@ read -r -d '' FALLBACK_RAW_DATA << 'RAW_MIRROR_LIST' || true
 #Server = http://mirror.0xem.ma/arch/$repo/os/$arch
 #Server = https://mirror.0xem.ma/arch/$repo/os/$arch
 #Server = https://mirror.acadielinux.ca/mirror/arch/$repo/os/$arch
+#Server = https://mirror.allthingslinux.org/archlinux/$repo/os/$arch
 #Server = https://arch.mirror.winslow.cloud/$repo/os/$arch
 #Server = http://ca.mirrors.cicku.me/archlinux/$repo/os/$arch
 #Server = https://ca.mirrors.cicku.me/archlinux/$repo/os/$arch
@@ -158,6 +165,8 @@ read -r -d '' FALLBACK_RAW_DATA << 'RAW_MIRROR_LIST' || true
 #Server = https://stygian.failzero.net/mirror/archlinux/$repo/os/$arch
 #Server = https://mirror.franscorack.com/archlinux/$repo/os/$arch
 #Server = http://mirror.its.dal.ca/archlinux/$repo/os/$arch
+#Server = http://ca.mirror.cx/archlinux/$repo/os/$arch
+#Server = https://ca.mirror.cx/archlinux/$repo/os/$arch
 #Server = http://mirror.quantum5.ca/archlinux/$repo/os/$arch
 #Server = https://mirror.quantum5.ca/archlinux/$repo/os/$arch
 #Server = http://muug.ca/mirror/archlinux/$repo/os/$arch
@@ -200,8 +209,6 @@ read -r -d '' FALLBACK_RAW_DATA << 'RAW_MIRROR_LIST' || true
 #Server = http://mirrors.jxust.edu.cn/archlinux/$repo/os/$arch
 #Server = https://mirrors.jxust.edu.cn/archlinux/$repo/os/$arch
 #Server = http://mirror.lzu.edu.cn/archlinux/$repo/os/$arch
-#Server = http://mirrors.neusoft.edu.cn/archlinux/$repo/os/$arch
-#Server = https://mirrors.neusoft.edu.cn/archlinux/$repo/os/$arch
 #Server = http://mirrors.nju.edu.cn/archlinux/$repo/os/$arch
 #Server = https://mirrors.nju.edu.cn/archlinux/$repo/os/$arch
 #Server = http://mirror.nyist.edu.cn/archlinux/$repo/os/$arch
@@ -321,6 +328,7 @@ read -r -d '' FALLBACK_RAW_DATA << 'RAW_MIRROR_LIST' || true
 #Server = http://mirror.trap.moe/archlinux/$repo/os/$arch
 #Server = https://mirror.trap.moe/archlinux/$repo/os/$arch
 #Server = http://ftp.u-strasbg.fr/linux/distributions/archlinux/$repo/os/$arch
+#Server = https://ftp.u-strasbg.fr/linux/distributions/archlinux/$repo/os/$arch
 #Server = https://mirror.wormhole.eu/archlinux/$repo/os/$arch
 #Server = http://arch.yourlabs.org/$repo/os/$arch
 #Server = https://arch.yourlabs.org/$repo/os/$arch
@@ -405,6 +413,8 @@ read -r -d '' FALLBACK_RAW_DATA << 'RAW_MIRROR_LIST' || true
 #Server = http://mirrors.purring.online/arch/$repo/os/$arch
 #Server = https://mirrors.purring.online/arch/$repo/os/$arch
 #Server = https://archlinux.richard-neumann.de/$repo/os/$arch
+#Server = http://archlinux.roshak.xyz/$repo/os/$arch
+#Server = https://archlinux.roshak.xyz/$repo/os/$arch
 #Server = http://ftp.halifax.rwth-aachen.de/archlinux/$repo/os/$arch
 #Server = https://ftp.halifax.rwth-aachen.de/archlinux/$repo/os/$arch
 #Server = http://linux.rz.rub.de/archlinux/$repo/os/$arch
@@ -423,6 +433,7 @@ read -r -d '' FALLBACK_RAW_DATA << 'RAW_MIRROR_LIST' || true
 #Server = https://arch.mirror.cloud.thatcyberlynx.de/$repo/os/$arch
 #Server = https://mirror.thereisno.page/archlinux/$repo/os/$arch
 #Server = http://ftp.tu-chemnitz.de/pub/linux/archlinux/$repo/os/$arch
+#Server = https://ftp.tu-chemnitz.de/pub/linux/archlinux/$repo/os/$arch
 #Server = http://mirror.ubrco.de/archlinux/$repo/os/$arch
 #Server = https://mirror.ubrco.de/archlinux/$repo/os/$arch
 #Server = http://ftp.uni-bayreuth.de/linux/archlinux/$repo/os/$arch
@@ -465,8 +476,10 @@ read -r -d '' FALLBACK_RAW_DATA << 'RAW_MIRROR_LIST' || true
 #Server = https://mirrors.abhy.me/archlinux/$repo/os/$arch
 #Server = https://mirror.del2.albony.in/archlinux/$repo/os/$arch
 #Server = https://mirror.maa.albony.in/archlinux/$repo/os/$arch
+#Server = https://mirror.bom.kat.cx/archlinux/$repo/os/$arch
 #Server = http://in.mirrors.cicku.me/archlinux/$repo/os/$arch
 #Server = https://in.mirrors.cicku.me/archlinux/$repo/os/$arch
+#Server = https://mirror.dawn.org.in/arch/$repo/os/$arch
 #Server = http://in-mirror.garudalinux.org/archlinux/$repo/os/$arch
 #Server = https://in-mirror.garudalinux.org/archlinux/$repo/os/$arch
 #Server = https://archlinux.kushwanthreddy.com/$repo/os/$arch
@@ -529,6 +542,8 @@ read -r -d '' FALLBACK_RAW_DATA << 'RAW_MIRROR_LIST' || true
 #Server = https://www.miraa.jp/archlinux/$repo/os/$arch
 #Server = http://mirror.rain.ne.jp/archlinux/$repo/os/$arch
 #Server = https://mirror.rain.ne.jp/archlinux/$repo/os/$arch
+#Server = http://ftp.yz.yamagata-u.ac.jp/pub/linux/archlinux/$repo/os/$arch
+#Server = https://ftp.yz.yamagata-u.ac.jp/pub/linux/archlinux/$repo/os/$arch
 
 ## Kazakhstan
 #Server = http://mirror.ps.kz/archlinux/$repo/os/$arch
@@ -549,10 +564,6 @@ read -r -d '' FALLBACK_RAW_DATA << 'RAW_MIRROR_LIST' || true
 #Server = https://mirrors.atviras.lt/archlinux/$repo/os/$arch
 #Server = http://mirror.sinirlan.net/archlinux/$repo/os/$arch
 #Server = https://mirror.sinirlan.net/archlinux/$repo/os/$arch
-
-## Luxembourg
-#Server = http://arch-lux.spirex.me/$repo/os/$arch
-#Server = https://arch-lux.spirex.me/$repo/os/$arch
 
 ## Malaysia
 #Server = https://mirror.mrleong.net/archlinux/$repo/os/$arch
@@ -612,6 +623,8 @@ read -r -d '' FALLBACK_RAW_DATA << 'RAW_MIRROR_LIST' || true
 #Server = https://mirror.lyrahosting.com/archlinux/$repo/os/$arch
 #Server = http://mirror.mijn.host/archlinux/$repo/os/$arch
 #Server = https://mirror.mijn.host/archlinux/$repo/os/$arch
+#Server = http://nl.mirror.cx/archlinux/$repo/os/$arch
+#Server = https://nl.mirror.cx/archlinux/$repo/os/$arch
 #Server = https://nl.arch.niranjan.co/$repo/os/$arch
 #Server = http://ftp.nluug.nl/os/Linux/distr/archlinux/$repo/os/$arch
 #Server = http://mirror.nyaa.vc/archlinux/$repo/os/$arch
@@ -648,6 +661,8 @@ read -r -d '' FALLBACK_RAW_DATA << 'RAW_MIRROR_LIST' || true
 #Server = https://mirror.archlinux.no/$repo/os/$arch
 #Server = http://archlinux.uib.no/$repo/os/$arch
 #Server = https://archlinux.lysakermoen.com/$repo/os/$arch
+#Server = http://no.mirror.cx/archlinux/$repo/os/$arch
+#Server = https://no.mirror.cx/archlinux/$repo/os/$arch
 #Server = http://mirror.neuf.no/archlinux/$repo/os/$arch
 #Server = https://mirror.neuf.no/archlinux/$repo/os/$arch
 #Server = http://mirror.terrahost.no/linux/archlinux/$repo/os/$arch
@@ -656,6 +671,8 @@ read -r -d '' FALLBACK_RAW_DATA << 'RAW_MIRROR_LIST' || true
 #Server = http://archlinux.mirror.py/archlinux/$repo/os/$arch
 
 ## Poland
+#Server = http://mirror.alldaydev.com/archlinux/$repo/os/$arch
+#Server = https://mirror.alldaydev.com/archlinux/$repo/os/$arch
 #Server = http://ftp.icm.edu.pl/pub/Linux/dist/archlinux/$repo/os/$arch
 #Server = https://ftp.icm.edu.pl/pub/Linux/dist/archlinux/$repo/os/$arch
 #Server = http://mirror.juniorjpdj.pl/archlinux/$repo/os/$arch
@@ -702,6 +719,8 @@ read -r -d '' FALLBACK_RAW_DATA << 'RAW_MIRROR_LIST' || true
 ## Russia
 #Server = http://archlinux.gay/archlinux/$repo/os/$arch
 #Server = https://archlinux.gay/archlinux/$repo/os/$arch
+#Server = http://mirror.cachy-arch.ru/archlinux/$repo/os/$arch
+#Server = https://mirror.cachy-arch.ru/archlinux/$repo/os/$arch
 #Server = http://ru.mirrors.cicku.me/archlinux/$repo/os/$arch
 #Server = https://ru.mirrors.cicku.me/archlinux/$repo/os/$arch
 #Server = http://mirror.kamtv.ru/archlinux/$repo/os/$arch
@@ -719,8 +738,8 @@ read -r -d '' FALLBACK_RAW_DATA << 'RAW_MIRROR_LIST' || true
 #Server = https://web.sketserv.ru/archlinux/$repo/os/$arch
 #Server = http://mirror.truenetwork.ru/archlinux/$repo/os/$arch
 #Server = https://mirror.truenetwork.ru/archlinux/$repo/os/$arch
-#Server = http://vladivostokst.ru/archlinux/$repo/os/$arch
-#Server = https://vladivostokst.ru/archlinux/$repo/os/$arch
+#Server = http://vlst.su/archlinux/$repo/os/$arch
+#Server = https://vlst.su/archlinux/$repo/os/$arch
 #Server = http://mirror.yandex.ru/archlinux/$repo/os/$arch
 #Server = https://mirror.yandex.ru/archlinux/$repo/os/$arch
 
@@ -794,6 +813,8 @@ read -r -d '' FALLBACK_RAW_DATA << 'RAW_MIRROR_LIST' || true
 #Server = https://mirror.hemino.net/archlinux/$repo/os/$arch
 #Server = http://ftp.hrts.kr/archlinux/$repo/os/$arch
 #Server = https://ftp.hrts.kr/archlinux/$repo/os/$arch
+#Server = http://ftp.io.kr/$repo/os/$arch
+#Server = https://ftp.io.kr/$repo/os/$arch
 #Server = http://mirror.keiminem.com/archlinux/$repo/os/$arch
 #Server = http://mirror2.keiminem.com/archlinux/$repo/os/$arch
 #Server = https://mirror.keiminem.com/archlinux/$repo/os/$arch
@@ -999,6 +1020,7 @@ read -r -d '' FALLBACK_RAW_DATA << 'RAW_MIRROR_LIST' || true
 #Server = https://losangeles.mirror.pkgbuild.com/$repo/os/$arch
 #Server = http://mirrors.gigenet.com/archlinux/$repo/os/$arch
 #Server = https://mirror.givebytes.net/archlinux/$repo/os/$arch
+#Server = https://mirror2.givebytes.net/archlinux/$repo/os/$arch
 #Server = https://arch.goober.cloud/$repo/os/$arch
 #Server = http://mirror.hasphetica.win/archlinux/$repo/os/$arch
 #Server = https://mirror.hasphetica.win/archlinux/$repo/os/$arch
@@ -1096,8 +1118,88 @@ get_fallback_date() {
     printf '%s' "$date_str"
 }
 
-# --- MAIN LOGIC ---
+# --- HELPER: OS Detection ---
+detect_cachyos() {
+    if [[ -f /etc/os-release ]] && grep -q '^ID=cachyos$' /etc/os-release; then
+        return 0
+    fi
+    return 1
+}
+
+# --- CACHYOS LOGIC (RELIABILITY UPGRADED) ---
+update_cachy_mirrors() {
+    log_info "Initializing dedicated CachyOS mirror sync..."
+    
+    if ! command -v cachyos-rate-mirrors &>/dev/null; then
+        log_err "cachyos-rate-mirrors binary not found. Aborting."
+        exit 1
+    fi
+
+    local max_attempts=4
+    local attempt=1
+    local success=0
+
+    # Force underlying network calls to prefer IPv4 if supported by the environment,
+    # helping to mitigate ISP IPv6 blackholing without breaking standard configurations.
+    export CURL_OPTIONS="-4"
+
+    while (( attempt <= max_attempts )); do
+        if (( attempt == 1 )); then
+            # Small initial breather to detach from the rapid-fire orchestrator burst
+            sleep 2
+        else
+            log_warn "Network delay detected. Waiting 5 seconds for ISP/CDN limits to reset before attempt ${attempt}/${max_attempts}..."
+            sleep 5
+        fi
+
+        # Evaluating directly in the if-statement safely catches failures without triggering set -e
+        if cachyos-rate-mirrors; then
+            log_ok "CachyOS mirrors updated and graded successfully."
+            success=1
+            break
+        else
+            log_err "Attempt ${attempt} failed to connect to the mirror coordination servers."
+            (( attempt++ ))
+        fi
+    done
+
+    # --- GRACEFUL FAILURE HANDLING ---
+    if (( ! success )); then
+        printf '\n%s!! NETWORK TIMEOUT ENCOUNTERED %s\n' "$R" "$NC"
+        printf '   --------------------------------------------------------\n'
+        printf '   %sPlease do not panic.%s This is a known ISP network or routing\n' "$G" "$NC"
+        printf '   timeout (often caused by strict ISP firewalls or CGNAT limits)\n'
+        printf '   and has %sABSOLUTELY NOTHING to do with Dusky, the dot files.%s\n' "$B" "$NC"
+        printf '   Your system is perfectly safe and structurally sound.\n'
+        printf '   --------------------------------------------------------\n'
+        printf '   Would you like to:\n'
+        printf '   1) Skip this specific step and continue the installation (Recommended)\n'
+        printf '   2) Abort the entire installation\n\n'
+
+        local choice
+        while true; do
+            read -r -p ":: Select an option [1-2]: " choice || { printf '\n'; exit 1; }
+            case "$choice" in
+                1)
+                    log_ok "Gracefully skipping CachyOS mirror sync. You can safely run this manually later."
+                    return 0
+                    ;;
+                2)
+                    log_err "Aborting script execution as requested."
+                    exit 1
+                    ;;
+                *)
+                    log_warn "Invalid selection. Please enter 1 or 2."
+                    ;;
+            esac
+        done
+    fi
+}
+
+# --- BARE ARCH LOGIC ---
 update_mirrors() {
+    ensure_reflector
+    
     local country input_country fallback_date choice
 
     while true; do
@@ -1105,43 +1207,45 @@ update_mirrors() {
         printf '   --------------------------------------------------------\n'
         printf '   %sNOTE TO GLOBAL USERS:%s\n' "$Y" "$NC"
         printf '   Type %slist%s to view all available countries.\n' "$B" "$NC"
+        printf '   Type %sskip%s or %ss%s to bypass this step.\n' "$B" "$NC" "$B" "$NC"
         printf '   Press %s[Enter]%s to use the default (%s).\n' "$B" "$NC" "$DEFAULT_COUNTRY"
         printf '   --------------------------------------------------------\n'
 
-        read -r -p ":: Enter country: " input_country
+        read -r -p ":: Enter country: " input_country || { printf '\n'; exit 0; }
 
-        # Handle explicit list request
+        if [[ "${input_country,,}" == "s" || "${input_country,,}" == "skip" ]]; then
+            log_warn "Skipping mirror update as requested."
+            return 0
+        fi
+
         if [[ "${input_country,,}" == "list" ]]; then
             log_warn "Retrieving country list..."
-            reflector --list-countries
+            reflector --list-countries || log_err "Failed to retrieve country list."
             printf '\n'
             continue
         fi
 
-        # Apply default if input is empty
         country="${input_country:-$DEFAULT_COUNTRY}"
 
-        # If resolved country is 'list', show list and loop
         if [[ "${country,,}" == "list" ]]; then
             log_warn "Retrieving country list..."
-            reflector --list-countries
+            reflector --list-countries || log_err "Failed to retrieve country list."
             printf '\n'
             continue
         fi
 
         log_warn "Running Reflector for region: ${country}..."
 
-        # Attempt reflector update
+        backup_mirrorlist
+
         if reflector --country "$country" --latest 10 --protocol https \
                      --sort rate --download-timeout 5 --save "$TARGET_FILE"; then
             log_ok "Reflector success! Mirrors updated."
             log_info "Syncing package database..."
-            # -Syy is safer for full mirror replacement
-            pacman -Syy
+            pacman -Syy || log_err "Database sync failed."
             break
         fi
 
-        # Reflector failed — present recovery menu
         fallback_date="$(get_fallback_date)"
 
         printf '\n%s!! Reflector failed to update mirrors for "%s".%s\n' "$R" "$country" "$NC"
@@ -1149,49 +1253,52 @@ update_mirrors() {
         printf '   2) Use Global Fallback Mirrors (%s)\n' "$fallback_date"
         printf '   3) Do nothing (Abort changes)\n'
 
-        read -r -p ":: Select an option [1-3]: " choice
+        read -r -p ":: Select an option [1-3]: " choice || { printf '\n'; exit 0; }
 
         case "$choice" in
             1)
                 log_info "Retrying..."
                 ;;
             2)
-                local fb_country fb_input
+                local fb_country fb_input tmp_file
                 while true; do
                     printf '\n'
-                    read -r -p ":: Enter country for fallback list (type 'list' to view): " fb_input
-                    fb_country="${fb_input:-Worldwide}" # Default to Worldwide if empty
+                    read -r -p ":: Enter country for fallback list (type 'list' to view): " fb_input || { printf '\n'; exit 0; }
+                    fb_country="${fb_input:-Worldwide}"
 
                     if [[ "${fb_input,,}" == "list" ]]; then
                         log_info "Available Fallback Countries:"
-                        # List all lines starting with '## ' excluding headers
-                        grep '^## ' <<< "$FALLBACK_RAW_DATA" | sed 's/^## //g' | grep -vE "^Arch Linux|^Generated on|^$" | column
+                        grep '^## ' <<< "$FALLBACK_RAW_DATA" | sed 's/^## //g' | grep -vE "^Arch Linux|^Generated on|^$" | column || true
                         continue
                     fi
 
-                    # Check if country exists in RAW DATA
-                    # We search for "## CountryName"
                     if grep -q "^## ${fb_country}$" <<< "$FALLBACK_RAW_DATA"; then
                          log_warn "Applying fallback mirrors for: $fb_country"
                          
-                         # Use awk to extract the block between "## Country" and the next "##"
-                         # and uncomment #Server lines only within that block
+                         tmp_file="$(mktemp)"
+                         
                          awk -v country="## $fb_country" '
-                            $0 == country { found=1; next }     # Found start block
-                            /^## / { if (found) exit }          # Found next block header, exit
-                            found { 
-                                sub(/^#Server/, "Server");      # Uncomment server lines
-                                print                           # Print line
+                            $0 == country { found=1; next }
+                            /^## / { if (found) exit }
+                            found && NF { 
+                                sub(/^#Server/, "Server");
+                                print
                             }
-                         ' <<< "$FALLBACK_RAW_DATA" > "$TARGET_FILE"
+                         ' <<< "$FALLBACK_RAW_DATA" > "$tmp_file"
 
-                         if [[ -s "$TARGET_FILE" ]]; then
+                         if [[ -s "$tmp_file" ]]; then
+                             backup_mirrorlist
+                             # Use cat to overwrite file contents while preserving existing permissions
+                             cat "$tmp_file" > "$TARGET_FILE"
+                             rm -f "$tmp_file"
+                             
                              log_ok "Fallback mirrors applied for $fb_country."
                              log_info "Syncing package database..."
-                             pacman -Syy
-                             break 2 # Break out of both loops
+                             pacman -Syy || log_err "Database sync failed."
+                             break 2
                          else
-                             log_err "Failed to extract mirrors. Please try another country."
+                             rm -f "$tmp_file"
+                             log_err "Failed to extract mirrors. The extracted list was empty."
                          fi
                     else
                         log_err "Country '$fb_country' not found in fallback data."
@@ -1210,4 +1317,40 @@ update_mirrors() {
 }
 
 # --- ENTRY POINT ---
-update_mirrors
+main() {
+    local manual_override=0
+
+    for arg in "$@"; do
+        if [[ "$arg" == "--manual" ]]; then
+            manual_override=1
+            break
+        fi
+    done
+
+    if (( manual_override )); then
+        printf '\n%s:: Manual OS Override Mode%s\n' "$B" "$NC"
+        printf '   1) Run CachyOS mirror sync (cachyos-rate-mirrors)\n'
+        printf '   2) Run standard Arch mirror sync (Reflector + Fallbacks)\n'
+        printf '   3) Abort\n'
+        
+        local os_choice
+        read -r -p ":: Select target OS configuration [1-3]: " os_choice || { printf '\n'; exit 0; }
+        
+        case "$os_choice" in
+            1) update_cachy_mirrors ;;
+            2) update_mirrors ;;
+            3) log_warn "Aborting script execution."; exit 0 ;;
+            *) log_err "Invalid selection. Exiting."; exit 1 ;;
+        esac
+    else
+        if detect_cachyos; then
+            log_info "CachyOS environment detected."
+            update_cachy_mirrors
+        else
+            log_info "Standard Arch Linux environment detected."
+            update_mirrors
+        fi
+    fi
+}
+
+main "$@"
