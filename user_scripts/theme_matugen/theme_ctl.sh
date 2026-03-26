@@ -676,7 +676,9 @@ regenerate_current() {
             current_wallpaper="${line##*image: }"
             break
         elif [[ "$line" == *"currently displaying: color: "* ]]; then
-            die "awww is currently displaying a solid color. Please set a wallpaper first (e.g., 'theme_ctl random') so Matugen has an image to read."
+            log "awww is displaying a solid color. Automatically falling back to a random wallpaper."
+            random_command
+            return 0
         fi
     done <<< "$query_output"
 
