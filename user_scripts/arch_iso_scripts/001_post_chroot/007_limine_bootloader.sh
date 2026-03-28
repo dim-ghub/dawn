@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# MODULE: 010_bootloader.sh
+# MODULE: 007_limine_bootloader.sh
 # CONTEXT: Arch chroot environment
 # PURPOSE: Dynamic Limine Deployment (UEFI/BIOS, LUKS/Plain, CachyOS/Vanilla)
 # ==============================================================================
@@ -15,10 +15,20 @@ readonly C_YELLOW=$'\033[33m'
 readonly C_CYAN=$'\033[36m'
 readonly C_RESET=$'\033[0m'
 
+AUTO_MODE=0
+
 log_info() { printf "${C_CYAN}[INFO]${C_RESET} %s\n" "$1"; }
 log_success() { printf "${C_GREEN}[SUCCESS]${C_RESET} %s\n" "$1"; }
 log_warn() { printf "${C_YELLOW}[WARN]${C_RESET} %s\n" "$1"; }
 log_error() { printf "${C_RED}[ERROR]${C_RESET} %s\n" "$1"; }
+
+ask_proceed() {
+    local prompt_text="$1"
+    if (( AUTO_MODE )); then return 0; fi
+    local response
+    read -r -p "${C_BOLD}${prompt_text} [Y/n] ${C_RESET}" response
+    [[ "$response" =~ ^([yY][eE][sS]|[yY]|"")$ ]]
+}
 
 resolve_single_disk_ancestor() {
     local node=$1 path type
@@ -46,29 +56,35 @@ detect_luks_ancestor() {
 dm_name_from_node() {
     local real_path dm_node dm_name
 
-    real_path=$(readlink -f -- "$1") || return 1
+    if ! real_path=$(readlink -f -- "$1"); then return 1; fi
     dm_node=${real_path##*/}
 
-    [[ -r "/sys/class/block/${dm_node}/dm/name" ]] || return 1
-    IFS= read -r dm_name < "/sys/class/block/${dm_node}/dm/name" || return 1
+    if [[ ! -r "/sys/class/block/${dm_node}/dm/name" ]]; then return 1; fi
+    if ! IFS= read -r dm_name < "/sys/class/block/${dm_node}/dm/name"; then return 1; fi
+    
     printf '%s\n' "$dm_name"
 }
 
 detect_crypto_cmdline_style() {
-    local conf line hooks_line=""
+    local hooks_str=""
 
-    for conf in /etc/mkinitcpio.conf /etc/mkinitcpio.conf.d/*.conf; do
-        [[ -f "$conf" ]] || continue
-        while IFS= read -r line; do
-            if [[ $line =~ ^[[:space:]]*HOOKS=\((.*)\)[[:space:]]*([#].*)?$ ]]; then
-                hooks_line=${BASH_REMATCH[1]}
-            fi
-        done < "$conf"
-    done
-
-    if [[ -n $hooks_line ]]; then
-        [[ " $hooks_line " == *" sd-encrypt "* ]] && { printf '%s\n' 'rd.luks'; return 0; }
-        [[ " $hooks_line " == *" encrypt "* ]] && { printf '%s\n' 'cryptdevice'; return 0; }
+    # Securely evaluate mkinitcpio.conf AND any modern drop-ins natively
+    if hooks_str=$(bash -c '
+        source /etc/mkinitcpio.conf >/dev/null 2>&1 || true
+        shopt -s nullglob
+        for conf in /etc/mkinitcpio.conf.d/*.conf; do
+            source "$conf" >/dev/null 2>&1 || true
+        done
+        echo "${HOOKS[*]}"
+    ' 2>/dev/null); then
+        if [[ " $hooks_str " == *" sd-encrypt "* ]]; then
+            printf '%s\n' 'rd.luks'
+            return 0
+        fi
+        if [[ " $hooks_str " == *" encrypt "* ]]; then
+            printf '%s\n' 'cryptdevice'
+            return 0
+        fi
     fi
 
     if command -v dracut >/dev/null 2>&1 || [[ -d /usr/lib/dracut ]]; then
@@ -79,7 +95,19 @@ detect_crypto_cmdline_style() {
     return 1
 }
 
-# --- 1. Environment & Pre-Flight ---
+# ==============================================================================
+# ENTRY LOGIC
+# ==============================================================================
+
+if [[ "${1:-}" == "--auto" || "${1:-}" == "auto" ]]; then
+    AUTO_MODE=1
+else
+    read -r -p "Run AUTONOMOUS bootloader deployment? [y/N]: " choice
+    if [[ "${choice,,}" == "y" ]]; then
+        AUTO_MODE=1
+    fi
+fi
+
 printf '%b\n\n' "${C_BOLD}=== DYNAMIC BOOTLOADER ORCHESTRATION ===${C_RESET}"
 
 if (( EUID != 0 )); then
@@ -98,7 +126,7 @@ else
 fi
 log_info "Detected Boot Mode: ${C_BOLD}${BOOT_MODE}${C_RESET}"
 
-# --- 2. Dynamic Block Topology Traversal ---
+# --- Dynamic Block Topology Traversal ---
 log_info "Analyzing filesystem topology..."
 
 RAW_ROOT_MNT=$(findmnt -n -e -o SOURCE -T /)
@@ -116,7 +144,7 @@ fi
 ROOT_OPTS=$(findmnt -n -e -o OPTIONS -T /)
 ROOT_SUBVOL=""
 if [[ "$ROOT_OPTS" == *subvol=* ]]; then
-    ROOT_SUBVOL=$(grep -oP 'subvol=\K[^,]+' <<<"$ROOT_OPTS")
+    ROOT_SUBVOL=$(echo "$ROOT_OPTS" | grep -oP '(?<=subvol=)[^,]+' || true)
 fi
 
 CMDLINE_BASE="rw quiet splash nowatchdog"
@@ -126,10 +154,10 @@ CRYPT_DEV=$(detect_luks_ancestor "$ROOT_BLK_DEV" || true)
 if [[ -n "$CRYPT_DEV" ]]; then
     log_info "LUKS encryption detected in the root-device stack."
 
-    MAPPER_NAME=$(dm_name_from_node "$CRYPT_DEV") || {
+    if ! MAPPER_NAME=$(dm_name_from_node "$CRYPT_DEV"); then
         log_error "Could not resolve the dm-crypt mapping name for ${CRYPT_DEV}."
         exit 1
-    }
+    fi
 
     BACKING_DEV=$(cryptsetup status "$MAPPER_NAME" | awk '/^[[:space:]]*device:/ { print $2; exit }')
     if [[ -z "$BACKING_DEV" ]]; then
@@ -143,10 +171,11 @@ if [[ -n "$CRYPT_DEV" ]]; then
         exit 1
     fi
 
-    CRYPTO_STYLE=$(detect_crypto_cmdline_style) || {
+    if ! CRYPTO_STYLE=$(detect_crypto_cmdline_style); then
         log_error "Encrypted root detected, but the initramfs crypto unlock syntax could not be determined."
+        log_warn "Please ensure your mkinitcpio.conf includes the 'encrypt' or 'sd-encrypt' hook."
         exit 1
-    }
+    fi
 
     case "$CRYPTO_STYLE" in
         rd.luks)
@@ -167,9 +196,10 @@ fi
 
 log_info "Generated Kernel Params: ${C_YELLOW}${CMDLINE_BASE}${C_RESET}"
 
-# --- 3. Limine Binary Deployment ---
+ask_proceed "Ready to deploy bootloader binaries. Continue?" || exit 0
+
+# --- Limine Binary Deployment ---
 if [[ "$BOOT_MODE" == "UEFI" ]]; then
-    # Dynamically find ESP
     ESP_MNT=""
     for target in /efi /boot /boot/efi; do
         if mountpoint -q "$target" && [[ "$(findmnt -n -o FSTYPE "$target")" =~ ^(vfat|fat32)$ ]]; then
@@ -186,7 +216,6 @@ if [[ "$BOOT_MODE" == "UEFI" ]]; then
     log_info "Deploying Limine EFI binary to ESP at $ESP_MNT..."
     install -Dm0644 /usr/share/limine/BOOTX64.EFI "${ESP_MNT}/EFI/BOOT/BOOTX64.EFI"
 
-    # Register with NVRAM
     ESP_SRC=$(findmnt -n -o SOURCE "$ESP_MNT")
     ESP_DISK=$(lsblk -no PKNAME -- "$ESP_SRC")
     ESP_PART_NUM=$(lsblk -no PARTN -- "$ESP_SRC")
@@ -223,13 +252,12 @@ else
     limine bios-install "${BOOT_DISK}"
 fi
 
-# --- 4. Configuration Generation (Vanilla vs CachyOS) ---
+# --- Configuration Generation (Vanilla vs CachyOS) ---
 CONF_FILE="/boot/limine.conf"
 
 if command -v limine-entry-tool >/dev/null 2>&1; then
     log_info "CachyOS Environment Detected: Leveraging limine-entry-tool..."
 
-    # Pre-seed the configuration to ensure rootflags are respected
     mkdir -p /etc/kernel
     printf '%s\n' "$CMDLINE_BASE" > /etc/kernel/cmdline
 
@@ -246,7 +274,7 @@ else
     fi
 
     kernels=(/boot/vmlinuz-*)
-    (( nullglob_reset )) && shopt -u nullglob
+    (( nullglob_reset == 1 )) && shopt -u nullglob || true
 
     if (( ${#kernels[@]} == 0 )); then
         log_error "No kernels were found under /boot; refusing to write an empty Limine configuration."
@@ -260,7 +288,6 @@ remember_last_entry: yes
 
 EOF
 
-    # Glob available kernels to generate entries dynamically
     for kernel_path in "${kernels[@]}"; do
         KNAME=$(basename "$kernel_path" | sed 's/^vmlinuz-//')
         INITRAMFS_PATH="/boot/initramfs-${KNAME}.img"
@@ -276,7 +303,6 @@ EOF
         fi
         echo "" >> "$CONF_FILE"
 
-        # Fallback Entry
         if [[ -f "$FALLBACK_PATH" ]]; then
             echo "/Arch Linux ($KNAME - Fallback)" >> "$CONF_FILE"
             echo "    protocol: linux" >> "$CONF_FILE"
@@ -292,10 +318,12 @@ EOF
     log_success "Base configuration generated at $CONF_FILE."
 fi
 
-# --- 5. Lifecycle Hooks ---
+# --- Lifecycle Hooks ---
 if [[ "$BOOT_MODE" == "UEFI" ]]; then
     log_info "Installing Pacman ALPM hook for Limine EFI updates..."
     mkdir -p /etc/pacman.d/hooks
+    
+    # Note: Pacman hooks strictly require a single line for the 'Exec' key.
     cat <<'EOF' > /etc/pacman.d/hooks/limine-update.hook
 [Trigger]
 Type = Package
@@ -306,19 +334,7 @@ Target = limine
 [Action]
 Description = Deploying updated Limine EFI binary to the mounted ESP...
 When = PostTransaction
-Exec = /usr/bin/sh -eu -c '
-for target in /efi /boot /boot/efi; do
-    if mountpoint -q "$target"; then
-        case "$(findmnt -n -o FSTYPE "$target" 2>/dev/null || true)" in
-            vfat|fat32)
-                install -Dm0644 /usr/share/limine/BOOTX64.EFI "$target/EFI/BOOT/BOOTX64.EFI"
-                exit 0
-                ;;
-        esac
-    fi
-done
-echo "limine-update.hook: no mounted ESP found at /efi, /boot, or /boot/efi" >&2
-exit 1'
+Exec = /usr/bin/sh -eu -c 'for target in /efi /boot /boot/efi; do if mountpoint -q "$target"; then case "$(findmnt -n -o FSTYPE "$target" 2>/dev/null || true)" in vfat|fat32) install -Dm0644 /usr/share/limine/BOOTX64.EFI "$target/EFI/BOOT/BOOTX64.EFI"; exit 0;; esac; fi; done; echo "limine-update.hook: no mounted ESP found" >&2; exit 1'
 EOF
 else
     rm -f /etc/pacman.d/hooks/limine-update.hook
