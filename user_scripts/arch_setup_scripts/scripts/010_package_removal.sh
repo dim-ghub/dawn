@@ -22,7 +22,6 @@ readonly -a REPO_TARGETS=(
   polkit-kde-agent
   power-profiles-daemon
   fluent-icon-theme-git
-  acpi_call
   swww
 )
 

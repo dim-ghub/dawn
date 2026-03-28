@@ -13,7 +13,7 @@ declare -ra INSTALL_SEQUENCE=(
     "004_mkintcpip_optimizer.sh"
     "005_chroot_package_installer.sh"
     "006_mkinitcpio_generation.sh"
-    "007_systemd_bootloader.sh"
+    "007_limine_bootloader.sh"
     "008_grub.sh"
     "009_zram_config.sh"
     "010_services.sh"

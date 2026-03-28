@@ -21,6 +21,7 @@ Tools       | keypunch-git          | Gamified typing proficiency trainer
 Tools       | kew-git               | Minimalist, efficient CLI music player
 Tools       | youtube-dl-gui-bin    | GUI wrapper for yt-dlp
 Tools       | sysmontask            | Windows-style Task Manager for Linux
+Tools       | glances               | CLI curses-based monitoring tool
 Tools       | lazydocker            | TUI for managing Docker containers
 Tools       | kvantum               | SVG-based theme engine for Qt applications
 Tools       | gparted               | GUI partition editor for disk management
@@ -37,8 +38,10 @@ Tools       | tealdeer              | Fast tldr client (simplified man pages)
 Tools       | man-db                | The standard manual pager suite
 Tools       | aria2                 | High-speed download utility (Pair with uget)
 Tools       | uget                  | Download Manager GUI (Pair with aria2)
+Tools       | libdvdcss             | Portable abstraction library for DVD decryption
 Internet    | filezilla             | Fast and reliable FTP/SFTP client
 Internet    | qbittorrent           | Feature-rich BitTorrent client (Qt-based)
+Internet    | networkmanager-openvpn| NetworkManager VPN plugin for OpenVPN (with GUI)
 Internet    | vesktop               | Custom Discord client (Vencord + Electron)
 Internet    | beeper-v4-bin         | Universal chat app (Matrix bridge)
 Productivity| pinta                 | Simple drawing/editing tool (Paint.NET clone)
@@ -52,6 +55,18 @@ Productivity| obsidian              | Markdown-based knowledge base and note tak
 Docs        | arch-wiki-lite        | Compressed Wiki reader (Pair with arch-wiki-docs)
 Docs        | arch-wiki-docs        | Arch Wiki data pages (Pair with arch-wiki-lite)
 Media       | pear-desktop-bin      | Youtube Music GUI
+Media       | noto-fonts-cjk        | Asian fonts
+Media       | noto-fonts            | Asian fonts
+Media       | noto-fonts-emoji      | Google Noto Color Emoji font
+Media       | cantarell-fonts       | Humanist sans serif font
+Media       | ttf-bitstream-vera    | Bitstream Vera fonts
+Media       | ttf-dejavu            | Font based on Bitstream Vera (wider range of characters)
+Media       | ttf-liberation        | Font family metric compatibility with Arial, Times New Roman, and Courier New
+Media       | ttf-font-awesome      | Iconic font designed for Bootstrap - woff2 format
+Media       | ttf-jetbrains-mono-nerd | Patched font JetBrains Mono from nerd fonts library
+Media       | awesome-terminal-fonts| fonts/icons for powerlines
+Media       | ttf-opensans          | Sans-serif typeface commissioned by Google
+Media       | ttf-meslo-nerd        | Patched font Meslo LG from nerd fonts library
 Media       | obs-studio            | Software for video recording and live streaming
 Media       | gpu-screen-recorder   | Low-load screen recorder (ShadowPlay alternative)
 Media       | audacity              | Multi-track audio editor and recorder
@@ -60,6 +75,7 @@ Media       | guvcview              | Simple GTK interface for capturing video f
 Media       | krita                 | Digital painting and sketching application
 Media       | termusic              | Terminal-based music player (TUI)
 Media       | vlc                   | The ultimate media player for all formats
+Media       | vlc-plugins-all       | Plugins for VLC
 Games       | pipes-rs-bin          | Rust port of the classic pipes screensaver
 Games       | 2048.c                | The 2048 sliding tile game in C
 Games       | edex-ui-bin           | Sci-Fi/Tron-inspired terminal emulator
