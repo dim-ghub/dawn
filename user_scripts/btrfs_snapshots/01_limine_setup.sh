@@ -54,7 +54,10 @@ execute() {
     if [[ "$AUTO_MODE" == true ]]; then "$@"; return 0; fi
     printf '\n\033[1;34m[ACTION]\033[0m %s\n' "$desc"
     read -r -p "Execute this step? [Y/n] " response || fatal "Input closed; aborting."
-    if [[ "${response,,}" =~ ^(n|no)$ ]]; then info "Skipped."; return 0; fi
+    if [[ "${response,,}" =~ ^(n|no)$ ]]; then
+        info "Skipped."
+        return 0
+    fi
     "$@"
 }
 
@@ -192,13 +195,16 @@ get_effective_hooks() {
     [[ -n "$hooks_str" ]] || fatal "Could not determine the effective mkinitcpio HOOKS array."
     mapfile -t EFFECTIVE_HOOKS <<< "$hooks_str"
     local hook
-    for hook in "${EFFECTIVE_HOOKS[@]}"; do EFFECTIVE_HOOKS_SET["$hook"]=1; done
+    for hook in "${EFFECTIVE_HOOKS[@]}"; do
+        EFFECTIVE_HOOKS_SET["$hook"]=1
+    done
 }
 
 hook_present() { [[ -v EFFECTIVE_HOOKS_SET["$1"] ]]; }
 
 detect_esp_mountpoint() {
     [[ -n "$CACHE_ESP_PATH" ]] && { printf '%s\n' "$CACHE_ESP_PATH"; return 0; }
+
     if command -v bootctl >/dev/null 2>&1; then
         local esp
         esp="$(bootctl --print-esp-path 2>/dev/null || true)"
@@ -228,8 +234,10 @@ detect_esp_mountpoint() {
 get_mount_partuuid() {
     local mountpoint="$1" source
     [[ -n "$CACHE_ESP_PARTUUID" ]] && { printf '%s\n' "$CACHE_ESP_PARTUUID"; return 0; }
+
     source="$(findmnt -M "$mountpoint" -no SOURCE 2>/dev/null || true)"
     [[ -n "$source" ]] || return 1
+
     CACHE_ESP_PARTUUID="$(sudo blkid -s PARTUUID -o value "$source" 2>/dev/null || true)"
     printf '%s\n' "$CACHE_ESP_PARTUUID"
 }
@@ -245,12 +253,6 @@ set_shell_var() {
     else
         printf '%s="%s"\n' "$key" "$value" | sudo tee -a "$file" >/dev/null
     fi
-}
-
-collect_limine_config_targets() {
-    local -a files=("/etc/default/limine")
-    [[ -f /etc/limine-entry-tool.conf ]] && files+=("/etc/limine-entry-tool.conf")
-    printf '%s\n' "${files[@]}"
 }
 
 read_shell_var_from_file() {
@@ -270,6 +272,19 @@ read_shell_var_from_file() {
 shell_var_key_present() {
     local file="$1" key="$2"
     sudo grep -qE "^[[:space:]]*${key}=" "$file" 2>/dev/null
+}
+
+ensure_limine_defaults_file() {
+    local limine_defaults="/etc/default/limine"
+    if sudo test -e "$limine_defaults"; then
+        return 0
+    fi
+
+    if [[ -f /etc/limine-entry-tool.conf ]]; then
+        sudo install -m 0644 /etc/limine-entry-tool.conf "$limine_defaults"
+    else
+        sudo install -m 0644 /dev/null "$limine_defaults"
+    fi
 }
 
 dep_satisfied() {
@@ -298,6 +313,7 @@ ensure_aur_build_prereqs() {
         fi
     done
     [[ "$need_java" == true ]] || return 0
+
     provider="$(choose_java_provider)" || fatal "A Java provider for java-environment>=21 is required."
     info "Installing $provider to satisfy Java build dependencies."
     sudo pacman -S --needed --noconfirm "$provider"
@@ -306,15 +322,18 @@ ensure_aur_build_prereqs() {
 install_kernel_headers_if_needed() {
     local has_dkms=false moddir pkgbase headers_pkg shopt_save
     pacman -Q dkms >/dev/null 2>&1 && has_dkms=true
+
     shopt_save=$(shopt -p nullglob || true)
     shopt -s nullglob
     local dkms_dirs=(/var/lib/dkms/*)
     ((${#dkms_dirs[@]} > 0)) && has_dkms=true
     eval "$shopt_save"
+
     [[ "$has_dkms" == true ]] || return 0
 
     moddir="/usr/lib/modules/$(uname -r)"
     [[ ! -r "${moddir}/pkgbase" ]] && return 0
+
     pkgbase="$(<"${moddir}/pkgbase")"
     headers_pkg="${pkgbase}-headers"
 
@@ -480,8 +499,7 @@ prepare_limine_nvram_for_install() {
 }
 
 limine_state_appears_current() {
-    local esp_target loader_path cfg
-    local -a config_files=()
+    local esp_target loader_path
 
     esp_target="$(detect_esp_mountpoint 2>/dev/null || true)"
     [[ -n "$esp_target" ]] || return 1
@@ -494,11 +512,9 @@ limine_state_appears_current() {
         sudo_path_not_older_than /boot/limine.conf /etc/kernel/cmdline || return 1
     fi
 
-    mapfile -t config_files < <(collect_limine_config_targets)
-    for cfg in "${config_files[@]}"; do
-        sudo_path_is_file "$cfg" || continue
-        sudo_path_not_older_than /boot/limine.conf "$cfg" || return 1
-    done
+    if sudo_path_is_file /etc/default/limine; then
+        sudo_path_not_older_than /boot/limine.conf /etc/default/limine || return 1
+    fi
 
     return 0
 }
@@ -616,55 +632,30 @@ configure_cmdline() {
         info "Updated /etc/kernel/cmdline"
         NEEDS_LIMINE_UPDATE=true
     fi
+
     rm -f "$tmp"
     ACTIVE_TEMP_FILES=("${ACTIVE_TEMP_FILES[@]/$tmp}")
 }
 
 configure_limine_defaults() {
     local limine_defaults="/etc/default/limine"
-    local esp_target desired_boot_order file file_esp
-    local esp_needs_update=false boot_order_needs_update=false
-    local -a config_files=()
+    local esp_target current_esp
 
-    if [[ -f /etc/limine-entry-tool.conf && ! -f "$limine_defaults" ]]; then
-        sudo install -m 0644 /etc/limine-entry-tool.conf "$limine_defaults"
-    else
-        sudo touch "$limine_defaults"
-    fi
+    ensure_limine_defaults_file
 
-    mapfile -t config_files < <(collect_limine_config_targets)
     esp_target="$(detect_esp_mountpoint)" || fatal "Could not detect a mounted ESP."
+    current_esp="$(read_shell_var_from_file "$limine_defaults" ESP_PATH)"
 
-    for file in "${config_files[@]}"; do
-        file_esp="$(read_shell_var_from_file "$file" ESP_PATH)"
-        if [[ "$file_esp" != "$esp_target" ]]; then
-            esp_needs_update=true
-            break
-        fi
-    done
-
-    if [[ "$esp_needs_update" == true ]]; then
-        for file in "${config_files[@]}"; do
-            backup_file "$file"
-            set_shell_var "$file" ESP_PATH "$esp_target"
-        done
+    if [[ "$current_esp" != "$esp_target" ]]; then
+        backup_file "$limine_defaults"
+        set_shell_var "$limine_defaults" ESP_PATH "$esp_target"
         info "Configured ESP_PATH=${esp_target}"
         NEEDS_LIMINE_UPDATE=true
     fi
 
-    desired_boot_order="*, *lts, *fallback, Snapshots"
-    for file in "${config_files[@]}"; do
-        if ! shell_var_key_present "$file" BOOT_ORDER; then
-            boot_order_needs_update=true
-            break
-        fi
-    done
-
-    if [[ "$boot_order_needs_update" == true ]]; then
-        for file in "${config_files[@]}"; do
-            backup_file "$file"
-            set_shell_var "$file" BOOT_ORDER "$desired_boot_order"
-        done
+    if ! shell_var_key_present "$limine_defaults" BOOT_ORDER; then
+        backup_file "$limine_defaults"
+        set_shell_var "$limine_defaults" BOOT_ORDER "*, *lts, *fallback, Snapshots"
         info "Configured BOOT_ORDER to prioritize kernels over Snapshots."
         NEEDS_LIMINE_UPDATE=true
     fi
