@@ -148,13 +148,13 @@ pacman -S util-linux
 
 ## Notes
 
-1. **UWSM Compatibility**: If you're using UWSM (Wayland Session Manager), it may provide systemd-like functionality even on OpenRC. The scripts prioritize: UWSM → systemd → OpenRC → direct launch.
+1. **elogind**: Provides `loginctl` compatibility which is used by many scripts for session management (suspend, hibernate, power-off).
 
-2. **elogind**: Provides `loginctl` compatibility which is used by many scripts for session management (suspend, hibernate, power-off).
-
-3. **User Services**: OpenRC doesn't have a built-in concept of user services like systemd. The scripts handle this by either:
+2. **User Services**: OpenRC doesn't have a built-in concept of user services like systemd. The scripts handle this by either:
    - Using direct process spawning (setsid)
    - Using the OpenRC init scripts in `/etc/init.d/` (requires root)
    - Falling back to process management with pgrep/pkill
 
-4. **Timers**: OpenRC doesn't have native timer units. The update-checker-timer uses a simple loop with sleep for periodic execution. Consider using cron as an alternative.
+3. **Timers**: OpenRC doesn't have native timer units. The update-checker-timer uses a simple loop with sleep for periodic execution. Consider using cron as an alternative.
+
+4. **UWSM Removed**: UWSM (Universal Wayland Session Manager) has been removed as it requires systemd. Applications are now launched directly in autostart.conf without any session manager wrapper.

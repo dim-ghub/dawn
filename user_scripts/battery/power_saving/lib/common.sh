@@ -25,20 +25,20 @@ readonly THEME_SCRIPT="${HOME}/user_scripts/theme_matugen/matugen_config.sh"
 has_cmd() { command -v "$1" &>/dev/null; }
 
 is_numeric() {
-    [[ -n "${1:-}" && "$1" =~ ^[0-9]+$ ]]
+	[[ -n "${1:-}" && "$1" =~ ^[0-9]+$ ]]
 }
 
 # =============================================================================
 # LOGGING (with gum fallback for safety)
 # =============================================================================
 if has_cmd gum; then
-    log_step()  { gum style --foreground 212 ":: $*"; }
-    log_warn()  { gum style --foreground 208 "⚠ $*"; }
-    log_error() { gum style --foreground 196 "✗ $*" >&2; }
+	log_step() { gum style --foreground 212 ":: $*"; }
+	log_warn() { gum style --foreground 208 "⚠ $*"; }
+	log_error() { gum style --foreground 196 "✗ $*" >&2; }
 else
-    log_step()  { printf '\033[1;35m:: %s\033[0m\n' "$*"; }
-    log_warn()  { printf '\033[1;33m⚠ %s\033[0m\n' "$*"; }
-    log_error() { printf '\033[1;31m✗ %s\033[0m\n' "$*" >&2; }
+	log_step() { printf '\033[1;35m:: %s\033[0m\n' "$*"; }
+	log_warn() { printf '\033[1;33m⚠ %s\033[0m\n' "$*"; }
+	log_error() { printf '\033[1;31m✗ %s\033[0m\n' "$*" >&2; }
 fi
 
 # =============================================================================
@@ -47,34 +47,31 @@ fi
 run_quiet() { "$@" &>/dev/null || true; }
 
 spin_exec() {
-    local title="$1"; shift
-    if has_cmd gum; then
-        gum spin --spinner dot --title "$title" -- "$@"
-    else
-        printf '%s\n' "$title"
-        "$@"
-    fi
+	local title="$1"
+	shift
+	if has_cmd gum; then
+		gum spin --spinner dot --title "$title" -- "$@"
+	else
+		printf '%s\n' "$title"
+		"$@"
+	fi
 }
 
 run_external_script() {
-    local script_path="$1"
-    local description="${2:-Running script...}"
-    shift 2
-    local -a extra_args=("$@")
+	local script_path="$1"
+	local description="${2:-Running script...}"
+	shift 2
+	local -a extra_args=("$@")
 
-    if [[ ! -f "${script_path}" ]]; then
-        log_warn "Script not found: ${script_path}"
-        return 1
-    fi
+	if [[ ! -f "${script_path}" ]]; then
+		log_warn "Script not found: ${script_path}"
+		return 1
+	fi
 
-    if [[ ! -x "${script_path}" ]]; then
-        log_warn "Script not executable: ${script_path}"
-        return 1
-    fi
+	if [[ ! -x "${script_path}" ]]; then
+		log_warn "Script not executable: ${script_path}"
+		return 1
+	fi
 
-    if has_cmd uwsm-app; then
-        spin_exec "${description}" uwsm-app -- "${script_path}" "${extra_args[@]}"
-    else
-        spin_exec "${description}" "${script_path}" "${extra_args[@]}"
-    fi
+	spin_exec "${description}" "${script_path}" "${extra_args[@]}"
 }

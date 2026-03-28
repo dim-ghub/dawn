@@ -443,11 +443,7 @@ ensure_swww_running() {
 		fi
 	fi
 
-	if command -v uwsm-app >/dev/null 2>&1; then
-		uwsm-app -- swww-daemon --format xrgb >/dev/null 2>&1 99>&- &
-	else
-		swww-daemon --format xrgb >/dev/null 2>&1 99>&- &
-	fi
+	swww-daemon --format xrgb >/dev/null 2>&1 99>&- &
 }
 
 ensure_swaync_running() {
@@ -455,11 +451,7 @@ ensure_swaync_running() {
 
 	log "Starting swaync..."
 
-	if command -v uwsm-app >/dev/null 2>&1; then
-		uwsm-app -- swaync >/dev/null 2>&1 99>&- &
-	else
-		swaync >/dev/null 2>&1 99>&- &
-	fi
+	swaync >/dev/null 2>&1 99>&- &
 
 	if ! wait_for_process "swaync"; then
 		warn "swaync failed to start. Matugen hooks might fail."

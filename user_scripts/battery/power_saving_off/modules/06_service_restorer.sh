@@ -145,10 +145,8 @@ start_process() {
 		return 0
 	fi
 
-	# Start via UWSM (Native User Context)
-	# No sudo needed. It inherits YOUR Wayland socket.
-	# FIX: Added 'nohup' to prevent SIGHUP when the terminal closes
-	nohup uwsm-app -- "$name" >/dev/null 2>&1 &
+	# Start process directly
+	nohup "$name" >/dev/null 2>&1 &
 	disown $!
 
 	sleep "$PROCESS_START_WAIT"
@@ -156,7 +154,7 @@ start_process() {
 	if pgrep -x "$name" &>/dev/null; then
 		print_status "success" "$name"
 	else
-		print_status "fail" "$name" "check ~/.local/share/uwsm/logs"
+		print_status "fail" "$name" "check process logs"
 	fi
 }
 
@@ -231,7 +229,7 @@ main() {
 		exit 1
 	fi
 
-	printf '\n%s:: Processes (via uwsm-app)%s\n' "${BLUE}" "${RESET}"
+	printf '\n%s:: Processes%s\n' "${BLUE}" "${RESET}"
 	for item in "${TARGET_PROCESSES[@]}"; do
 		start_process "$item"
 	done

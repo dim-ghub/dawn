@@ -1520,45 +1520,26 @@ pages:
           items:
             - type: button
               properties:
-                title: Auto Configure GPU
-                description: Detect and set GPU vars (UWSM)
+                title: Configure GPU Environment
+                description: Edit GPU environment variables
                 icon: preferences-desktop-display-symbolic
-                style: suggested
-                button_text: "Run"
+                button_text: "File"
               on_press:
                 type: exec
-                command: kitty --class 000_configure_uwsm_gpu.sh --hold sh -c "$HOME/user_scripts/arch_setup_scripts/scripts/035_configure_uwsm_gpu.sh"
+                command: gnome-text-editor "$HOME/.config/hypr/edit_here/source/environment_variables.conf"
         - type: section
           properties:
             title: Environment Variable files
           items:
             - type: button
               properties:
-                title: User Environment
+                title: Environment Variables
                 description: ~/.config/hypr/edit_here/source/environment_variables.conf
                 icon: text-x-script-symbolic
                 button_text: "File"
               on_press:
                 type: exec
                 command: gnome-text-editor "$HOME/.config/hypr/edit_here/source/environment_variables.conf"
-            - type: button
-              properties:
-                title: UWSM Global
-                description: ~/.config/uwsm/env
-                icon: text-x-script-symbolic
-                button_text: "File"
-              on_press:
-                type: exec
-                command: gnome-text-editor "$HOME/.config/uwsm/env"
-            - type: button
-              properties:
-                title: UWSM Hyprland
-                description: ~/.config/uwsm/env-hyprland
-                icon: text-x-script-symbolic
-                button_text: "File"
-              on_press:
-                type: exec
-                command: gnome-text-editor "$HOME/.config/uwsm/env-hyprland"
 
     - type: navigation
       properties:

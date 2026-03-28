@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 
 # ================================================================
-# SWAYOSD ROBUST RESTART SCRIPT (UWSM COMPLIANT)
+# SWAYOSD ROBUST RESTART SCRIPT (OpenRC Compatible)
 # ================================================================
 # Safely restarts swayosd-server with proper process management
-# Priority: uwsm-app → systemd-run → rc-service → setsid (fallback)
+# Priority: rc-service → setsid (fallback)
 # ================================================================
 
 set -euo pipefail
@@ -24,15 +24,15 @@ readonly STARTUP_DELAY=0.5
 # ─────────────────────────────────────────────────────────────────
 
 is_running() {
-    pgrep -x "$PROCESS_NAME" >/dev/null 2>&1
+	pgrep -x "$PROCESS_NAME" >/dev/null 2>&1
 }
 
 log_error() {
-    printf 'Error: %s\n' "$*" >&2
+	printf 'Error: %s\n' "$*" >&2
 }
 
 log_success() {
-    printf 'Success: %s\n' "$*"
+	printf 'Success: %s\n' "$*"
 }
 
 # ─────────────────────────────────────────────────────────────────
@@ -40,8 +40,8 @@ log_success() {
 # ─────────────────────────────────────────────────────────────────
 
 if [[ ! -x "$SERVER_BIN" ]]; then
-    log_error "Server binary not found or not executable: $SERVER_BIN"
-    exit 1
+	log_error "Server binary not found or not executable: $SERVER_BIN"
+	exit 1
 fi
 
 # ─────────────────────────────────────────────────────────────────
@@ -49,47 +49,42 @@ fi
 # ─────────────────────────────────────────────────────────────────
 
 if is_running; then
-    # Graceful shutdown (SIGTERM)
-    pkill -x "$PROCESS_NAME" 2>/dev/null || true
+	# Graceful shutdown (SIGTERM)
+	pkill -x "$PROCESS_NAME" 2>/dev/null || true
 
-    # Wait for process to terminate
-    for ((_i = 0; _i < SHUTDOWN_ATTEMPTS; _i++)); do
-        is_running || break
-        sleep "$SHUTDOWN_INTERVAL"
-    done
+	# Wait for process to terminate
+	for ((_i = 0; _i < SHUTDOWN_ATTEMPTS; _i++)); do
+		is_running || break
+		sleep "$SHUTDOWN_INTERVAL"
+	done
 
-    # Force kill if still running (SIGKILL)
-    if is_running; then
-        pkill -9 -x "$PROCESS_NAME" 2>/dev/null || true
-        sleep 0.1
-    fi
+	# Force kill if still running (SIGKILL)
+	if is_running; then
+		pkill -9 -x "$PROCESS_NAME" 2>/dev/null || true
+		sleep 0.1
+	fi
 
-    # Verify termination succeeded
-    if is_running; then
-        log_error "Failed to terminate existing $PROCESS_NAME process"
-        exit 1
-    fi
+	# Verify termination succeeded
+	if is_running; then
+		log_error "Failed to terminate existing $PROCESS_NAME process"
+		exit 1
+	fi
 fi
 
 # ─────────────────────────────────────────────────────────────────
 # PHASE 2: CLEAN STARTUP
 # ─────────────────────────────────────────────────────────────────
 
-if command -v uwsm-app >/dev/null 2>&1; then
-    uwsm-app -- "$SERVER_BIN" >/dev/null 2>&1 &
+if command -v rc-service >/dev/null 2>&1 && rc-service -l 2>/dev/null | grep -q "swayosd"; then
+	rc-service swayosd restart 2>/dev/null || rc-service swayosd start 2>/dev/null || {
+		setsid "$SERVER_BIN" >/dev/null 2>&1 &
+	}
 
-elif command -v systemd-run >/dev/null 2>&1; then
-    unit_name="swayosd-$$-${ date +%s; }"
-    systemd-run --user --scope --unit="$unit_name" \
-        -- "$SERVER_BIN" >/dev/null 2>&1 &
-
-elif command -v rc-service >/dev/null 2>&1 && rc-service -l 2>/dev/null | grep -q "swayosd"; then
-    rc-service swayosd restart 2>/dev/null || rc-service swayosd start 2>/dev/null || {
-        setsid "$SERVER_BIN" >/dev/null 2>&1 &
-    }
+elif command -v systemctl >/dev/null 2>&1; then
+	systemctl --user restart swayosd 2>/dev/null || setsid "$SERVER_BIN" >/dev/null 2>&1 &
 
 else
-    setsid "$SERVER_BIN" >/dev/null 2>&1 &
+	setsid "$SERVER_BIN" >/dev/null 2>&1 &
 fi
 
 # Detach background job from shell job table
@@ -102,9 +97,9 @@ disown 2>/dev/null || true
 sleep "$STARTUP_DELAY"
 
 if is_running; then
-    log_success "SwayOSD server restarted"
-    exit 0
+	log_success "SwayOSD server restarted"
+	exit 0
 else
-    log_error "SwayOSD server failed to start"
-    exit 1
+	log_error "SwayOSD server failed to start"
+	exit 1
 fi

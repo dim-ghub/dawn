@@ -30,7 +30,6 @@
 .config/swaync/
 .config/swayosd/
 .config/swappy/
-.config/uwsm/
 .config/waybar/01_horizontal_block/
 .config/waybar/02_horizontal_material/
 .config/waybar/03_horizontal_block_compact/

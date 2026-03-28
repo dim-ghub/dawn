@@ -52,11 +52,11 @@ The setup scripts are written to auto detect your hardware and set the appropria
 
 > [!Note]
 >
-> Configure the uwsm env files to set your gpu environment variables.
+> Configure your GPU environment variables.
 >
-> 1. Open the files at ~/.config/uwsm/env and ~/.config/uwsm/env-hyprland
+> 1. Open the file at ~/.config/hypr/edit_here/source/environment_variables.conf
 >
-> 2. Replace Intel/Nvidia/Amd -specific variables with your hardware equivalents.
+> 2. Add Intel/Nvidia/AMD-specific variables for your hardware.
 >
 
 
@@ -261,7 +261,7 @@ togglalble with a keybind or from rofi.
 - **Native Optimization:** AUR helpers configured to build with CPU-native flags (up to 20% performance boost).
     
 
-- **UWSM Environment:** Optimized specifically for Hyprland.
+- **OpenRC Support:** Fully compatible with Artix Linux and OpenRC init system.
     
 
 **Graphics & Gaming**

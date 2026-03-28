@@ -18,37 +18,41 @@ Y=$'\033[1;33m'
 B=$'\033[0;34m'
 NC=$'\033[0m' # No Color
 
-log_info()    { printf "${B}[INFO]${NC} %s\n" "$1"; }
+log_info() { printf "${B}[INFO]${NC} %s\n" "$1"; }
 log_success() { printf "${G}[OK]${NC}   %s\n" "$1"; }
-log_warn()    { printf "${Y}[WARN]${NC} %s\n" "$1"; }
-log_error()   { printf "${R}[ERR]${NC}  %s\n" "$1" >&2; }
+log_warn() { printf "${Y}[WARN]${NC} %s\n" "$1"; }
+log_error() { printf "${R}[ERR]${NC}  %s\n" "$1" >&2; }
 
 # --- Cleanup Trap ---
 cleanup() {
-    # Reset cursor if we hid it
-    tput cnorm
-    if [[ $? -ne 0 ]]; then
-        log_error "Script failed or interrupted. Please check the output above."
-    fi
+	# Reset cursor if we hid it
+	tput cnorm
+	if [[ $? -ne 0 ]]; then
+		log_error "Script failed or interrupted. Please check the output above."
+	fi
 }
 trap cleanup EXIT
 
 # --- Root & Environment Checks ---
 
 if [[ $EUID -eq 0 ]]; then
-    log_error "Do NOT run this script as root/sudo directly."
-    log_error "Run it as your normal user. The script will ask for sudo when needed."
-    exit 1
+	log_error "Do NOT run this script as root/sudo directly."
+	log_error "Run it as your normal user. The script will ask for sudo when needed."
+	exit 1
 fi
 
 log_info "Privilege check: Sudo access required for dependencies."
 if ! sudo -v; then
-    log_error "Sudo authentication failed."
-    exit 1
+	log_error "Sudo authentication failed."
+	exit 1
 fi
 
 # Keep sudo alive in background
-( while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null ) &
+(while true; do
+	sudo -n true
+	sleep 60
+	kill -0 "$$" || exit
+done 2>/dev/null) &
 
 # --- Interactive Prompt ---
 
@@ -76,8 +80,8 @@ printf "\n"
 read -p "Do you want to proceed with the installation? [y/N] " -n 1 -r
 echo
 if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-    log_info "Installation aborted by user."
-    exit 0
+	log_info "Installation aborted by user."
+	exit 0
 fi
 
 # --- Phase 1: Dependencies ---
@@ -87,16 +91,16 @@ sudo pacman -S --needed --noconfirm git rust cargo unzip
 
 # Check if uv is installed
 if ! command -v uv &>/dev/null; then
-    log_info "Installing 'uv' python manager..."
-    sudo pacman -S --needed --noconfirm uv
+	log_info "Installing 'uv' python manager..."
+	sudo pacman -S --needed --noconfirm uv
 fi
 
 log_info "Checking for conflicting packages (espeak-ng, wordbook)..."
-if pacman -Qs espeak-ng > /dev/null || pacman -Qs wordbook > /dev/null; then
-    log_warn "Removing espeak-ng and wordbook to prevent build failures..."
-    sudo pacman -Rns --noconfirm espeak-ng wordbook || true
+if pacman -Qs espeak-ng >/dev/null || pacman -Qs wordbook >/dev/null; then
+	log_warn "Removing espeak-ng and wordbook to prevent build failures..."
+	sudo pacman -Rns --noconfirm espeak-ng wordbook || true
 else
-    log_success "No conflicting packages found."
+	log_success "No conflicting packages found."
 fi
 
 # --- Phase 2: Workspace Setup ---
@@ -110,10 +114,10 @@ mkdir -p "$APP_DIR"
 cd "$APP_DIR"
 
 if [[ -d "$VENV_NAME" ]]; then
-    log_warn "Directory $VENV_NAME already exists."
+	log_warn "Directory $VENV_NAME already exists."
 else
-    log_info "Creating virtual environment ($VENV_NAME)..."
-    uv venv "$VENV_NAME"
+	log_info "Creating virtual environment ($VENV_NAME)..."
+	uv venv "$VENV_NAME"
 fi
 
 # shellcheck source=/dev/null
@@ -122,13 +126,13 @@ source "$VENV_NAME/bin/activate"
 cd "$VENV_NAME"
 
 if [[ -d "Kokoros" ]]; then
-    log_info "Repository already cloned. Pulling latest changes..."
-    cd Kokoros
-    git pull
+	log_info "Repository already cloned. Pulling latest changes..."
+	cd Kokoros
+	git pull
 else
-    log_info "Cloning Kokoros repository..."
-    git clone https://github.com/lucasjinreal/Kokoros.git
-    cd Kokoros
+	log_info "Cloning Kokoros repository..."
+	git clone https://github.com/lucasjinreal/Kokoros.git
+	cd Kokoros
 fi
 
 # --- Phase 3: Python Setup (OPTIMIZED) ---
@@ -150,19 +154,19 @@ log_info "Building release binary with Cargo..."
 log_warn "This step takes 15-20 minutes. Please be patient."
 
 if cargo build --release; then
-    log_success "Compilation complete!"
+	log_success "Compilation complete!"
 else
-    log_error "Compilation failed."
-    exit 1
+	log_error "Compilation failed."
+	exit 1
 fi
 
 # Verify build
 if [[ -f "./target/release/koko" ]]; then
-    ./target/release/koko -h > /dev/null 2>&1
-    log_success "Binary verified."
+	./target/release/koko -h >/dev/null 2>&1
+	log_success "Binary verified."
 else
-    log_error "Binary not found after build."
-    exit 1
+	log_error "Binary not found after build."
+	exit 1
 fi
 
 # --- Phase 5: Model Downloads ---
@@ -183,30 +187,33 @@ mkdir -p "$HOME/.local/bin/"
 ln -nfs "$REPO_DIR/target/release/koko" "$HOME/.local/bin/kokoros"
 log_success "Linked: $HOME/.local/bin/kokoros -> koko"
 
-UWSM_ENV="$HOME/.config/uwsm/env-hyprland"
+HYPR_ENV="$HOME/.config/hypr/edit_here/source/environment_variables.conf"
 PATH_EXPORT='export PATH="$HOME/.local/bin:$PATH"'
 
-if [[ ! -f "$UWSM_ENV" ]]; then
-    mkdir -p "$(dirname "$UWSM_ENV")"
-    touch "$UWSM_ENV"
+if [[ ! -f "$HYPR_ENV" ]]; then
+	mkdir -p "$(dirname "$HYPR_ENV")"
+	cat >"$HYPR_ENV" <<'EOF'
+# Hyprland Environment Variables
+# Add your custom environment variables here
+EOF
 fi
 
-if grep -Fxq "$PATH_EXPORT" "$UWSM_ENV"; then
-    log_success "UWSM path already configured."
+if grep -Fxq "$PATH_EXPORT" "$HYPR_ENV"; then
+	log_success "PATH already configured."
 else
-    log_info "Adding ~/.local/bin to UWSM env-hyprland..."
-    [[ -s "$UWSM_ENV" && -n "$(tail -c 1 "$UWSM_ENV")" ]] && echo "" >> "$UWSM_ENV"
-    echo "$PATH_EXPORT" >> "$UWSM_ENV"
-    log_success "UWSM config updated."
+	log_info "Adding ~/.local/bin to hyprland environment..."
+	[[ -s "$HYPR_ENV" && -n "$(tail -c 1 "$HYPR_ENV")" ]] && echo "" >>"$HYPR_ENV"
+	echo "$PATH_EXPORT" >>"$HYPR_ENV"
+	log_success "Environment config updated."
 fi
 
 # --- Phase 7: Final Trigger ---
 
 log_info "Triggering initial run..."
 if "$HOME/.local/bin/kokoros" -h &>/dev/null; then
-    log_success "Kokoros initialized successfully."
+	log_success "Kokoros initialized successfully."
 else
-    log_error "Kokoros failed to initialize on first run."
+	log_error "Kokoros failed to initialize on first run."
 fi
 
 echo ""

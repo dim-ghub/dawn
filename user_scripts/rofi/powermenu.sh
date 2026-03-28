@@ -97,7 +97,7 @@ execute() {
 		if ! pgrep -x -u "$UID" hyprlock >/dev/null; then
 			{
 				sleep "${ACTION_DELAY}"
-				exec uwsm-app -- hyprlock
+				exec hyprlock
 			} </dev/null >/dev/null 2>&1 &
 		fi
 		;;

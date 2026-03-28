@@ -27,40 +27,37 @@ has_cmd() { command -v "$1" &>/dev/null; }
 # LOGGING (Gum / Fallback)
 # =============================================================================
 if has_cmd gum; then
-    log_step()  { gum style --foreground 46 ":: $*"; }
-    log_warn()  { gum style --foreground 208 "⚠ $*"; }
-    log_error() { gum style --foreground 196 "✗ $*" >&2; }
+	log_step() { gum style --foreground 46 ":: $*"; }
+	log_warn() { gum style --foreground 208 "⚠ $*"; }
+	log_error() { gum style --foreground 196 "✗ $*" >&2; }
 else
-    log_step()  { printf '\033[1;32m:: %s\033[0m\n' "$*"; }
-    log_warn()  { printf '\033[1;33m⚠ %s\033[0m\n' "$*"; }
-    log_error() { printf '\033[1;31m✗ %s\033[0m\n' "$*" >&2; }
+	log_step() { printf '\033[1;32m:: %s\033[0m\n' "$*"; }
+	log_warn() { printf '\033[1;33m⚠ %s\033[0m\n' "$*"; }
+	log_error() { printf '\033[1;31m✗ %s\033[0m\n' "$*" >&2; }
 fi
 
 run_quiet() { "$@" &>/dev/null || true; }
 
 spin_exec() {
-    local title="$1"; shift
-    if has_cmd gum; then
-        gum spin --spinner dot --title "$title" -- "$@"
-    else
-        printf '%s\n' "$title"
-        "$@"
-    fi
+	local title="$1"
+	shift
+	if has_cmd gum; then
+		gum spin --spinner dot --title "$title" -- "$@"
+	else
+		printf '%s\n' "$title"
+		"$@"
+	fi
 }
 
 run_external_script() {
-    local script_path="$1"
-    local desc="${2:-Running script...}"
-    shift 2
+	local script_path="$1"
+	local desc="${2:-Running script...}"
+	shift 2
 
-    if [[ ! -x "${script_path}" ]]; then
-        log_warn "Script missing or not executable: ${script_path}"
-        return 1
-    fi
+	if [[ ! -x "${script_path}" ]]; then
+		log_warn "Script missing or not executable: ${script_path}"
+		return 1
+	fi
 
-    if has_cmd uwsm-app; then
-        spin_exec "${desc}" uwsm-app -- "${script_path}" "$@"
-    else
-        spin_exec "${desc}" "${script_path}" "$@"
-    fi
+	spin_exec "${desc}" "${script_path}" "$@"
 }
