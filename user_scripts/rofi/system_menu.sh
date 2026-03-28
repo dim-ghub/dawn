@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -----------------------------------------------------------------------------
 # ARCH / HYPRLAND ROFI MENU SYSTEM
-# Dependencies: rofi-wayland, uwsm, kitty, fd, file, xdg-utils
+# Dependencies: rofi-wayland, kitty, fd, file, xdg-utils
 # -----------------------------------------------------------------------------
 
 set -uo pipefail
@@ -633,7 +633,7 @@ route_selection() {
 			run_app rofi -show drun
 			;;
 	'󰀻  Apps')
-		run_app rofi -show drun -run-command 'uwsm app -- {cmd}'
+		run_app rofi -show drun
 		;;
 	'󰧑  Learn/Help')
 		show_learn_menu
@@ -671,8 +671,11 @@ route_selection() {
 			perform_global_search
 			;;
 		apps | app)
-			run_app rofi -show drun -run-command 'uwsm app -- {cmd}'
+			run_app rofi -show drun
 			;;
+	'󰀻  Apps')
+		run_app rofi -show drun
+		;;
 		learn | help | learn/help)
 			show_learn_menu
 			;;

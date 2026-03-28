@@ -104,9 +104,9 @@ main() {
 		enable_service "$service"
 	done
 
-	# UWSM/Hyprland Note:
+	# Hyprland Note:
 	# System services handle hardware/network.
-	# User-session services should be handled by 'uwsm app' or systemd --user.
+	# User-session services should be handled by exec-once in autostart.conf or systemd --user.
 
 	printf "\n--- Operation Complete ---\n"
 }
