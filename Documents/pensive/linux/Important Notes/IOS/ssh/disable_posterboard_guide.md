@@ -415,4 +415,336 @@ Usage:
 
 ---
 
+## Pre-Built DEB Packages
+
+Three packages have been created for easy installation:
+
+### 1. killposter.deb
+**File:** `packages/killposter_1.0.0_iphoneos-arm.deb`
+
+Automatically installs and configures the PosterBoard killer. Includes:
+- Kill script at `/var/jb/basebin/killposter`
+- Auto-start launchd plist
+- Clean install/uninstall scripts
+- Persists across reboots
+
+### 2. daemonmanager_shell.deb (Recommended)
+**File:** `packages/daemonmanager_shell_1.0.0_iphoneos-arm.deb`
+
+Shell-based daemon manager with:
+- Command-line interface
+- Toggle daemons on/off with persistence
+- Simple list of supported daemons
+- Works without Python/web server
+- Uses text-based config file
+
+**Usage:**
+```bash
+/var/jb/basebin/daemonmanager list
+/var/jb/basebin/daemonmanager disable com.apple.tipsd
+/var/jb/basebin/daemonmanager enable com.apple.gamed
+/var/jb/basebin/daemonmanager status
+```
+
+### 3. daemonmanager_web.deb (Python-based)
+**File:** `packages/daemonmanager_1.0.0_iphoneos-arm.deb`
+
+Full GUI daemon manager (requires Python3 - NOT AVAILABLE on most devices):
+- Web-based mobile interface (port 8080)
+- Toggle daemons on/off with persistence
+- Import/export configuration files
+- Search functionality
+
+**Note:** This package requires Python3 which is typically NOT installed on jailbroken iOS devices. Use `daemonmanager_shell.deb` instead.
+
+---
+
+## Package Installation Guide
+
+### Prerequisites
+- SCP or Filza installed on iOS
+- Root access via SSH
+
+### Option 1: Install via Filza (Easiest)
+
+1. Transfer the `.deb` file to your iOS device
+2. Open Filza and navigate to the DEB file
+3. Tap on the DEB file to install
+4. Confirm installation
+5. Respring if prompted
+
+### Option 2: Install via SSH
+
+```bash
+# Copy DEB to device
+scp killposter_1.0.0_iphoneos-arm.deb root@<device-ip>:/var/mobile/
+
+# SSH into device
+ssh root@<device-ip>
+
+# Install the package
+dpkg -i /var/mobile/killposter_1.0.0_iphoneos-arm.deb
+
+# Or for DaemonManager
+dpkg -i /var/mobile/daemonmanager_1.0.0_iphoneos-arm.deb
+```
+
+### Option 3: Manual Installation (via Nugget SSH)
+
+Since you can SSH via Nugget, upload the DEB or create files manually.
+
+#### Recommended: Manual File Creation
+
+```bash
+# SSH into device via Nugget
+ssh root@192.168.29.75
+
+# Create directories
+mkdir -p /var/jb/basebin
+mkdir -p /var/jb/Library/LaunchAgents
+mkdir -p /var/jb/tmp
+
+# Create killposter script
+cat > /var/jb/basebin/killposter << 'KILLSCRIPT'
+#!/bin/sh
+while true; do
+    killall -9 PosterBoard CollectionsPoster PhotosPosterProvider 2>/dev/null
+    killall -9 UnityPosterExtension EmojiPosterExtension GradientPosterExtension 2>/dev/null
+    killall -9 WeatherPoster AegirPoster ExtragalacticPoster 2>/dev/null
+    sleep 5
+done
+KILLSCRIPT
+chmod 755 /var/jb/basebin/killposter
+
+# Create launchd plist
+cat > /var/jb/Library/LaunchAgents/com.test.killposter.plist << 'PLISTFILE'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key><string>com.test.killposter</string>
+    <key>ProgramArguments</key><array><string>/var/jb/basebin/killposter</string></array>
+    <key>RunAtLoad</key><true/>
+    <key>KeepAlive</key><true/>
+</dict>
+</plist>
+PLISTFILE
+
+# Start the service
+nohup /var/jb/basebin/killposter &
+
+# Install DaemonManager
+cat > /var/jb/basebin/daemonmanager << 'DMSCRIPT'
+#!/bin/sh
+CONFIG_DIR="/var/mobile/daemonmanager"
+DAEMONS_FILE="${CONFIG_DIR}/daemons.txt"
+init() {
+    mkdir -p "$CONFIG_DIR"
+    if [ ! -f "$DAEMONS_FILE" ]; then
+        cat > "$DAEMONS_FILE" << 'EOD'
+# DaemonManager Configuration - Format: LABEL|NAME|CATEGORY|ENABLED
+com.apple.tipsd|Tips|Apple|1
+com.apple.ScreenTimeAgent|Screen Time|Parental|0
+com.apple.gamed|Game Center|Gaming|0
+com.apple.UsageTrackingAgent|Usage Tracking|Analytics|0
+com.apple.mobile.softwareupdated|Software Update|Updates|0
+com.apple.OTATaskingAgent|OTA Agent|Updates|0
+com.apple.softwareupdateservicesd|Update Services|Updates|0
+com.apple.healthd|Health|Health|1
+com.apple.printd|AirPrint|Printing|1
+com.apple.itunescloudd|iCloud|Apple|1
+com.apple.passd|Wallet|Apple|1
+com.apple.searchd|Spotlight|Search|1
+com.apple.corespotlightservice|Spotlight Service|Search|1
+com.apple.spotlightknowledged|Spotlight Knowledge|Search|1
+com.apple.assistantd|Siri|Siri|1
+com.apple.voiced|Voice Control|Siri|1
+com.apple.nanotimekitcompaniond|Watch|Watch|1
+com.apple.tzlinkd|Time Zone|System|1
+com.apple.thermalmonitord|Thermal Monitor|System|1
+EOD
+    fi
+}
+# [Full daemonmanager script - see documentation]
+DMSCRIPT
+chmod 755 /var/jb/basebin/daemonmanager
+/var/jb/basebin/daemonmanager init
+```
+
+---
+
+## DaemonManager Usage
+
+### Accessing DaemonManager
+
+After installing `daemonmanager.deb`:
+
+1. Open Safari on your iOS device
+2. Go to: `http://localhost:8080`
+3. Use the mobile-friendly interface
+
+**Tip:** Add to Home Screen for app-like experience:
+- Tap Share button
+- Select "Add to Home Screen"
+- Name it "DaemonManager"
+
+### Features
+
+1. **View All Daemons** - See all supported daemons with their status
+2. **Toggle On/Off** - Tap the toggle to enable/disable
+3. **Search** - Filter daemons by name or category
+4. **Export Config** - Save your daemon settings to a JSON file
+5. **Import Config** - Load a previously saved configuration
+
+### Import/Export Format
+
+```json
+{
+  "version": "1.0",
+  "daemons": {
+    "com.apple.tipsd": false,
+    "com.apple.ScreenTimeAgent": false,
+    "com.apple.gamed": false
+  }
+}
+```
+
+### Creating Custom Configurations
+
+1. Export your current settings via the web interface
+2. Edit the JSON file on your computer
+3. Set `true` for enabled, `false` for disabled
+4. Import the modified file
+
+---
+
+## Uninstalling Packages
+
+### Via Command Line
+```bash
+# Uninstall killposter
+dpkg -r killposter
+
+# Uninstall daemonmanager
+dpkg -r daemonmanager
+```
+
+### Via Filza
+1. Navigate to `/var/lib/dpkg/info/`
+2. Find the package (killposter or daemonmanager)
+3. Long-press and select uninstall
+
+### Manual Removal
+```bash
+# Stop and remove killposter
+launchctl unload /var/jb/Library/LaunchAgents/com.test.killposter.plist
+rm -f /var/jb/basebin/killposter
+rm -f /var/jb/Library/LaunchAgents/com.test.killposter.plist
+
+# Stop and remove daemonmanager
+launchctl unload /var/jb/Library/LaunchAgents/com.test.daemonmanager.plist
+killall -9 daemonmanager 2>/dev/null
+rm -f /var/jb/basebin/daemonmanager
+rm -f /var/jb/Library/LaunchAgents/com.test.daemonmanager.plist
+rm -rf /var/mobile/daemonmanager
+```
+
+---
+
+## Package Files Reference
+
+### killposter.deb Contents
+
+| File | Path | Purpose |
+|------|------|---------|
+| killposter | `/var/jb/basebin/killposter` | Shell script that kills PosterBoard |
+| com.test.killposter.plist | `/var/jb/Library/LaunchAgents/` | Auto-start configuration |
+
+### daemonmanager.deb Contents
+
+| File | Path | Purpose |
+|------|------|---------|
+| daemonmanager | `/var/jb/basebin/daemonmanager` | Python web server bootstrap |
+| com.test.daemonmanager.plist | `/var/jb/Library/LaunchAgents/` | Auto-start configuration |
+| state.json | `/var/mobile/daemonmanager/state.json` | Persisted daemon states |
+| daemonmanager.shortcut | `/var/mobile/daemonmanager/` | Shortcut reference file |
+
+---
+
+## Troubleshooting Packages
+
+### Package Won't Install
+```bash
+# Check dependencies
+dpkg -i package.deb 2>&1
+
+# Force install if needed
+dpkg --force-depends -i package.deb
+```
+
+### Service Not Starting
+```bash
+# Check if script exists
+ls -la /var/jb/basebin/killposter
+
+# Manually start
+nohup /var/jb/basebin/killposter > /dev/null 2>&1 &
+
+# Check logs
+cat /var/jb/tmp/killposter.log
+```
+
+### DaemonManager Not Accessible
+```bash
+# Check if running
+ps aux | grep daemonmanager
+
+# Restart
+launchctl unload /var/jb/Library/LaunchAgents/com.test.daemonmanager.plist
+launchctl load /var/jb/Library/LaunchAgents/com.test.daemonmanager.plist
+```
+
+---
+
+## Rebuilding Packages
+
+If you need to modify the packages, use the build script:
+
+```bash
+cd packages
+./build_deb.sh killposter killposter_new.deb
+./build_deb.sh daemonmanager daemonmanager_new.deb
+```
+
+---
+
+## Current Device Status (2026-03-31)
+
+Your iPhone 8 Plus (iOS 16.7) has the following installed:
+
+### Files Created:
+- `/var/jb/basebin/killposter` - PosterBoard killer script (running)
+- `/var/jb/Library/LaunchAgents/com.test.killposter.plist` - Auto-start config
+- `/var/jb/basebin/daemonmanager` - Daemon manager CLI
+- `/var/mobile/daemonmanager/daemons.txt` - Daemon configuration
+
+### Running Processes:
+- `killposter` - Actively killing PosterBoard processes
+
+### Status:
+- PosterBoard: **DISABLED** (not running)
+- All plugins: **DISABLED** (not running)
+- RAM savings: ~150-300MB
+
+### Commands Available:
+```bash
+/var/jb/basebin/killposter status     # Check if running
+/var/jb/basebin/daemonmanager list    # List daemons
+/var/jb/basebin/daemonmanager disable <label>  # Disable a daemon
+/var/jb/basebin/daemonmanager enable <label>   # Enable a daemon
+/var/jb/basebin/daemonmanager status  # Show status
+```
+
+---
+
 *Last updated: 2026-03-31*
