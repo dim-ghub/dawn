@@ -290,7 +290,7 @@ Conservative legend:
 | 279 | nand_task_scheduler           | Flash-storage maintenance scheduler                                   | no                             |
 | 280 | nanobackupd                   | Apple Watch backup daemon                                             | if-unused                      |
 | 281 | nanoprefsyncd                 | Apple Watch preference-sync daemon                                    | if-unused                      |
-| 282 | nanoregistryd                 | Apple Watch pairing registry daemon                                   | if-unused                      |
+| 282 | nanoregistryd                 | CAUSES BOOTLOOP IF DISABLED                                           | NO                             |
 | 283 | nanoregistrylaunchd           | Apple Watch registry launch helper                                    | if-unused                      |
 | 284 | nanotimekitcompaniond         | Apple Watch face/TimeKit companion sync                               | if-unused                      |
 | 285 | naturallanguaged              | Natural Language framework daemon                                     | if-unused                      |
@@ -386,11 +386,11 @@ Conservative legend:
 | 375 | shazamd                       | Music-recognition daemon for Shazam integration                       | if-unused                      |
 | 376 | sidecar-relay                 | Sidecar relay service                                                 | if-unused                      |
 | 377 | signpost.signpost_reporter    | Performance signpost reporting task                                   | yes                            |
-| 378 | siriactionsd                  | Siri actions and Shortcuts execution service                          | if-unused                      |
+| 378 | siriactionsd                  | HIGH CPU USAGE IF DISABLED                                            | NO                             |
 | 379 | siriinferenced                | On-device Siri inference daemon                                       | if-unused                      |
 | 380 | siriknowledged                | Siri knowledge-cache daemon                                           | if-unused                      |
 | 381 | sirittsd                      | Siri text-to-speech daemon                                            | if-unused                      |
-| 382 | sleepd                        | Sleep schedule / sleep-related health features daemon                 | if-unused                      |
+| 382 | sleepd                        | CAUSES BOOT LOOP IF DISABLED                                          | NO                             |
 | 383 | sntpd                         | Simple Network Time Protocol daemon                                   | no                             |
 | 384 | sociallayerd                  | Shared with You / related social-content integration                  | if-unused                      |
 | 385 | softposreaderd                | Tap to Pay on iPhone / SoftPOS reader service                         | if-unused                      |
