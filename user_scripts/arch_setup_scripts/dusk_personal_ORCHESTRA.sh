@@ -235,11 +235,12 @@ init_sudo() {
     (
         exec 9>&-
         set +e
-        while true; do
-            sudo -n true
-            sleep "$SUDO_REFRESH_INTERVAL"
-            kill -0 "$$" || exit
-        done 2>/dev/null
+        trap 'exit 0' TERM
+        while kill -0 "$$" 2>/dev/null; do
+            sleep "$SUDO_REFRESH_INTERVAL" &
+            wait $! 2>/dev/null || true
+            sudo -n -v 2>/dev/null || exit 0
+        done
     ) &
     SUDO_PID=$!
     disown "$SUDO_PID"
@@ -296,26 +297,64 @@ parse_install_entry() {
     local -n _script_ref="$3"
     local -n _argv_ref="$4"
     local -n _base_state_key_ref="$5"
+    local -n _ignore_fail_ref="$6"
     local -a _fields=()
     local -a _parts=()
     local _parsed_mode=""
+    local _flags_part=""
     local _command_part=""
 
     IFS='|' read -r -a _fields <<< "$entry"
-    if (( ${#_fields[@]} != 2 )); then
-        printf 'CRITICAL ERROR: Malformed INSTALL_SEQUENCE entry: %s\n' "$entry" >&2
-        exit 1
-    fi
-
-    _parsed_mode="$(trim "${_fields[0]}")"
-    _command_part="$(trim "${_fields[1]}")"
+    case "${#_fields[@]}" in
+        2)
+            _parsed_mode="$(trim "${_fields[0]}")"
+            _flags_part=""
+            _command_part="$(trim "${_fields[1]}")"
+            ;;
+        3)
+            _parsed_mode="$(trim "${_fields[0]}")"
+            _flags_part="$(trim "${_fields[1]}")"
+            _command_part="$(trim "${_fields[2]}")"
+            ;;
+        *)
+            printf 'CRITICAL ERROR: Malformed INSTALL_SEQUENCE entry: %s\n' "$entry" >&2
+            exit 1
+            ;;
+    esac
 
     if [[ "$_parsed_mode" != "U" && "$_parsed_mode" != "S" ]]; then
         printf 'CRITICAL ERROR: Invalid mode in INSTALL_SEQUENCE entry: %s\n' "$entry" >&2
         exit 1
     fi
 
-    if [[ -z "$_command_part" ]]; then
+    _ignore_fail_ref=0
+    if [[ -n "$_flags_part" ]]; then
+        local -a flag_tokens=()
+        read -r -a flag_tokens <<< "${_flags_part//,/ }"
+        local flag=""
+        for flag in "${flag_tokens[@]}"; do
+            case "$flag" in
+                true|ignore|ignore-fail)
+                    _ignore_fail_ref=1
+                    ;;
+                "") ;;
+                *)
+                    printf 'CRITICAL ERROR: Unsupported flag in INSTALL_SEQUENCE entry: %s\n' "$flag" >&2
+                    exit 1
+                    ;;
+            esac
+        done
+    fi
+
+    read -r -a _parts <<< "$_command_part"
+    
+    # Legacy backwards compatibility support for "true script.sh"
+    if (( ${#_parts[@]} > 0 )) && [[ "${_parts[0]}" == "true" ]]; then
+        _ignore_fail_ref=1
+        _parts=("${_parts[@]:1}")
+    fi
+
+    if (( ${#_parts[@]} == 0 )); then
         printf 'CRITICAL ERROR: Missing script in INSTALL_SEQUENCE entry: %s\n' "$entry" >&2
         exit 1
     fi
@@ -326,12 +365,6 @@ parse_install_entry() {
             exit 1
             ;;
     esac
-
-    read -r -a _parts <<< "$_command_part"
-    if (( ${#_parts[@]} == 0 )); then
-        printf 'CRITICAL ERROR: Missing script in INSTALL_SEQUENCE entry: %s\n' "$entry" >&2
-        exit 1
-    fi
 
     _mode_ref="$_parsed_mode"
     _script_ref="${_parts[0]}"
@@ -422,12 +455,13 @@ validate_search_dirs() {
     local mode=""
     local filename=""
     local base_state_key=""
+    local ignore_fail=0
     local dir=""
     local -a args=()
 
     for entry in "${INSTALL_SEQUENCE[@]}"; do
         [[ -n "${entry//[[:space:]]/}" ]] || continue
-        parse_install_entry "$entry" mode filename args base_state_key
+        parse_install_entry "$entry" mode filename args base_state_key ignore_fail
         if [[ "$filename" != */* ]]; then
             needs_search_dirs=1
             break
@@ -477,6 +511,7 @@ preflight_check() {
     local mode=""
     local filename=""
     local base_state_key=""
+    local ignore_fail=0
     local script_path=""
     local -a args=()
 
@@ -484,7 +519,7 @@ preflight_check() {
 
     for entry in "${INSTALL_SEQUENCE[@]}"; do
         [[ -n "${entry//[[:space:]]/}" ]] || continue
-        parse_install_entry "$entry" mode filename args base_state_key
+        parse_install_entry "$entry" mode filename args base_state_key ignore_fail
 
         if ! script_path="$(resolve_script "$filename")"; then
             log "ERROR" "Missing or unreadable: ${filename}"
@@ -663,6 +698,7 @@ main() {
             local mode=""
             local filename=""
             local base_state_key=""
+            local ignore_fail=0
             local state_key=""
             local occurrence_index=0
             local status=""
@@ -675,13 +711,14 @@ main() {
                 [[ -n "${entry//[[:space:]]/}" ]] || continue
                 (( ++i ))
 
-                parse_install_entry "$entry" mode filename args base_state_key
+                parse_install_entry "$entry" mode filename args base_state_key ignore_fail
                 (( ++seen_state_keys["$base_state_key"] ))
                 occurrence_index="${seen_state_keys["$base_state_key"]}"
                 state_key="$(make_state_key "$base_state_key" "$occurrence_index")"
 
                 mode_label="USER"
                 [[ "$mode" == "S" ]] && mode_label="SUDO"
+                [[ $ignore_fail -eq 1 ]] && mode_label="${mode_label},IGN"
 
                 display_name="$filename"
                 if (( ${#args[@]} > 0 )); then
@@ -747,11 +784,12 @@ main() {
     local mode=""
     local filename=""
     local base_state_key=""
+    local ignore_fail=0
     local -a args=()
 
     for entry in "${INSTALL_SEQUENCE[@]}"; do
         [[ -n "${entry//[[:space:]]/}" ]] || continue
-        parse_install_entry "$entry" mode filename args base_state_key
+        parse_install_entry "$entry" mode filename args base_state_key ignore_fail
         if [[ "$mode" == "S" ]]; then
             needs_sudo=1
             break
@@ -818,7 +856,7 @@ main() {
         local script_path=""
         local display_name=""
 
-        parse_install_entry "$entry" mode filename args base_state_key
+        parse_install_entry "$entry" mode filename args base_state_key ignore_fail
         (( ++seen_state_keys["$base_state_key"] ))
         occurrence_index="${seen_state_keys["$base_state_key"]}"
         state_key="$(make_state_key "$base_state_key" "$occurrence_index")"
@@ -915,6 +953,12 @@ main() {
                     sleep "$POST_SCRIPT_DELAY"
                 fi
 
+                break
+            fi
+
+            if [[ $ignore_fail -eq 1 ]]; then
+                log "WARN" "Failed $display_name (Exit Code: $result) - ignored via ignore-fail flag"
+                SKIPPED_OR_FAILED+=("$display_name (soft failed)")
                 break
             fi
 
