@@ -1,13 +1,44 @@
 #!/usr/bin/env bash
 # Autonomous Pacman Mirror Orchestrator
-# Resolves mirror selection, handles stale pacman locks via /proc inspection,
-# limits timeouts, runs in parallel, and provides asynchronous visual feedback.
-# Configures systemd timers for weekly background maintenance.
+# Resolves mirror selection, waits for active pacman locks with a 60s timeout,
+# removes stale locks via /proc inspection, runs mirror benchmarking with 
+# asynchronous visual feedback, and configures systemd timers.
 
 set -euo pipefail
 
 # --- STRICT ABORT TRAP ---
-trap 'printf "\n\033[?25h\033[31m!! User aborted script execution.\033[0m\n" >&2; exit 1' SIGINT SIGTERM
+CURRENT_BG_PID=''
+CURRENT_BG_LOG=''
+
+abort_script() {
+    printf '\n\033[?25h\033[31m!! User aborted script execution.\033[0m\n' >&2
+
+    if [[ -n ${CURRENT_BG_PID:-} ]] && kill -0 "$CURRENT_BG_PID" 2>/dev/null; then
+        kill -TERM -- "-$CURRENT_BG_PID" 2>/dev/null || true
+
+        for _ in {1..20}; do
+            kill -0 "$CURRENT_BG_PID" 2>/dev/null || break
+            sleep 0.1
+        done
+
+        if kill -0 "$CURRENT_BG_PID" 2>/dev/null; then
+            kill -KILL -- "-$CURRENT_BG_PID" 2>/dev/null || true
+        fi
+
+        wait "$CURRENT_BG_PID" 2>/dev/null || true
+    fi
+
+    if [[ -n ${CURRENT_BG_LOG:-} ]]; then
+        rm -f -- "$CURRENT_BG_LOG"
+    fi
+
+    CURRENT_BG_PID=''
+    CURRENT_BG_LOG=''
+
+    exit 1
+}
+
+trap abort_script SIGINT SIGTERM
 
 # --- CONFIGURATION ---
 readonly PACMAN_LOCK="/var/lib/pacman/db.lck"
@@ -34,47 +65,89 @@ log_ok()   { printf '%s:: %s%s\n' "$G" "$1" "$NC"; }
 log_warn() { printf '%s:: %s%s\n' "$Y" "$1" "$NC"; }
 log_err()  { printf '%s!! %s%s\n' "$R" "$1" "$NC" >&2; }
 
+# --- ATOMIC FILE WRITER ---
+write_text_file_atomic() {
+    local target="$1"
+    local mode="$2"
+    local content="$3"
+    local tmp rc
+
+    tmp="$(mktemp "${target}.tmp.XXXXXX")"
+
+    if {
+        printf '%s\n' "$content" > "$tmp"
+        chmod "$mode" "$tmp"
+        mv -f -- "$tmp" "$target"
+    }; then
+        return 0
+    fi
+
+    rc=$?
+    rm -f -- "$tmp"
+    return "$rc"
+}
+
+apply_arch_fallback_mirrorlist() {
+    write_text_file_atomic "$TARGET_FILE" 0644 "$FALLBACK_MIRRORS"
+}
+
 # --- ASYNCHRONOUS UI WRAPPER ---
 run_with_spinner() {
     local msg="$1"
     shift
-    local tmp_log
-    tmp_log="$(mktemp)"
 
-    "$@" > /dev/null 2> "$tmp_log" &
-    local pid=$!
+    local tmp_log pid rc
+    tmp_log="$(mktemp)"
+    CURRENT_BG_LOG=$tmp_log
+
+    setsid -w -- "$@" </dev/null > "$tmp_log" 2>&1 &
+    pid=$!
+    CURRENT_BG_PID=$pid
 
     local delay=0.1
     local frames=( '⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏' )
-    
-    printf "\033[?25l" 
-    
-    while kill -0 "$pid" 2>/dev/null; do
-        for frame in "${frames[@]}"; do
-            if ! kill -0 "$pid" 2>/dev/null; then break; fi
-            printf "\r%s::%s %s %s" "$B" "$NC" "$frame" "$msg"
-            sleep "$delay"
+
+    if [[ -t 1 ]]; then
+        printf '\033[?25l'
+
+        while kill -0 "$pid" 2>/dev/null; do
+            for frame in "${frames[@]}"; do
+                kill -0 "$pid" 2>/dev/null || break
+                printf '\r%s::%s %s %s' "$B" "$NC" "$frame" "$msg"
+                sleep "$delay"
+            done
         done
-    done
-    
-    printf "\033[?25h\r\033[K" 
+
+        printf '\033[?25h\r\033[K'
+    fi
 
     if wait "$pid"; then
-        rm -f "$tmp_log"
+        CURRENT_BG_PID=''
+        CURRENT_BG_LOG=''
+        rm -f -- "$tmp_log"
         return 0
-    else
-        local rc=$?
-        log_warn "Process encountered issues. Reviewing trace:"
-        while IFS= read -r line; do
-            [[ -n "$line" ]] && log_warn "  -> $line"
-        done < "$tmp_log"
-        rm -f "$tmp_log"
-        return "$rc"
     fi
+
+    rc=$?
+    CURRENT_BG_PID=''
+    CURRENT_BG_LOG=''
+
+    log_warn "Process encountered issues. Reviewing trace:"
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        [[ -n "$line" ]] && log_warn "  -> $line"
+    done < "$tmp_log"
+
+    rm -f -- "$tmp_log"
+    return "$rc"
 }
 
 # --- PRE-FLIGHT ---
 if (( EUID != 0 )); then
+    if ! command -v sudo &>/dev/null; then
+        log_err "This script must be run as root, or sudo must be installed and available."
+        exit 1
+    fi
+
     log_info "Elevated privileges required. Prompting for sudo password..."
     exec sudo -- "$0" "$@"
 fi
@@ -96,11 +169,12 @@ manage_pacman_lock() {
 
         if ((${#active_pids[@]})); then
             current_report="${active_pids[*]}"
+
             if [[ "$current_report" != "$last_report" ]]; then
                 log_warn "Lock file detected at ${PACMAN_LOCK}. Active holder PID(s): ${current_report}. Waiting..."
                 last_report="$current_report"
             fi
-            
+
             if (( elapsed_time >= timeout )); then
                 log_warn "Timeout of ${timeout}s reached. Forcibly overriding deadlocked pacman instance..."
                 rm -f -- "$PACMAN_LOCK"
@@ -122,36 +196,53 @@ manage_pacman_lock() {
 
 # --- PACMAN WRAPPER ---
 run_pacman() {
-    local rc
+    local rc tmp_err
+
     while :; do
         manage_pacman_lock
-        
-        if pacman "$@"; then
+        tmp_err="$(mktemp)"
+
+        if LC_ALL=C pacman "$@" 2> "$tmp_err"; then
+            rm -f -- "$tmp_err"
             return 0
-        else
-            rc=$?
         fi
 
-        if [[ -f "$PACMAN_LOCK" ]]; then
-            log_warn "Pacman lock was acquired by another process during transaction startup. Retrying..."
+        rc=$?
+
+        if [[ -s "$tmp_err" ]]; then
+            cat -- "$tmp_err" >&2
+        fi
+
+        if grep -Fq 'unable to lock database' "$tmp_err" || \
+           grep -Fq 'could not lock database' "$tmp_err"; then
+            rm -f -- "$tmp_err"
+            log_warn "Pacman reported database lock contention. Waiting for the active transaction to finish..."
             continue
         fi
+
+        rm -f -- "$tmp_err"
         return "$rc"
     done
 }
 
 # --- OS DETECTION ---
 detect_cachyos() {
-    [[ -f /etc/os-release ]] && grep -q '^ID=cachyos$' /etc/os-release
+    [[ -r /etc/os-release ]] || return 1
+
+    (
+        . /etc/os-release
+        [[ ${ID:-} == cachyos ]]
+    )
 }
 
 # --- SYSTEMD TIMER CONFIGURATION ---
 configure_arch_timer() {
     log_info "Configuring native systemd timer for automated weekly mirror updates..."
-    
-    mkdir -p "$(dirname "$REFLECTOR_CONF")"
-    
-    cat <<EOF > "$REFLECTOR_CONF"
+
+    mkdir -p -- "$(dirname -- "$REFLECTOR_CONF")"
+
+    local reflector_config
+    read -r -d '' reflector_config <<EOF || true
 --save $TARGET_FILE
 --protocol https
 --latest 50
@@ -161,6 +252,11 @@ configure_arch_timer() {
 --connection-timeout 2
 --download-timeout 2
 EOF
+
+    if ! write_text_file_atomic "$REFLECTOR_CONF" 0644 "$reflector_config"; then
+        log_warn "Failed to write reflector configuration. Skipping reflector.timer enablement."
+        return 0
+    fi
 
     if systemctl enable --now reflector.timer &>/dev/null; then
         log_ok "reflector.timer is now active."
@@ -173,38 +269,40 @@ EOF
 sync_cachyos() {
     log_info "Initializing CachyOS Mirror Sync..."
 
-    if ! command -v cachyos-rate-mirrors &>/dev/null; then
-        log_err "cachyos-rate-mirrors binary missing. Aborting."
-        exit 1
-    fi
-
-    export CURL_OPTIONS="-4"
     local attempt
     local max_attempts=3
     local success=0
 
-    for (( attempt = 1; attempt <= max_attempts; attempt++ )); do
-        manage_pacman_lock
-
-        if run_with_spinner "Benchmarking CachyOS mirrors..." cachyos-rate-mirrors; then
-            success=1
-            break
-        fi
-
-        if (( attempt < max_attempts )); then
-            log_warn "Network latency detected. Retrying in 5 seconds (Attempt $(( attempt + 1 ))/${max_attempts})..."
-            sleep 5
-        fi
-    done
-
-    if (( ! success )); then
-        log_err "cachyos-rate-mirrors failed after ${max_attempts} attempts. Bypassing to ensure pipeline continuation."
+    if ! command -v cachyos-rate-mirrors &>/dev/null; then
+        log_warn "cachyos-rate-mirrors binary missing. Skipping CachyOS mirror ranking and keeping the current mirror configuration."
     else
-        log_ok "CachyOS mirrors optimized."
-    fi
-    
-    if systemctl list-unit-files | grep -q 'cachyos-mirrorlist.timer'; then
-        systemctl enable --now cachyos-mirrorlist.timer &>/dev/null || true
+        for (( attempt = 1; attempt <= max_attempts; attempt++ )); do
+            manage_pacman_lock
+
+            if run_with_spinner "Benchmarking CachyOS mirrors..." cachyos-rate-mirrors; then
+                success=1
+                break
+            fi
+
+            if (( attempt < max_attempts )); then
+                log_warn "Network latency detected. Retrying in 5 seconds (Attempt $(( attempt + 1 ))/${max_attempts})..."
+                sleep 5
+            fi
+        done
+
+        if (( ! success )); then
+            log_err "cachyos-rate-mirrors failed after ${max_attempts} attempts. Continuing with the existing mirror configuration."
+        else
+            log_ok "CachyOS mirrors optimized."
+        fi
+
+        if systemctl list-unit-files --type=timer --no-legend --plain 2>/dev/null | awk '{print $1}' | grep -Fxq 'cachyos-mirrorlist.timer'; then
+            if systemctl enable --now cachyos-mirrorlist.timer &>/dev/null; then
+                log_ok "cachyos-mirrorlist.timer is now active."
+            else
+                log_warn "Failed to enable cachyos-mirrorlist.timer. Check systemctl status."
+            fi
+        fi
     fi
 
     log_info "Synchronizing pacman databases..."
@@ -223,7 +321,7 @@ sync_arch() {
             log_warn "Reflector bootstrap failed with current mirrors."
             log_info "Applying highly-available Global CDN Fallback to recover bootstrap..."
             manage_pacman_lock
-            printf '%s\n' "$FALLBACK_MIRRORS" > "$TARGET_FILE"
+            apply_arch_fallback_mirrorlist
 
             if ! run_pacman -Syu --needed --noconfirm reflector; then
                 log_warn "Reflector bootstrap still failed. Continuing with fallback mirrorlist."
@@ -232,6 +330,9 @@ sync_arch() {
     fi
 
     if command -v reflector &>/dev/null; then
+        local reflector_tmp
+        reflector_tmp="$(mktemp "${TARGET_FILE}.tmp.XXXXXX")"
+
         manage_pacman_lock
 
         if run_with_spinner "Benchmarking 50 global mirrors (10 threads)..." \
@@ -242,20 +343,33 @@ sync_arch() {
                       --download-timeout 2 \
                       --fastest 10 \
                       --sort rate \
-                      --save "$TARGET_FILE"; then
-            log_ok "Arch mirrors topologically optimized in parallel."
-            configure_arch_timer
+                      --save "$reflector_tmp"; then
+            if {
+                chmod 0644 "$reflector_tmp"
+                mv -f -- "$reflector_tmp" "$TARGET_FILE"
+            }; then
+                log_ok "Arch mirrors topologically optimized in parallel."
+                configure_arch_timer
+            else
+                rm -f -- "$reflector_tmp"
+                log_warn "Generated mirrorlist could not be installed."
+                log_info "Applying highly-available Global CDN Fallback to guarantee pipeline integrity..."
+                manage_pacman_lock
+                apply_arch_fallback_mirrorlist
+                log_ok "Global CDN fallback applied."
+            fi
         else
+            rm -f -- "$reflector_tmp"
             log_warn "Reflector routing error. Bypassing..."
             log_info "Applying highly-available Global CDN Fallback to guarantee pipeline integrity..."
             manage_pacman_lock
-            printf '%s\n' "$FALLBACK_MIRRORS" > "$TARGET_FILE"
+            apply_arch_fallback_mirrorlist
             log_ok "Global CDN fallback applied."
         fi
     else
         log_warn "Reflector remains unavailable after bootstrap. Using highly-available Global CDN fallback."
         manage_pacman_lock
-        printf '%s\n' "$FALLBACK_MIRRORS" > "$TARGET_FILE"
+        apply_arch_fallback_mirrorlist
         log_ok "Global CDN fallback applied."
     fi
 
