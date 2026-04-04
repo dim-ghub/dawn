@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
 # ==============================================================================
-#  UNIFIED ARCH ORCHESTRATOR (v3.4 - The Master Engine)
+#  UNIFIED ARCH ORCHESTRATOR (v3.5 - The Master Engine)
 #  Context: Self-aware Phase 1 (ISO) and Phase 2 (Chroot) execution.
 #  Usage: ./000_dusky_arch_install.sh [--auto|-a] [--dry-run|-d] [--reset]
 # ==============================================================================
 
 # --- 1. SCRIPT SEQUENCES ---
-# Added Soft-Failure Syntax: Append " | IGNORE" to allow the script to proceed 
+# Soft-Failure Syntax: Append " | IGNORE" to allow the script to proceed 
 # even if a non-critical component fails.
 
 declare -ra ISO_SEQUENCE=(
   "020_environment_prep.sh --auto"
   "030_partitioning.sh --auto"
   "040_disk_mount.sh --auto"
-  "050_mirrorlist.sh | IGNORE" # Example: If mirror updates fail, keep going
+  "050_mirrorlist.sh | IGNORE"
   "060_console_fix.sh"
   "070_pacstrap.sh --auto"
   "090_fstab.sh"
@@ -22,7 +22,7 @@ declare -ra ISO_SEQUENCE=(
 declare -ra CHROOT_SEQUENCE=(
   "100_etc_skel.sh --auto"
   "110_post_chroot.sh --auto"
-  "120_mkintcpip_optimizer.sh | IGNORE" # Example: Optimization soft-fail
+  "120_mkintcpip_optimizer.sh | IGNORE"
   "130_chroot_package_installer.sh --auto"
   "140_mkinitcpio_generation.sh"
   "150_limine_bootloader.sh --auto"
@@ -38,6 +38,13 @@ readonly SCRIPT_PATH="$(readlink -f "$0")"
 readonly SCRIPT_DIR="$(dirname "$SCRIPT_PATH")"
 readonly SCRIPT_NAME="$(basename "$SCRIPT_PATH")"
 cd "$SCRIPT_DIR"
+
+# Trap to ensure asynchronous log buffers flush cleanly on exit
+cleanup() {
+    exec 9>&- 2>/dev/null || true
+    sleep 0.3
+}
+trap cleanup EXIT
 
 # --- 3. ENVIRONMENT PASSTHROUGH (Cross-Chroot Bridge) ---
 readonly ENV_PASSTHROUGH_FILE="$(pwd)/.env_passthrough"
@@ -210,7 +217,7 @@ execute_script() {
             return 0
         fi
 
-        # Handle Soft Failures
+        # Handle Soft Failures (Happens BEFORE the retry mechanism)
         if (( ignore_fail == 1 )); then
             log WARN "Failed: $script_name (Exit Code: $exit_code) - ignored via IGNORE flag."
             SOFT_FAILED_SCRIPTS+=("$script_name")
