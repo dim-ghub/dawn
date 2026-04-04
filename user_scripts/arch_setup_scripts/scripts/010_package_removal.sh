@@ -25,6 +25,7 @@ readonly -a REPO_TARGETS=(
   swww
 
   papirus-icon-theme-git
+  papirus-folders-git
 
 )
 
