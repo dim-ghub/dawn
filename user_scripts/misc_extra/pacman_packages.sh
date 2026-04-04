@@ -55,7 +55,6 @@ declare -ar pkgs_misc=(
     "awww"
 
     "papirus-icon-theme"
-    "papirus-folders"
 )
 
 

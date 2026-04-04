@@ -70,6 +70,7 @@ Media       | ttf-font-awesome      | Iconic font designed for Bootstrap - woff2
 Media       | woff2-font-awesome    | Iconic font designed for Bootstrap - woff2 format
 Media       | ttf-jetbrains-mono-nerd | Patched font JetBrains Mono from nerd fonts library
 Media       | awesome-terminal-fonts| fonts/icons for powerlines
+Media       | papirus-folders-git   | folder color themeing for file manager
 Media       | ttf-opensans          | Sans-serif typeface commissioned by Google
 Media       | ttf-meslo-nerd        | Patched font Meslo LG from nerd fonts library
 Media       | obs-studio            | Software for video recording and live streaming
