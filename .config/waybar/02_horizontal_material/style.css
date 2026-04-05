@@ -32,7 +32,7 @@ tooltip {
 #custom-clip,
 #custom-taskmanager,
 #custom-calculator,
-#tray,
+#custom-tray-trigger,
 #idle_inhibitor,
 #custom-power,
 #custom-reboot,
@@ -40,6 +40,7 @@ tooltip {
 #custom-lock,
 #mpris,
 #custom-notifs,
+#tray,
 #custom-launcher {
     background: alpha(@surface_container, 0.8);
     padding: 2px 12px;
@@ -50,7 +51,7 @@ tooltip {
     transition: all 0.3s ease-out;
 }
 
-#cava {
+#custom-cava {
     background: alpha(@surface_container, 0.8);
     padding: 2px 12px;
     margin: 4px;
@@ -109,7 +110,7 @@ tooltip {
 /* Modules: Hover Effects */
 #backlight:hover,
 #battery:hover,
-#cava:hover,
+#custom-cava:hover,
 #clock:hover,
 #mpris:hover,
 #pulseaudio.output:hover,
@@ -124,7 +125,9 @@ tooltip {
 #custom-files:hover,
 #idle_inhibitor:hover,
 #custom-notifs:hover,
-#custom-clip:hover {
+#custom-clip:hover,
+#tray:hover,
+#custom-tray-trigger:hover {
     color: @secondary;
     background: alpha(@on_secondary, 0.8); 
     border-color: alpha(@secondary_container, 0.8);
