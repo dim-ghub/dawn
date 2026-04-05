@@ -123,20 +123,20 @@ main() {
 
 	# 1. Handle systemd-resolved vs OpenRC
 	if [[ "$init_system" == "openrc" ]]; then
-		log_info "OpenRC detected. Checking for systemd-resolved availability..."
+		log_info "OpenRC detected. Checking for DNS resolver..."
 
-		# On OpenRC, we can still use systemd-resolved if installed
-		if ! command -v systemd-resolved >/dev/null 2>&1; then
-			log_warn "systemd-resolved not installed. On Artix, consider using openresolv or unbound."
-			log_info "Installing openresolv: pacman -S openresolv"
-		fi
-
-		# Check if systemd-resolved is installed
-		if command -v systemctl >/dev/null 2>&1; then
-			init_system="systemd"
+		if command -v systemd-resolved >/dev/null 2>&1; then
+			log_info "systemd-resolved found."
+		elif command -v resolvconf >/dev/null 2>&1; then
+			log_info "Using openresolv (resolvconf)..."
+			printf "nameserver 9.9.9.9\nnameserver 1.1.1.1\n" | resolvconf -a eth0
+			log_success "DNS configured via resolvconf."
+			return 0
 		else
-			log_error "No DNS resolver service available."
-			exit 1
+			log_warn "Neither systemd-resolved nor openresolv found. Writing to /etc/resolv.conf directly."
+			printf "nameserver 9.9.9.9\nnameserver 1.1.1.1\n" >/etc/resolv.conf
+			log_success "DNS written to /etc/resolv.conf."
+			return 0
 		fi
 	fi
 

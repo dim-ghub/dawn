@@ -420,30 +420,41 @@ wait_for_process() {
 	return 0
 }
 
-ensure_swww_running() {
-	process_running "swww-daemon" && return 0
+# --- GLOBALS & DETECTION ---
+DAEMON_BINARY="swww-daemon"
+BACKEND_BINARY="swww"
 
-	log "Starting swww-daemon..."
+if command -v awww >/dev/null 2>&1; then
+	DAEMON_BINARY="awww-daemon"
+	BACKEND_BINARY="awww"
+fi
+
+ensure_swww_running() {
+	process_running "$DAEMON_BINARY" && return 0
+
+	log "Starting $DAEMON_BINARY..."
 
 	if command -v systemctl >/dev/null 2>&1 && systemctl --user cat swww.service >/dev/null 2>&1; then
 		if systemctl --user start swww.service >/dev/null 2>&1; then
-			if wait_for_process "swww-daemon"; then
+			if wait_for_process "$DAEMON_BINARY"; then
 				return 0
 			fi
-			warn "swww.service started, but swww-daemon did not appear in time. Falling back to direct launch."
+			warn "swww.service started, but $DAEMON_BINARY did not appear in time. Falling back to direct launch."
 		else
 			warn "Failed to start swww.service. Falling back to direct launch."
 		fi
-	elif command -v rc-service >/dev/null 2>&1 && rc-service -l 2>/dev/null | grep -q "swww"; then
-		if rc-service swww start >/dev/null 2>&1; then
-			if wait_for_process "swww-daemon"; then
+	elif command -v rc-service >/dev/null 2>&1 && rc-service -l 2>/dev/null | grep -qE "(swww|awww)"; then
+		local svc="swww"
+		rc-service -l 2>/dev/null | grep -q "awww" && svc="awww"
+		if rc-service "$svc" start >/dev/null 2>&1; then
+			if wait_for_process "$DAEMON_BINARY"; then
 				return 0
 			fi
-			warn "swww service started, but swww-daemon did not appear in time. Falling back to direct launch."
+			warn "$svc service started, but $DAEMON_BINARY did not appear in time. Falling back to direct launch."
 		fi
 	fi
 
-	swww-daemon --format xrgb >/dev/null 2>&1 99>&- &
+	"$DAEMON_BINARY" --format xrgb >/dev/null 2>&1 99>&- &
 }
 
 ensure_swaync_running() {
@@ -662,10 +673,12 @@ apply_wallpaper_selection() {
 	log "Selected: ${wallpaper##*/}"
 
 	ensure_swww_running
-	swww img "$wallpaper" \
-		--transition-type grow \
+	"$BACKEND_BINARY" img "$wallpaper" \
+		--transition-type any \
+		--transition-step 63 \
+		--transition-angle 0 \
 		--transition-duration 2 \
-		--transition-fps 60 || die "Failed to apply wallpaper with swww"
+		--transition-fps 60 || die "Failed to apply wallpaper with $BACKEND_BINARY"
 
 	update_wallpaper_tracker "$wallpaper_id"
 
@@ -680,7 +693,7 @@ regenerate_current() {
 
 	ensure_swww_running
 
-	query_output=$(swww query 2>&1) || die "swww query failed: $query_output"
+	query_output=$("$BACKEND_BINARY" query 2>&1) || die "$BACKEND_BINARY query failed: $query_output"
 
 	while IFS= read -r line; do
 		[[ "$line" == *"currently displaying: image: "* ]] || continue
@@ -933,6 +946,14 @@ run_locked() {
 
 # --- MAIN ---
 
+# Detect wallpaper backend early
+WALLPAPER_CMD="swww"
+WALLPAPER_DAEMON="swww-daemon"
+if command -v awww >/dev/null 2>&1; then
+	WALLPAPER_CMD="awww"
+	WALLPAPER_DAEMON="awww-daemon"
+fi
+
 case "${1:-}" in
 set)
 	shift
@@ -940,23 +961,23 @@ set)
 		usage
 		exit 0
 	fi
-	check_deps flock awk pgrep find sort swww swww-daemon matugen
+	check_deps flock awk pgrep find sort "$WALLPAPER_CMD" "$WALLPAPER_DAEMON" matugen
 	run_locked cmd_set "$@"
 	;;
 next)
-	check_deps flock awk pgrep find sort swww swww-daemon matugen
+	check_deps flock awk pgrep find sort "$WALLPAPER_CMD" "$WALLPAPER_DAEMON" matugen
 	run_locked next_command
 	;;
 prev | previous)
-	check_deps flock awk pgrep find sort swww swww-daemon matugen
+	check_deps flock awk pgrep find sort "$WALLPAPER_CMD" "$WALLPAPER_DAEMON" matugen
 	run_locked prev_command
 	;;
 random)
-	check_deps flock awk pgrep find sort swww swww-daemon matugen
+	check_deps flock awk pgrep find sort "$WALLPAPER_CMD" "$WALLPAPER_DAEMON" matugen
 	run_locked random_command
 	;;
 refresh | apply)
-	check_deps flock awk pgrep swww swww-daemon matugen
+	check_deps flock awk pgrep "$WALLPAPER_CMD" "$WALLPAPER_DAEMON" matugen
 	run_locked regenerate_current
 	;;
 color)

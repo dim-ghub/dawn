@@ -180,11 +180,23 @@ parse_args() {
 	done
 }
 
+# --- Globals ---
+WALLPAPER_BACKEND="swww"
+
 check_dependencies() {
 	local -a missing=()
 	local cmd
 
-	for cmd in rofi swww magick matugen setsid flock sha256sum find sort xargs cmp stat nproc gawk mktemp; do
+	# Detect swww/awww
+	if command -v awww >/dev/null 2>&1; then
+		WALLPAPER_BACKEND="awww"
+	elif command -v swww >/dev/null 2>&1; then
+		WALLPAPER_BACKEND="swww"
+	else
+		missing+=("swww/awww")
+	fi
+
+	for cmd in rofi magick matugen setsid flock sha256sum find sort xargs cmp stat nproc gawk mktemp; do
 		command -v "$cmd" >/dev/null 2>&1 || missing+=("$cmd")
 	done
 
@@ -632,8 +644,7 @@ cache_info_by_index() {
 
 get_active_wallpaper_filename() {
 	local swww_out current_image
-
-	if IFS= read -r swww_out < <(swww query 2>/dev/null); then
+	if IFS= read -r swww_out < <("$WALLPAPER_BACKEND" query 2>/dev/null); then
 		if [[ $swww_out == *image:* ]]; then
 			current_image=${swww_out##*image: }
 			current_image="${current_image#"${current_image%%[![:space:]]*}"}"
@@ -858,14 +869,16 @@ apply_selection() {
 	# Also sync the favorite state so the next `--next-fav` starts from the wallpaper we just applied via GUI
 	update_fav_state "$selection"
 
-	if ! output=$(swww img "$full_path" \
-		--transition-type grow \
+	if ! output=$("$WALLPAPER_BACKEND" img "$full_path" \
+		--transition-type any \
+		--transition-step 63 \
+		--transition-angle 0 \
 		--transition-duration 2 \
 		--transition-fps 60 2>&1); then
-		die "Failed to set wallpaper." "$output"
+		log_output ERROR "Failed to apply wallpaper: " "$output"
+		return 1
 	fi
-
-	[[ -n $output ]] && log_output INFO "swww: " "$output"
+	[[ -n $output ]] && log_output INFO "$WALLPAPER_BACKEND: " "$output"
 
 	if [[ ! -x "$THEME_CTL" ]]; then
 		die "Theme controller not found or not executable." "$THEME_CTL"
@@ -952,7 +965,7 @@ main() {
 		die "Failed to resolve wallpaper path." "$selection"
 	fi
 
-	# Release the lock BEFORE spawning swww/matugen and their background hooks
+	# Release the lock BEFORE spawning wallpaper backend/matugen and their background hooks
 	release_lock
 
 	apply_selection "$full_path" "$selection"
