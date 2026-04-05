@@ -1100,10 +1100,10 @@ get_fallback_date() {
 
 # --- HELPER: OS Detection ---
 detect_openrc() {
-    if [[ -f /etc/os-release ]] && grep -qiE "^(artix|artixlinux)$" /etc/os-release; then
-        return 0
-    fi
-    return 1
+	if [[ -f /etc/os-release ]] && grep -qiE "^(artix|artixlinux)$" /etc/os-release; then
+		return 0
+	fi
+	return 1
 }
 
 # --- BARE ARCH LOGIC ---
@@ -1237,45 +1237,30 @@ update_mirrors() {
 
 # --- ENTRY POINT ---
 main() {
-    local manual_override=0
+	local manual_override=0
 
-    for arg in "$@"; do
-        if [[ "$arg" == "--manual" ]]; then
-            manual_override=1
-            break
-        fi
-    done
+	for arg in "$@"; do
+		if [[ "$arg" == "--manual" ]]; then
+			manual_override=1
+			break
+		fi
+	done
 
-    if (( manual_override )); then
-        printf '\n%s:: Manual Mode%s\n' "$B" "$NC"
-        printf '   1) Run standard Arch mirror sync (Reflector + Fallbacks)\n'
-        printf '   2) Skip (use existing mirrors)\n'
-        
-        local os_choice
-        read -r -p ":: Select option [1-2]: " os_choice || { printf '\n'; exit 0; }
-        
-        case "$os_choice" in
-            1) update_mirrors ;;
-            2) log_warn "Skipping mirror update."; exit 0 ;;
-            *) log_err "Invalid selection. Exiting."; exit 1 ;;
-        esac
-    else
-        if detect_artix; then
-            log_info "Artix Linux environment detected."
-            log_warn "Skipping mirror update for Artix (uses different repos)."
-            log_info "Manually configure /etc/pacman.conf for Artix repos if needed."
-        else
-            log_info "Standard Arch Linux environment detected."
-            update_mirrors
-        fi
-    fi
-}
+	if ((manual_override)); then
+		printf '\n%s:: Manual Mode%s\n' "$B" "$NC"
+		printf '   1) Run standard Arch mirror sync (Reflector + Fallbacks)\n'
+		printf '   2) Skip (use existing mirrors)\n'
+
+		local os_choice
+		read -r -p ":: Select option [1-2]: " os_choice || {
+			printf '\n'
+			exit 0
+		}
 
 		case "$os_choice" in
-		1) update_cachy_mirrors ;;
-		2) update_mirrors ;;
-		3)
-			log_warn "Aborting script execution."
+		1) update_mirrors ;;
+		2)
+			log_warn "Skipping mirror update."
 			exit 0
 			;;
 		*)
@@ -1285,9 +1270,9 @@ main() {
 		esac
 	else
 		if detect_openrc; then
-			log_info "OpenRC-based system detected."
-			log_warn "Skipping mirror update for OpenRC (uses different repos)."
-			log_info "Manually configure /etc/pacman.conf for OpenRC repos if needed."
+			log_info "Artix Linux environment detected."
+			log_warn "Skipping mirror update for Artix (uses different repos)."
+			log_info "Manually configure /etc/pacman.conf for Artix repos if needed."
 		else
 			log_info "Standard Arch Linux environment detected."
 			update_mirrors
