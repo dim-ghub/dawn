@@ -3,7 +3,7 @@ Follow these steps to deploy your dotfiles onto a new machine.
 1.  **Clone the Bare Repository.**
 
 ```bash
-git clone --bare --depth 1 https://github.com/dusklinux/dusky.git $HOME/dusky
+git clone --bare --depth 1 https://github.com/dim-ghub/duskyRC.git $HOME/dusky
 ```
 
 2.  Populate the files on your system from the downloaded bare repo. checkout will automatically put all files in there intended places. This command will populate your `$HOME` directory with the files from the repository.

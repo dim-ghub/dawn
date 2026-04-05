@@ -64,7 +64,7 @@ pacman -Sy git
 
 ##### Clone the repo (type carefully or it asks a password if you enter the wrong repo)
 ```bash
-git clone --depth 1 https://github.com/dusklinux/dusky.git
+git clone --depth 1 https://github.com/dim-ghub/duskyRC.git
 ```
 
 ##### Copy the pre-chroot scripts to the current directory

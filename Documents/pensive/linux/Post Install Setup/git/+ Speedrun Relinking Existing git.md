@@ -21,7 +21,7 @@ cat ~/.ssh/id_ed25519.pub
 save to pgp key on github
 
 ```bash
-git clone --bare git@github.com:dusklinux/dusky.git $HOME/dusky
+git clone --bare git@github.com:dim-ghub/duskyRC.git $HOME/dusky
 ```
 
 type yes
@@ -47,11 +47,11 @@ git_dusky_add_list && git_dusky commit -m "fresh install first commit to the sam
 ```
 
 ```bash
-git_dusky remote add origin git@github.com:dusklinux/dusky.git
+git_dusky remote add origin git@github.com:dim-ghub/duskyRC.git
 ```
 
 ```bash
-git_dusky remote set-url origin git@github.com:dusklinux/dusky.git
+git_dusky remote set-url origin git@github.com:dim-ghub/duskyRC.git
 ```
 
 ```bash

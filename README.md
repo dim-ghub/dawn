@@ -91,7 +91,7 @@ sudo pacman -Syu --needed git
 
 clone the repo
 ```
-git clone --bare --depth 1 https://github.com/dusklinux/dusky.git $HOME/dusky
+git clone --bare --depth 1 https://github.com/dim-ghub/duskyRC.git $HOME/dusky
 ```
 
 deploy the files on your system.

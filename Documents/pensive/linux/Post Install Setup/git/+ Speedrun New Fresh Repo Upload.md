@@ -65,11 +65,11 @@ cat ~/.ssh/id_ed25519.pub
 - [ ] 14
 for the next command, you Might get an error saying `error: remote origin already exists.` and that's okay. continue on with the rest. 
 ```bash
-git_dusky remote add origin git@github.com:dusklinux/dusky.git
+git_dusky remote add origin git@github.com:dim-ghub/duskyRC.git
 ```
 - [ ] 15
 ```bash
-git_dusky remote set-url origin git@github.com:dusklinux/dusky.git
+git_dusky remote set-url origin git@github.com:dim-ghub/duskyRC.git
 ```
 - [ ] 16
 ```bash
