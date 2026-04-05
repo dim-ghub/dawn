@@ -60,7 +60,7 @@ INSTALL_SEQUENCE=(
 	"U | 115_aur_packages_user_services.sh"
 	#    "S | 120_create_mount_directories.sh"
 	"S | 125_pam_keyring.sh"
-	"U | 130_copy_service_files.sh --default"
+	"S | 130_copy_service_files.sh --default"
 	"U | 131_dbus_copy_service_files.sh"
 	"U | 135_battery_notify_service.sh --auto"
 	"U | 140_fc_cache_fv.sh"
