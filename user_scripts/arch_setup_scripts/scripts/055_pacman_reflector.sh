@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Updates mirrorlist using Reflector or cachyos-rate-mirrors based on OS detection.
+# Updates mirrorlist using Reflector for Arch Linux.
 
 set -euo pipefail
 
@@ -9,39 +9,39 @@ readonly DEFAULT_COUNTRY="list"
 
 # --- COLORS (conditional on TTY) ---
 if [[ -t 1 ]]; then
-    readonly G=$'\e[32m' R=$'\e[31m' Y=$'\e[33m' B=$'\e[34m' NC=$'\e[0m'
+	readonly G=$'\e[32m' R=$'\e[31m' Y=$'\e[33m' B=$'\e[34m' NC=$'\e[0m'
 else
-    readonly G="" R="" Y="" B="" NC=""
+	readonly G="" R="" Y="" B="" NC=""
 fi
 
 # --- LOGGING HELPERS ---
 log_info() { printf '%s:: %s%s\n' "$B" "$1" "$NC"; }
-log_ok()   { printf '%s:: %s%s\n' "$G" "$1" "$NC"; }
+log_ok() { printf '%s:: %s%s\n' "$G" "$1" "$NC"; }
 log_warn() { printf '%s:: %s%s\n' "$Y" "$1" "$NC"; }
-log_err()  { printf '%s!! %s%s\n' "$R" "$1" "$NC" >&2; }
+log_err() { printf '%s!! %s%s\n' "$R" "$1" "$NC" >&2; }
 
 # --- PRE-FLIGHT CHECKS (ELEVATION) ---
 if [[ $EUID -ne 0 ]]; then
-    log_warn "This script must be run as root. Elevating privileges..."
-    exec sudo "$0" "$@"
+	log_warn "This script must be run as root. Elevating privileges..."
+	exec sudo "$0" "$@"
 fi
 
 ensure_reflector() {
-    if ! command -v reflector &>/dev/null; then
-        log_warn "Reflector not found. Installing..."
-        pacman -Syu --needed --noconfirm reflector
-    fi
+	if ! command -v reflector &>/dev/null; then
+		log_warn "Reflector not found. Installing..."
+		pacman -Syu --needed --noconfirm reflector
+	fi
 }
 
 backup_mirrorlist() {
-    if [[ -f "$TARGET_FILE" ]]; then
-        cp -a "$TARGET_FILE" "${TARGET_FILE}.bak"
-        log_info "Backed up existing mirrorlist to ${TARGET_FILE}.bak"
-    fi
+	if [[ -f "$TARGET_FILE" ]]; then
+		cp -a "$TARGET_FILE" "${TARGET_FILE}.bak"
+		log_info "Backed up existing mirrorlist to ${TARGET_FILE}.bak"
+	fi
 }
 
 # --- DATA STORE ---
-read -r -d '' FALLBACK_RAW_DATA << 'RAW_MIRROR_LIST' || true
+read -r -d '' FALLBACK_RAW_DATA <<'RAW_MIRROR_LIST' || true
 ##
 ## Arch Linux repository mirrorlist
 ## Generated on 2026-02-22
@@ -1090,209 +1090,148 @@ RAW_MIRROR_LIST
 
 # --- HELPER: Extract fallback date using bash regex ---
 get_fallback_date() {
-    local date_str="Unknown Date"
-    if [[ "$FALLBACK_RAW_DATA" =~ Generated\ on\ ([0-9]{4}-[0-9]{2}-[0-9]{2}) ]]; then
-        date_str="${BASH_REMATCH[1]}"
-    fi
-    printf '%s' "$date_str"
+	local date_str="Unknown Date"
+	if [[ "$FALLBACK_RAW_DATA" =~ Generated\ on\ ([0-9]{4}-[0-9]{2}-[0-9]{2}) ]]; then
+		date_str="${BASH_REMATCH[1]}"
+	fi
+	printf '%s' "$date_str"
 }
 
 # --- HELPER: OS Detection ---
-detect_cachyos() {
-    if [[ -f /etc/os-release ]] && grep -q '^ID=cachyos$' /etc/os-release; then
+detect_artix() {
+    if [[ -f /etc/os-release ]] && grep -qE '^ID=(artix|artixlinux)$' /etc/os-release; then
         return 0
     fi
     return 1
 }
 
-# --- CACHYOS LOGIC (RELIABILITY UPGRADED) ---
-update_cachy_mirrors() {
-    log_info "Initializing dedicated CachyOS mirror sync..."
-    
-    if ! command -v cachyos-rate-mirrors &>/dev/null; then
-        log_err "cachyos-rate-mirrors binary not found. Aborting."
-        exit 1
-    fi
-
-    local max_attempts=4
-    local attempt=1
-    local success=0
-
-    # Force underlying network calls to prefer IPv4 if supported by the environment,
-    # helping to mitigate ISP IPv6 blackholing without breaking standard configurations.
-    export CURL_OPTIONS="-4"
-
-    while (( attempt <= max_attempts )); do
-        if (( attempt == 1 )); then
-            # Small initial breather to detach from the rapid-fire orchestrator burst
-            sleep 2
-        else
-            log_warn "Network delay detected. Waiting 5 seconds for ISP/CDN limits to reset before attempt ${attempt}/${max_attempts}..."
-            sleep 5
-        fi
-
-        # Evaluating directly in the if-statement safely catches failures without triggering set -e
-        if cachyos-rate-mirrors; then
-            log_ok "CachyOS mirrors updated and graded successfully."
-            success=1
-            break
-        else
-            log_err "Attempt ${attempt} failed to connect to the mirror coordination servers."
-            (( attempt++ ))
-        fi
-    done
-
-    # --- GRACEFUL FAILURE HANDLING ---
-    if (( ! success )); then
-        printf '\n%s!! NETWORK TIMEOUT ENCOUNTERED %s\n' "$R" "$NC"
-        printf '   --------------------------------------------------------\n'
-        printf '   %sPlease do not panic.%s This is a known ISP network or routing\n' "$G" "$NC"
-        printf '   timeout (often caused by strict ISP firewalls or CGNAT limits)\n'
-        printf '   and has %sABSOLUTELY NOTHING to do with Dusky, the dot files.%s\n' "$B" "$NC"
-        printf '   Your system is perfectly safe and structurally sound.\n'
-        printf '   --------------------------------------------------------\n'
-        printf '   Would you like to:\n'
-        printf '   1) Skip this specific step and continue the installation (Recommended)\n'
-        printf '   2) Abort the entire installation\n\n'
-
-        local choice
-        while true; do
-            read -r -p ":: Select an option [1-2]: " choice || { printf '\n'; exit 1; }
-            case "$choice" in
-                1)
-                    log_ok "Gracefully skipping CachyOS mirror sync. You can safely run this manually later."
-                    return 0
-                    ;;
-                2)
-                    log_err "Aborting script execution as requested."
-                    exit 1
-                    ;;
-                *)
-                    log_warn "Invalid selection. Please enter 1 or 2."
-                    ;;
-            esac
-        done
-    fi
-}
-
 # --- BARE ARCH LOGIC ---
 update_mirrors() {
-    ensure_reflector
-    
-    local country input_country fallback_date choice
+	ensure_reflector
 
-    while true; do
-        printf '\n%s:: Mirrorlist Configuration%s\n' "$B" "$NC"
-        printf '   --------------------------------------------------------\n'
-        printf '   %sNOTE TO GLOBAL USERS:%s\n' "$Y" "$NC"
-        printf '   Type %slist%s to view all available countries.\n' "$B" "$NC"
-        printf '   Type %sskip%s or %ss%s to bypass this step.\n' "$B" "$NC" "$B" "$NC"
-        printf '   Press %s[Enter]%s to use the default (%s).\n' "$B" "$NC" "$DEFAULT_COUNTRY"
-        printf '   --------------------------------------------------------\n'
+	local country input_country fallback_date choice
 
-        read -r -p ":: Enter country: " input_country || { printf '\n'; exit 0; }
+	while true; do
+		printf '\n%s:: Mirrorlist Configuration%s\n' "$B" "$NC"
+		printf '   --------------------------------------------------------\n'
+		printf '   %sNOTE TO GLOBAL USERS:%s\n' "$Y" "$NC"
+		printf '   Type %slist%s to view all available countries.\n' "$B" "$NC"
+		printf '   Type %sskip%s or %ss%s to bypass this step.\n' "$B" "$NC" "$B" "$NC"
+		printf '   Press %s[Enter]%s to use the default (%s).\n' "$B" "$NC" "$DEFAULT_COUNTRY"
+		printf '   --------------------------------------------------------\n'
 
-        if [[ "${input_country,,}" == "s" || "${input_country,,}" == "skip" ]]; then
-            log_warn "Skipping mirror update as requested."
-            return 0
-        fi
+		read -r -p ":: Enter country: " input_country || {
+			printf '\n'
+			exit 0
+		}
 
-        if [[ "${input_country,,}" == "list" ]]; then
-            log_warn "Retrieving country list..."
-            reflector --list-countries || log_err "Failed to retrieve country list."
-            printf '\n'
-            continue
-        fi
+		if [[ "${input_country,,}" == "s" || "${input_country,,}" == "skip" ]]; then
+			log_warn "Skipping mirror update as requested."
+			return 0
+		fi
 
-        country="${input_country:-$DEFAULT_COUNTRY}"
+		if [[ "${input_country,,}" == "list" ]]; then
+			log_warn "Retrieving country list..."
+			reflector --list-countries || log_err "Failed to retrieve country list."
+			printf '\n'
+			continue
+		fi
 
-        if [[ "${country,,}" == "list" ]]; then
-            log_warn "Retrieving country list..."
-            reflector --list-countries || log_err "Failed to retrieve country list."
-            printf '\n'
-            continue
-        fi
+		country="${input_country:-$DEFAULT_COUNTRY}"
 
-        log_warn "Running Reflector for region: ${country}..."
+		if [[ "${country,,}" == "list" ]]; then
+			log_warn "Retrieving country list..."
+			reflector --list-countries || log_err "Failed to retrieve country list."
+			printf '\n'
+			continue
+		fi
 
-        backup_mirrorlist
+		log_warn "Running Reflector for region: ${country}..."
 
-        if reflector --country "$country" --latest 10 --protocol https \
-                     --sort rate --download-timeout 5 --save "$TARGET_FILE"; then
-            log_ok "Reflector success! Mirrors updated."
-            log_info "Syncing package database..."
-            pacman -Syy || log_err "Database sync failed."
-            break
-        fi
+		backup_mirrorlist
 
-        fallback_date="$(get_fallback_date)"
+		if reflector --country "$country" --latest 10 --protocol https \
+			--sort rate --download-timeout 5 --save "$TARGET_FILE"; then
+			log_ok "Reflector success! Mirrors updated."
+			log_info "Syncing package database..."
+			pacman -Syy || log_err "Database sync failed."
+			break
+		fi
 
-        printf '\n%s!! Reflector failed to update mirrors for "%s".%s\n' "$R" "$country" "$NC"
-        printf '   1) Retry (Enter new country)\n'
-        printf '   2) Use Global Fallback Mirrors (%s)\n' "$fallback_date"
-        printf '   3) Do nothing (Abort changes)\n'
+		fallback_date="$(get_fallback_date)"
 
-        read -r -p ":: Select an option [1-3]: " choice || { printf '\n'; exit 0; }
+		printf '\n%s!! Reflector failed to update mirrors for "%s".%s\n' "$R" "$country" "$NC"
+		printf '   1) Retry (Enter new country)\n'
+		printf '   2) Use Global Fallback Mirrors (%s)\n' "$fallback_date"
+		printf '   3) Do nothing (Abort changes)\n'
 
-        case "$choice" in
-            1)
-                log_info "Retrying..."
-                ;;
-            2)
-                local fb_country fb_input tmp_file
-                while true; do
-                    printf '\n'
-                    read -r -p ":: Enter country for fallback list (type 'list' to view): " fb_input || { printf '\n'; exit 0; }
-                    fb_country="${fb_input:-Worldwide}"
+		read -r -p ":: Select an option [1-3]: " choice || {
+			printf '\n'
+			exit 0
+		}
 
-                    if [[ "${fb_input,,}" == "list" ]]; then
-                        log_info "Available Fallback Countries:"
-                        grep '^## ' <<< "$FALLBACK_RAW_DATA" | sed 's/^## //g' | grep -vE "^Arch Linux|^Generated on|^$" | column || true
-                        continue
-                    fi
+		case "$choice" in
+		1)
+			log_info "Retrying..."
+			;;
+		2)
+			local fb_country fb_input tmp_file
+			while true; do
+				printf '\n'
+				read -r -p ":: Enter country for fallback list (type 'list' to view): " fb_input || {
+					printf '\n'
+					exit 0
+				}
+				fb_country="${fb_input:-Worldwide}"
 
-                    if grep -q "^## ${fb_country}$" <<< "$FALLBACK_RAW_DATA"; then
-                         log_warn "Applying fallback mirrors for: $fb_country"
-                         
-                         tmp_file="$(mktemp)"
-                         
-                         awk -v country="## $fb_country" '
+				if [[ "${fb_input,,}" == "list" ]]; then
+					log_info "Available Fallback Countries:"
+					grep '^## ' <<<"$FALLBACK_RAW_DATA" | sed 's/^## //g' | grep -vE "^Arch Linux|^Generated on|^$" | column || true
+					continue
+				fi
+
+				if grep -q "^## ${fb_country}$" <<<"$FALLBACK_RAW_DATA"; then
+					log_warn "Applying fallback mirrors for: $fb_country"
+
+					tmp_file="$(mktemp)"
+
+					awk -v country="## $fb_country" '
                             $0 == country { found=1; next }
                             /^## / { if (found) exit }
                             found && NF { 
                                 sub(/^#Server/, "Server");
                                 print
                             }
-                         ' <<< "$FALLBACK_RAW_DATA" > "$tmp_file"
+                         ' <<<"$FALLBACK_RAW_DATA" >"$tmp_file"
 
-                         if [[ -s "$tmp_file" ]]; then
-                             backup_mirrorlist
-                             # Use cat to overwrite file contents while preserving existing permissions
-                             cat "$tmp_file" > "$TARGET_FILE"
-                             rm -f "$tmp_file"
-                             
-                             log_ok "Fallback mirrors applied for $fb_country."
-                             log_info "Syncing package database..."
-                             pacman -Syy || log_err "Database sync failed."
-                             break 2
-                         else
-                             rm -f "$tmp_file"
-                             log_err "Failed to extract mirrors. The extracted list was empty."
-                         fi
-                    else
-                        log_err "Country '$fb_country' not found in fallback data."
-                    fi
-                done
-                ;;
-            3)
-                log_warn "Skipping mirror update."
-                break
-                ;;
-            *)
-                log_err "Invalid selection."
-                ;;
-        esac
-    done
+					if [[ -s "$tmp_file" ]]; then
+						backup_mirrorlist
+						# Use cat to overwrite file contents while preserving existing permissions
+						cat "$tmp_file" >"$TARGET_FILE"
+						rm -f "$tmp_file"
+
+						log_ok "Fallback mirrors applied for $fb_country."
+						log_info "Syncing package database..."
+						pacman -Syy || log_err "Database sync failed."
+						break 2
+					else
+						rm -f "$tmp_file"
+						log_err "Failed to extract mirrors. The extracted list was empty."
+					fi
+				else
+					log_err "Country '$fb_country' not found in fallback data."
+				fi
+			done
+			;;
+		3)
+			log_warn "Skipping mirror update."
+			break
+			;;
+		*)
+			log_err "Invalid selection."
+			;;
+		esac
+	done
 }
 
 # --- ENTRY POINT ---
@@ -1307,29 +1246,52 @@ main() {
     done
 
     if (( manual_override )); then
-        printf '\n%s:: Manual OS Override Mode%s\n' "$B" "$NC"
-        printf '   1) Run CachyOS mirror sync (cachyos-rate-mirrors)\n'
-        printf '   2) Run standard Arch mirror sync (Reflector + Fallbacks)\n'
-        printf '   3) Abort\n'
+        printf '\n%s:: Manual Mode%s\n' "$B" "$NC"
+        printf '   1) Run standard Arch mirror sync (Reflector + Fallbacks)\n'
+        printf '   2) Skip (use existing mirrors)\n'
         
         local os_choice
-        read -r -p ":: Select target OS configuration [1-3]: " os_choice || { printf '\n'; exit 0; }
+        read -r -p ":: Select option [1-2]: " os_choice || { printf '\n'; exit 0; }
         
         case "$os_choice" in
-            1) update_cachy_mirrors ;;
-            2) update_mirrors ;;
-            3) log_warn "Aborting script execution."; exit 0 ;;
+            1) update_mirrors ;;
+            2) log_warn "Skipping mirror update."; exit 0 ;;
             *) log_err "Invalid selection. Exiting."; exit 1 ;;
         esac
     else
-        if detect_cachyos; then
-            log_info "CachyOS environment detected."
-            update_cachy_mirrors
+        if detect_artix; then
+            log_info "Artix Linux environment detected."
+            log_warn "Skipping mirror update for Artix (uses different repos)."
+            log_info "Manually configure /etc/pacman.conf for Artix repos if needed."
         else
             log_info "Standard Arch Linux environment detected."
             update_mirrors
         fi
     fi
+}
+
+		case "$os_choice" in
+		1) update_cachy_mirrors ;;
+		2) update_mirrors ;;
+		3)
+			log_warn "Aborting script execution."
+			exit 0
+			;;
+		*)
+			log_err "Invalid selection. Exiting."
+			exit 1
+			;;
+		esac
+	else
+		if detect_artix; then
+			log_info "Artix Linux environment detected."
+			log_warn "Skipping mirror update for Artix (uses different repos)."
+			log_info "Manually configure /etc/pacman.conf for Artix repos if needed."
+		else
+			log_info "Standard Arch Linux environment detected."
+			update_mirrors
+		fi
+	fi
 }
 
 main "$@"
