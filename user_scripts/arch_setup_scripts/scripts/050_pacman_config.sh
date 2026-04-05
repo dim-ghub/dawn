@@ -97,16 +97,7 @@ fi
 
 # --- 4. OpenRC Safeguard ---
 if grep -qiE "^(artix|artixlinux)$" /etc/os-release 2>/dev/null; then
-    log_info "OpenRC-based system detected. Skipping pacman.conf generation."
-    exit 0
-fi
-		log_warn "Proceeding at your own risk..."
-	fi
-fi
-
-# --- 4b. Artix Linux Safeguard ---
-if grep -qiE "^(artix|artixlinux)$" /etc/os-release 2>/dev/null; then
-	log_info "Artix Linux detected. Skipping pacman.conf generation (uses runit repos)."
+	log_info "OpenRC-based system detected. Skipping pacman.conf generation."
 	exit 0
 fi
 
