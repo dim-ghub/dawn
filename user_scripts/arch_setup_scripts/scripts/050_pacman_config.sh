@@ -96,7 +96,7 @@ if ((REVERT_MODE == 1)); then
 fi
 
 # --- 4. OpenRC Safeguard ---
-if grep -qiE "^(artix|artixlinux)$" /etc/os-release 2>/dev/null; then
+if grep -qiE "^ID=(artix|artixlinux)$" /etc/os-release 2>/dev/null; then
 	log_info "OpenRC-based system detected. Skipping pacman.conf generation."
 	exit 0
 fi
