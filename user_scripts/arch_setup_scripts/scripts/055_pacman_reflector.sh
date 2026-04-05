@@ -1100,7 +1100,7 @@ get_fallback_date() {
 
 # --- HELPER: OS Detection ---
 detect_openrc() {
-    if [[ -f /etc/os-release ]] && grep -qiE "^(artix|artixlinux|gentoo)$" /etc/os-release; then
+    if [[ -f /etc/os-release ]] && grep -qiE "^(artix|artixlinux)$" /etc/os-release; then
         return 0
     fi
     return 1

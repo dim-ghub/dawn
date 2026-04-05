@@ -9,7 +9,7 @@
 #   --revert     : Bypasses generation. Atomically restores the pacman
 #                  configuration from /etc/pacman.conf.bak.
 #
-# Note: Automatically skips on OpenRC-based systems (Artix, Gentoo).
+# Note: Automatically skips on OpenRC-based systems (Artix).
 # -----------------------------------------------------------------------------
 
 # --- Strict Error Handling ---
@@ -96,7 +96,7 @@ if ((REVERT_MODE == 1)); then
 fi
 
 # --- 4. OpenRC Safeguard ---
-if grep -qiE "^(artix|artixlinux|gentoo)$" /etc/os-release 2>/dev/null; then
+if grep -qiE "^(artix|artixlinux)$" /etc/os-release 2>/dev/null; then
     log_info "OpenRC-based system detected. Skipping pacman.conf generation."
     exit 0
 fi
