@@ -8,11 +8,6 @@
 # -o pipefail: pipeline return status is the value of the last (failed) command.
 set -euo pipefail
 
-# --- Privilege Check ---
-if [[ "$INIT_SYSTEM" == "openrc" && "$EUID" -ne 0 ]]; then
-	exec sudo "$0" "$@"
-fi
-
 # --- Color Support ---
 # Only use colors if connected to a terminal (prevents log pollution)
 if [[ -t 1 ]]; then
@@ -78,6 +73,11 @@ detect_init() {
 }
 
 readonly INIT_SYSTEM=$(detect_init)
+
+# --- Privilege Check ---
+if [[ "$INIT_SYSTEM" == "openrc" && "$EUID" -ne 0 ]]; then
+	exec sudo "$0" "$@"
+fi
 
 # --- Helper Functions ---
 
