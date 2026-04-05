@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Updates mirrorlist using Reflector for Arch Linux.
+# Skips on OpenRC-based systems (Artix, Gentoo).
 
 set -euo pipefail
 
@@ -1098,8 +1099,8 @@ get_fallback_date() {
 }
 
 # --- HELPER: OS Detection ---
-detect_artix() {
-    if [[ -f /etc/os-release ]] && grep -qE '^ID=(artix|artixlinux)$' /etc/os-release; then
+detect_openrc() {
+    if [[ -f /etc/os-release ]] && grep -qiE "^(artix|artixlinux|gentoo)$" /etc/os-release; then
         return 0
     fi
     return 1
@@ -1283,10 +1284,10 @@ main() {
 			;;
 		esac
 	else
-		if detect_artix; then
-			log_info "Artix Linux environment detected."
-			log_warn "Skipping mirror update for Artix (uses different repos)."
-			log_info "Manually configure /etc/pacman.conf for Artix repos if needed."
+		if detect_openrc; then
+			log_info "OpenRC-based system detected."
+			log_warn "Skipping mirror update for OpenRC (uses different repos)."
+			log_info "Manually configure /etc/pacman.conf for OpenRC repos if needed."
 		else
 			log_info "Standard Arch Linux environment detected."
 			update_mirrors

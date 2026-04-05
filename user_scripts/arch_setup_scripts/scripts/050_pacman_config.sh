@@ -9,7 +9,7 @@
 #   --revert     : Bypasses generation. Atomically restores the pacman
 #                  configuration from /etc/pacman.conf.bak.
 #
-# Note: Automatically skips on Artix Linux (uses runit repos).
+# Note: Automatically skips on OpenRC-based systems (Artix, Gentoo).
 # -----------------------------------------------------------------------------
 
 # --- Strict Error Handling ---
@@ -95,9 +95,9 @@ if ((REVERT_MODE == 1)); then
 	fi
 fi
 
-# --- 4. Artix Linux Safeguard ---
-if grep -qiE "^(artix|artixlinux)$" /etc/os-release 2>/dev/null; then
-    log_info "Artix Linux detected. Skipping pacman.conf generation (uses runit repos)."
+# --- 4. OpenRC Safeguard ---
+if grep -qiE "^(artix|artixlinux|gentoo)$" /etc/os-release 2>/dev/null; then
+    log_info "OpenRC-based system detected. Skipping pacman.conf generation."
     exit 0
 fi
 		log_warn "Proceeding at your own risk..."
