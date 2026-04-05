@@ -19,8 +19,14 @@ NC=$'\033[0m' # No Color
 
 # --- 1. Root Privilege Escalation ---
 if [[ $EUID -ne 0 ]]; then
-   printf "${YELLOW}[Info] script not run as root. Escalating privileges...${NC}\n"
-   exec sudo "$0" "$@"
+	printf "${YELLOW}[Info] script not run as root. Escalating privileges...${NC}\n"
+	exec sudo "$0" "$@"
+fi
+
+# --- 1b. OpenRC Detection ---
+if command -v rc-service >/dev/null 2>&1; then
+	printf "${YELLOW}[Info] OpenRC detected. Skipping systemd zram-generator config.${NC}\n"
+	exit 0
 fi
 
 # --- 2. Setup Variables ---
@@ -34,11 +40,11 @@ log_err() { printf "${RED}[ERROR]${NC} %s\n" "$1" >&2; }
 # --- 3. Memory Calculation (Pure Bash) ---
 # Read MemTotal from /proc/meminfo to avoid forking 'free' or 'awk'
 while read -r key value unit; do
-    if [[ "$key" == "MemTotal:" ]]; then
-        TOTAL_MEM_KB=$value
-        break
-    fi
-done < /proc/meminfo
+	if [[ "$key" == "MemTotal:" ]]; then
+		TOTAL_MEM_KB=$value
+		break
+	fi
+done </proc/meminfo
 
 # Convert kB to MB for comparison
 TOTAL_MEM_MB=$((TOTAL_MEM_KB / 1024))
@@ -47,24 +53,24 @@ log_info "Detected System RAM: ${TOTAL_MEM_MB} MB"
 
 # --- 4. Logic Determination ---
 # Threshold: 8GB = 8192 MB
-if (( TOTAL_MEM_MB <= 8192 )); then
-    ZRAM_SIZE_VAL="ram"
-    log_info "RAM is <= 8GB. Setting zram-size to full 'ram'."
+if ((TOTAL_MEM_MB <= 8192)); then
+	ZRAM_SIZE_VAL="ram"
+	log_info "RAM is <= 8GB. Setting zram-size to full 'ram'."
 else
-    ZRAM_SIZE_VAL="ram - 2000"
-    log_info "RAM is > 8GB. Setting zram-size to 'ram - 2000'."
+	ZRAM_SIZE_VAL="ram - 2000"
+	log_info "RAM is > 8GB. Setting zram-size to 'ram - 2000'."
 fi
 
 # --- 5. Execution ---
 
 # Ensure the mount point exists for zram1
 if [[ ! -d "$MOUNT_POINT" ]]; then
-    mkdir -p "$MOUNT_POINT"
-    log_info "Created mount point: $MOUNT_POINT"
+	mkdir -p "$MOUNT_POINT"
+	log_info "Created mount point: $MOUNT_POINT"
 fi
 
 # Write the configuration cleanly (Overwrites existing file, no backups created)
-cat > "$CONFIG_FILE" <<EOF
+cat >"$CONFIG_FILE" <<EOF
 [zram0]
 zram-size = ${ZRAM_SIZE_VAL}
 compression-algorithm = zstd
