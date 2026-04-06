@@ -15,10 +15,10 @@ set -o pipefail
 # Modify these values to set your desired timeouts (in seconds)
 #===============================================================================
 
-readonly TIMEOUT_DIM=150        # Dim Screen
-readonly TIMEOUT_LOCK=300       # Lock Session
-readonly TIMEOUT_OFF=330       # Screen Off (DPMS)
-readonly TIMEOUT_SUSPEND=600     # System Suspend
+readonly TIMEOUT_DIM=150     # Dim Screen
+readonly TIMEOUT_LOCK=300    # Lock Session
+readonly TIMEOUT_OFF=330     # Screen Off (DPMS)
+readonly TIMEOUT_SUSPEND=600 # System Suspend
 
 #===============================================================================
 # SYSTEM CONSTANTS
@@ -47,29 +47,29 @@ readonly C_RESET=$'\033[0m'
 TEMP_FILE=""
 
 cleanup() {
-    if [[ -n "${TEMP_FILE:-}" && -f "$TEMP_FILE" ]]; then
-        rm -f "$TEMP_FILE"
-    fi
+	if [[ -n "${TEMP_FILE:-}" && -f "$TEMP_FILE" ]]; then
+		rm -f "$TEMP_FILE"
+	fi
 }
 
 # Trap multiple signals for robust cleanup
 trap cleanup EXIT INT TERM HUP
 
 die() {
-    printf "${C_RED}✗ Error: %s${C_RESET}\n" "$1" >&2
-    exit 1
+	printf "${C_RED}✗ Error: %s${C_RESET}\n" "$1" >&2
+	exit 1
 }
 
 warn() {
-    printf "${C_YELLOW}⚠ %s${C_RESET}\n" "$1"
+	printf "${C_YELLOW}⚠ %s${C_RESET}\n" "$1"
 }
 
 success() {
-    printf "${C_GREEN}✓ %s${C_RESET}\n" "$1"
+	printf "${C_GREEN}✓ %s${C_RESET}\n" "$1"
 }
 
 info() {
-    printf "${C_BLUE}%s${C_RESET}\n" "$1"
+	printf "${C_BLUE}%s${C_RESET}\n" "$1"
 }
 
 #===============================================================================
@@ -79,15 +79,15 @@ info() {
 # Update all timeout values in a single atomic pass
 # (Original logic preserved exactly as requested)
 update_all_timeouts() {
-    local dim_val="$1"
-    local lock_val="$2"
-    local off_val="$3"
-    local susp_val="$4"
-    
-    awk -v dim_sig="$SIG_DIM" -v dim_val="$dim_val" \
-        -v lock_sig="$SIG_LOCK" -v lock_val="$lock_val" \
-        -v off_sig="$SIG_OFF" -v off_val="$off_val" \
-        -v susp_sig="$SIG_SUSPEND" -v susp_val="$susp_val" '
+	local dim_val="$1"
+	local lock_val="$2"
+	local off_val="$3"
+	local susp_val="$4"
+
+	awk -v dim_sig="$SIG_DIM" -v dim_val="$dim_val" \
+		-v lock_sig="$SIG_LOCK" -v lock_val="$lock_val" \
+		-v off_sig="$SIG_OFF" -v off_val="$off_val" \
+		-v susp_sig="$SIG_SUSPEND" -v susp_val="$susp_val" '
     BEGIN { in_block = 0; buffer = "" }
     
     /^[[:space:]]*listener[[:space:]]*\{?[[:space:]]*$/ {
@@ -121,36 +121,36 @@ update_all_timeouts() {
     END {
         if (buffer != "") print buffer
     }
-    ' "$CONFIG_FILE" > "$TEMP_FILE"
-    
-    # Safety Checks
-    if [[ ! -s "$TEMP_FILE" ]]; then
-        die "Generated config is empty - aborting to prevent data loss"
-    fi
-    
-    local orig_size new_size
-    orig_size=$(wc -c < "$CONFIG_FILE")
-    new_size=$(wc -c < "$TEMP_FILE")
-    
-    if (( new_size < orig_size / 2 )); then
-        die "Generated config is suspiciously small (${new_size} vs ${orig_size} bytes) - aborting"
-    fi
-    
-    # Backup
-    if ! cp -f "$CONFIG_FILE" "$BACKUP_FILE"; then
-        warn "Could not create backup at $BACKUP_FILE"
-    fi
-    
-    # Atomic Move
-    if ! mv -f "$TEMP_FILE" "$CONFIG_FILE"; then
-        if [[ -f "$BACKUP_FILE" ]]; then
-            cp -f "$BACKUP_FILE" "$CONFIG_FILE" 2>/dev/null || true
-        fi
-        die "Failed to update config file"
-    fi
-    
-    # Recreate temp file
-    TEMP_FILE=$(mktemp) || true
+    ' "$CONFIG_FILE" >"$TEMP_FILE"
+
+	# Safety Checks
+	if [[ ! -s "$TEMP_FILE" ]]; then
+		die "Generated config is empty - aborting to prevent data loss"
+	fi
+
+	local orig_size new_size
+	orig_size=$(wc -c <"$CONFIG_FILE")
+	new_size=$(wc -c <"$TEMP_FILE")
+
+	if ((new_size < orig_size / 2)); then
+		die "Generated config is suspiciously small (${new_size} vs ${orig_size} bytes) - aborting"
+	fi
+
+	# Backup
+	if ! cp -f "$CONFIG_FILE" "$BACKUP_FILE"; then
+		warn "Could not create backup at $BACKUP_FILE"
+	fi
+
+	# Atomic Move
+	if ! mv -f "$TEMP_FILE" "$CONFIG_FILE"; then
+		if [[ -f "$BACKUP_FILE" ]]; then
+			cp -f "$BACKUP_FILE" "$CONFIG_FILE" 2>/dev/null || true
+		fi
+		die "Failed to update config file"
+	fi
+
+	# Recreate temp file
+	TEMP_FILE=$(mktemp) || true
 }
 
 #===============================================================================
@@ -158,54 +158,66 @@ update_all_timeouts() {
 #===============================================================================
 
 main() {
-    # 1. Validation
-    [[ -f "$CONFIG_FILE" ]] || die "Config file not found: $CONFIG_FILE"
-    [[ -w "$CONFIG_FILE" ]] || die "Config file not writable: $CONFIG_FILE"
-    TEMP_FILE=$(mktemp) || die "Failed to create temporary file"
+	# 1. Validation
+	[[ -f "$CONFIG_FILE" ]] || die "Config file not found: $CONFIG_FILE"
+	[[ -w "$CONFIG_FILE" ]] || die "Config file not writable: $CONFIG_FILE"
+	TEMP_FILE=$(mktemp) || die "Failed to create temporary file"
 
-    echo
-    printf "${C_BOLD}HYPRIDLE CONFIGURATOR${C_RESET}\n"
-    printf "Target Config: ${C_BLUE}%s${C_RESET}\n" "$CONFIG_FILE"
-    echo "----------------------------------------"
-    printf "%-15s : ${C_GREEN}%s${C_RESET} s\n" "Dim Screen" "$TIMEOUT_DIM"
-    printf "%-15s : ${C_GREEN}%s${C_RESET} s\n" "Lock Session" "$TIMEOUT_LOCK"
-    printf "%-15s : ${C_GREEN}%s${C_RESET} s\n" "Screen Off" "$TIMEOUT_OFF"
-    printf "%-15s : ${C_GREEN}%s${C_RESET} s\n" "System Suspend" "$TIMEOUT_SUSPEND"
-    echo "----------------------------------------"
+	echo
+	printf "${C_BOLD}HYPRIDLE CONFIGURATOR${C_RESET}\n"
+	printf "Target Config: ${C_BLUE}%s${C_RESET}\n" "$CONFIG_FILE"
+	echo "----------------------------------------"
+	printf "%-15s : ${C_GREEN}%s${C_RESET} s\n" "Dim Screen" "$TIMEOUT_DIM"
+	printf "%-15s : ${C_GREEN}%s${C_RESET} s\n" "Lock Session" "$TIMEOUT_LOCK"
+	printf "%-15s : ${C_GREEN}%s${C_RESET} s\n" "Screen Off" "$TIMEOUT_OFF"
+	printf "%-15s : ${C_GREEN}%s${C_RESET} s\n" "System Suspend" "$TIMEOUT_SUSPEND"
+	echo "----------------------------------------"
 
-    # 2. Logic Check
-    if (( TIMEOUT_DIM >= TIMEOUT_LOCK )) || \
-       (( TIMEOUT_LOCK >= TIMEOUT_OFF )) || \
-       (( TIMEOUT_OFF >= TIMEOUT_SUSPEND )); then
-        warn "Timeline logic check failed!" 
-        warn "Expected: Dim < Lock < Off < Suspend"
-        read -rp "Apply settings anyway? [y/N] " -n 1 REPLY
-        echo
-        [[ "${REPLY:-n}" =~ ^[Yy]$ ]] || exit 0
-    fi
+	# 2. Logic Check
+	if ((TIMEOUT_DIM >= TIMEOUT_LOCK)) ||
+		((TIMEOUT_LOCK >= TIMEOUT_OFF)) ||
+		((TIMEOUT_OFF >= TIMEOUT_SUSPEND)); then
+		warn "Timeline logic check failed!"
+		warn "Expected: Dim < Lock < Off < Suspend"
+		read -rp "Apply settings anyway? [y/N] " -n 1 REPLY
+		echo
+		[[ "${REPLY:-n}" =~ ^[Yy]$ ]] || exit 0
+	fi
 
-    # 3. Apply Changes
-    info "Writing configuration..."
-    update_all_timeouts "$TIMEOUT_DIM" "$TIMEOUT_LOCK" "$TIMEOUT_OFF" "$TIMEOUT_SUSPEND"
-    success "Configuration saved successfully."
+	# 3. Apply Changes
+	info "Writing configuration..."
+	update_all_timeouts "$TIMEOUT_DIM" "$TIMEOUT_LOCK" "$TIMEOUT_OFF" "$TIMEOUT_SUSPEND"
+	success "Configuration saved successfully."
 
-    # 4. Restart Service
-    if systemctl --user is-active --quiet hypridle 2>/dev/null; then
-        info "Restarting hypridle service..."
-        if systemctl --user restart hypridle; then
-            success "Hypridle restarted."
-        else
-            die "Failed to restart hypridle."
-        fi
-    else
-        warn "Hypridle service is not running."
-        read -rp "Start it now? [y/N] " -n 1 REPLY
-        echo
-        if [[ "${REPLY:-n}" =~ ^[Yy]$ ]]; then
-            systemctl --user start hypridle
-            success "Hypridle started."
-        fi
-    fi
+	# 4. Restart Service
+	if command -v systemctl >/dev/null 2>&1; then
+		if systemctl --user is-active --quiet hypridle 2>/dev/null; then
+			info "Restarting hypridle service..."
+			if systemctl --user restart hypridle; then
+				success "Hypridle restarted."
+			else
+				die "Failed to restart hypridle."
+			fi
+		else
+			warn "Hypridle service is not running."
+			read -rp "Start it now? [y/N] " -n 1 REPLY
+			echo
+			if [[ "${REPLY:-n}" =~ ^[Yy]$ ]]; then
+				systemctl --user start hypridle
+				success "Hypridle started."
+			fi
+		fi
+	elif command -v rc-service >/dev/null 2>&1; then
+		info "OpenRC detected. Restarting hypridle..."
+		if pgrep -x hypridle >/dev/null 2>&1; then
+			pkill -x hypridle
+			sleep 0.5
+		fi
+		hypridle &
+		success "Hypridle restarted."
+	else
+		warn "Could not detect init system. Please restart hypridle manually."
+	fi
 }
 
 main "$@"
