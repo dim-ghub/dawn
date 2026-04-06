@@ -357,8 +357,8 @@ show_utils_menu() {
 		'  Dusky Control Center')
 			run_app "$SCRIPTS_DIR/dusky_system/dusky_control_center.py"
 			;;
-		'󰖩  Wi-Fi (TUI)')
-			run_term "wifitui" wifitui
+		'󰖩  Wi-Fi (GUI)')
+			run_app connman-gtk
 			;;
 		'󰂯  Bluetooth')
 			run_app blueman-manager

@@ -211,7 +211,7 @@
         "custom/network": {
             "return-type": "json",
             "tooltip": true,
-            "tooltip-format": "LMB: wifitui\nRMB: WiFi ON\nMMB: WiFi OFF",
+            "tooltip-format": "LMB: connman-gtk\nRMB: WiFi ON\nMMB: WiFi OFF",
             "on-click": "uwsm-app -- rofi-connman",
             "on-click-right": "systemctl --user restart network_meter.service && nmcli radio wifi on && notify-send 'Turned ON WiFi'",
             "on-click-middle": "nmcli radio wifi off && notify-send 'Turned OFF WiFi'",

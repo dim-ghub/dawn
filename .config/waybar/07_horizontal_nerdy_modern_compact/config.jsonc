@@ -252,7 +252,7 @@
         "format-disconnected": "󰤭",
         "format-disabled": "󰀝",
         "format-icons": ["󰤯", "󰤟", "󰤢", "󰤥", "󰤨"],
-        "tooltip-format-wifi": " {essid}\n\nSignal: {signalStrength}% ({signaldBm} dBm)\nFrequency: {frequency} MHz\nInterface: {ifname}\nIP: {ipaddr}/{cidr}\n\n󰕒 {bandwidthUpBytes}  󰇚 {bandwidthDownBytes}\n\nLMB: wifitui\nRMB: WiFi ON\nMMB: WiFi OFF",
+        "tooltip-format-wifi": " {essid}\n\nSignal: {signalStrength}% ({signaldBm} dBm)\nFrequency: {frequency} MHz\nInterface: {ifname}\nIP: {ipaddr}/{cidr}\n\n󰕒 {bandwidthUpBytes}  󰇚 {bandwidthDownBytes}\n\nLMB: connman-gtk\nRMB: WiFi ON\nMMB: WiFi OFF",
         "tooltip-format-ethernet": "󰈀 Wired Connected\n\nInterface: {ifname}\nIP: {ipaddr}/{cidr}\nGateway: {gwaddr}\n\n(Speed shown in center meter)",
         "tooltip-format-disconnected": "No connection\n\nRMB: Turn WiFi ON",
         "interval": 2,

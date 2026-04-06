@@ -118,7 +118,7 @@
         "format-ethernet": "󰈀",
         "format-disconnected": "󰤭",
         "tooltip-format-wifi": "{essid} ({signalStrength}%)",
-        "on-click": "uwsm-app -- kitty -e wifitui"
+        "on-click": "uwsm-app -- kitty -e connman-gtk"
     },
     "bluetooth": {
         "format": "",
