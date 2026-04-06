@@ -19,7 +19,7 @@ fi
 # --- Constants ---
 MONITORS_CONF="${HOME}/.config/hypr/edit_here/source/monitors.conf"
 XSETUP_FILE="/usr/share/sddm/scripts/Xsetup"
-SDDM_CONF="/etc/sddm.conf.d/10-dusky-theme.conf"
+SDDM_CONF="/etc/sddm.conf.d/10-dawn-theme.conf"
 
 # --- Cleanup ---
 cleanup() { return 0; }

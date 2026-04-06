@@ -22,7 +22,7 @@ readonly LOG_SOURCE="${HOME:?HOME is not set}/Documents/logs"
 readonly HYPR_EDIT_DIR="$HOME/.config/hypr/edit_here"
 readonly UPLOAD_PRIMARY="https://0x0.st"
 readonly UPLOAD_SECONDARY="https://litterbox.catbox.moe/resources/internals/api.php"
-readonly GIT_DIR="$HOME/dusky"
+readonly GIT_DIR="$HOME/dawn"
 readonly WORK_TREE="$HOME"
 readonly MAX_UPLOAD_BYTES=536870912  # 512 MiB
 
@@ -135,9 +135,9 @@ capture_gitdelta() {
     fi
 
     # Zshrc Alignment: Update the index FIRST so newly listed files are tracked
-    local pathspec_file="${WORK_TREE}/.git_dusky_list"
+    local pathspec_file="${WORK_TREE}/.git_dawn_list"
     if [[ -f "$pathspec_file" ]]; then
-        (cd "$WORK_TREE" && "${git_cmd[@]}" add --pathspec-from-file=.git_dusky_list 2>/dev/null) || true
+        (cd "$WORK_TREE" && "${git_cmd[@]}" add --pathspec-from-file=.git_dawn_list 2>/dev/null) || true
     else
         log "WARNING" "Pathspec file not found: $pathspec_file — skipping git add"
     fi

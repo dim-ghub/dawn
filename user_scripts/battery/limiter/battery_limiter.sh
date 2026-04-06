@@ -90,7 +90,7 @@ resolve_user_context() {
 	user_home=$(getent passwd "${TARGET_USER}" | cut -d: -f6 || true)
 	user_home=${user_home:-/root}
 
-	STATE_DIR="${user_home}/.config/dusky/settings"
+	STATE_DIR="${user_home}/.config/dawn/settings"
 	STATE_FILE="${STATE_DIR}/battery_limiter"
 }
 

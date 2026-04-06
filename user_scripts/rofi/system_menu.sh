@@ -355,7 +355,7 @@ show_utils_menu() {
 
 		case "$choice" in
 		'  Dusky Control Center')
-			run_app "$SCRIPTS_DIR/dusky_system/dusky_control_center.py"
+			run_app "$SCRIPTS_DIR/dawn_system/dawn_control_center.py"
 			;;
 		'󰖩  Wi-Fi (GUI)')
 			run_app connman-gtk

@@ -3,7 +3,7 @@
 # ==============================================================================
 # ARCH LINUX DOTFILES SYNC
 # Context: Hyprland / UWSM / Bash 5+
-# Logic: Ask Intent -> Clone Bare -> Reset -> Sync via .git_dusky_list
+# Logic: Ask Intent -> Clone Bare -> Reset -> Sync via .git_dawn_list
 # ==============================================================================
 # Features:
 #   1. Forces execution from $HOME so relative paths resolve correctly.
@@ -18,9 +18,9 @@ set -euo pipefail
 IFS=$'\n\t'
 
 # 2. CONSTANTS
-readonly DEFAULT_REPO_NAME="dusky"
-readonly DOTFILES_DIR="$HOME/dusky"
-readonly DOTFILES_LIST="$HOME/.git_dusky_list"
+readonly DEFAULT_REPO_NAME="dawn"
+readonly DOTFILES_DIR="$HOME/dawn"
+readonly DOTFILES_LIST="$HOME/.git_dawn_list"
 readonly SSH_KEY_PATH="$HOME/.ssh/id_ed25519"
 readonly SSH_DIR="$HOME/.ssh"
 readonly REQUIRED_CMDS=(git ssh ssh-keygen ssh-agent ssh-add mktemp)
@@ -270,7 +270,7 @@ log_info "Current Git Status:"
 dotgit status --short
 
 if [[ -f "$DOTFILES_LIST" ]]; then
-    log_info "Processing .git_dusky_list..."
+    log_info "Processing .git_dawn_list..."
 
     CLEAN_LIST=$(mktemp)
 
@@ -294,7 +294,7 @@ if [[ -f "$DOTFILES_LIST" ]]; then
         dotgit add -u
     fi
 else
-    log_warn ".git_dusky_list not found. Falling back to updating tracked files..."
+    log_warn ".git_dawn_list not found. Falling back to updating tracked files..."
     dotgit add -u
 fi
 

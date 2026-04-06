@@ -16,14 +16,14 @@ Environment=PYTHONUNBUFFERED=1
 MemoryAccounting=yes
 
 # The %h specifier automatically inserts your home directory path
-ExecStart=%h/user_scripts/dusky_system/control_center/dusky_control_center.py --gapplication-service
+ExecStart=%h/user_scripts/dawn_system/control_center/dawn_control_center.py --gapplication-service
 
 # Restart automatically if it crashes
 Restart=always
 RestartSec=3
 
-# Logs will show up as "dusky[PID]: ..."
-SyslogIdentifier=dusky
+# Logs will show up as "dawn[PID]: ..."
+SyslogIdentifier=dawn
 
 # Better process scheduling group
 Slice=app.slice

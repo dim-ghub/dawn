@@ -1,10 +1,10 @@
 [Desktop Entry]
 Type=Application
-Name=dusky Toggle Hypridle
+Name=dawn Toggle Hypridle
 Comment=Enable/Disable Hypridle
 Exec=/home/dusk/user_scripts/waybar/toggle_hypridle.sh
 Terminal=false
 Categories=System;
-Keywords=dusky;hypridle;toggle;switch;
+Keywords=dawn;hypridle;toggle;switch;
 Icon=system-suspend
 StartupNotify=true

@@ -6,7 +6,7 @@
 }
 {
     "label": "logout",
-    "action": "$HOME/user_scripts/wlogout/dusky_session.sh logout",
+    "action": "$HOME/user_scripts/wlogout/dawn_session.sh logout",
     "text": "Logout",
     "keybind": "e"
 }
@@ -18,19 +18,19 @@
 }
 {
     "label": "shutdown",
-    "action": "$HOME/user_scripts/wlogout/dusky_session.sh poweroff",
+    "action": "$HOME/user_scripts/wlogout/dawn_session.sh poweroff",
     "text": "Shutdown",
     "keybind": "s"
 }
 {
     "label": "soft-reboot",
-    "action": "$HOME/user_scripts/wlogout/dusky_session.sh soft-reboot",
+    "action": "$HOME/user_scripts/wlogout/dawn_session.sh soft-reboot",
     "text": "Soft-Reboot",
     "keybind": "q"
 }
 {
     "label": "reboot",
-    "action": "$HOME/user_scripts/wlogout/dusky_session.sh reboot",
+    "action": "$HOME/user_scripts/wlogout/dawn_session.sh reboot",
     "text": "Reboot",
     "keybind": "r"
 }

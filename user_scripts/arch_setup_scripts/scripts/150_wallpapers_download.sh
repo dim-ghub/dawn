@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Downloads dusky wallpaers and copies them to the required directory
+# Downloads dawn wallpaers and copies them to the required directory
 
 set -euo pipefail
 

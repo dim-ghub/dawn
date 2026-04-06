@@ -29,8 +29,8 @@ fi
 
 readonly SYMLINK_MAP=(
     # [DBus] Dusky Control Center Activation
-    "$HOME/user_scripts/dusky_system/control_center/service/com.github.dusky.controlcenter.service | $HOME/.local/share/dbus-1/services/com.github.dusky.controlcenter.service"
-    "$HOME/user_scripts/sliders/service/org.dusky.sliders.service | $HOME/.local/share/dbus-1/services/org.dusky.sliders.service"
+    "$HOME/user_scripts/dawn_system/control_center/service/com.github.dawn.controlcenter.service | $HOME/.local/share/dbus-1/services/com.github.dawn.controlcenter.service"
+    "$HOME/user_scripts/sliders/service/org.dawn.sliders.service | $HOME/.local/share/dbus-1/services/org.dawn.sliders.service"
 )
 
 # ==============================================================================

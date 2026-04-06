@@ -117,18 +117,18 @@ declare -ri SYNC_RC_UNSAFE=20
 # ==============================================================================
 # CONFIGURATION
 # ==============================================================================
-declare -r DOTFILES_GIT_DIR="${HOME}/dusky"
+declare -r DOTFILES_GIT_DIR="${HOME}/dawn"
 declare -r WORK_TREE="${HOME}"
 declare -r SCRIPT_DIR="${HOME}/user_scripts/arch_setup_scripts/scripts"
 declare -r LOG_BASE_DIR="${HOME}/Documents/logs"
-declare -r BACKUP_BASE_DIR="${HOME}/Documents/dusky_backups"
-declare -r STATE_HOME_DIR="${XDG_STATE_HOME:-${HOME}/.local/state}/dusky"
+declare -r BACKUP_BASE_DIR="${HOME}/Documents/dawn_backups"
+declare -r STATE_HOME_DIR="${XDG_STATE_HOME:-${HOME}/.local/state}/dawn"
 declare -r FALLBACK_LOG_BASE_DIR="${STATE_HOME_DIR}/logs"
 declare -r FALLBACK_BACKUP_BASE_DIR="${STATE_HOME_DIR}/backups"
-declare -r REPO_URL="https://github.com/dim-ghub/duskyRC"
+declare -r REPO_URL="https://github.com/dim-ghub/dawn"
 declare -r BRANCH="main"
-declare -r UPSTREAM_REMOTE="dusky-upstream"
-declare -r UPSTREAM_TRACKING_REF="refs/dusky-updater/upstream/${BRANCH}"
+declare -r UPSTREAM_REMOTE="dawn-upstream"
+declare -r UPSTREAM_TRACKING_REF="refs/dawn-updater/upstream/${BRANCH}"
 
 # ==============================================================================
 # USER CONFIGURATION
@@ -166,18 +166,18 @@ declare -A CUSTOM_SCRIPT_PATHS=(
 	["pacman_packages.sh"]="user_scripts/misc_extra/pacman_packages.sh"
 	["paru_packages.sh"]="user_scripts/misc_extra/paru_packages.sh"
 	["copy_service_files.sh"]="user_scripts/misc_extra/copy_service_files.sh"
-	["update_checker.sh"]="user_scripts/update_dusky/update_checker/update_checker.sh"
-	["cc_restart.sh"]="user_scripts/dusky_system/reload_cc/cc_restart.sh"
-	["dusky_service_manager.sh"]="user_scripts/services/dusky_service_manager.sh"
+	["update_checker.sh"]="user_scripts/update_dawn/update_checker/update_checker.sh"
+	["cc_restart.sh"]="user_scripts/dawn_system/reload_cc/cc_restart.sh"
+	["dawn_service_manager.sh"]="user_scripts/services/dawn_service_manager.sh"
 	["append_defaults_keybinds_edit_here.sh"]="user_scripts/misc_extra/append_defaults_keybinds_edit_here.sh"
 	["append_sourcing_line_workspace.sh"]="user_scripts/misc_extra/delete_in_3_weeks/append_sourcing_line_workspace.sh"
 	["append_gaps_line_in_appearance.sh"]="user_scripts/misc_extra/delete_in_3_weeks/append_gaps_line_in_appearance.sh"
-	["dusky_commands_before.sh"]="user_scripts/misc_extra/dusky_commands_before.sh"
-	["dusky_commands_after.sh"]="user_scripts/misc_extra/dusky_commands_after.sh"
+	["dawn_commands_before.sh"]="user_scripts/misc_extra/dawn_commands_before.sh"
+	["dawn_commands_after.sh"]="user_scripts/misc_extra/dawn_commands_after.sh"
 	["rofi_wallpaper_selctor.sh"]="user_scripts/rofi/rofi_wallpaper_selctor.sh"
 	["hypr_anim.sh"]="user_scripts/rofi/hypr_anim.sh"
-	["dusky_matugen_config_tui.sh"]="user_scripts/theme_matugen/dusky_matugen_config_tui.sh"
-	["dusky_firefox_tui.sh"]="user_scripts/theme_matugen/dusky_firefox_tui.sh"
+	["dawn_matugen_config_tui.sh"]="user_scripts/theme_matugen/dawn_matugen_config_tui.sh"
+	["dawn_firefox_tui.sh"]="user_scripts/theme_matugen/dawn_firefox_tui.sh"
 	["theme_ctl.sh"]="user_scripts/theme_matugen/theme_ctl.sh"
 )
 
@@ -199,7 +199,7 @@ declare -A CUSTOM_SCRIPT_PATHS=(
 declare -ra UPDATE_SEQUENCE=(
 
 	#================= CUSTOM=====================
-	"U | dusky_commands_before.sh"
+	"U | dawn_commands_before.sh"
 	"U | rofi_wallpaper_selctor.sh --cache-only --progress"
 	"S | pacman_packages.sh"
 	"U | paru_packages.sh"
@@ -276,7 +276,7 @@ declare -ra UPDATE_SEQUENCE=(
 	#    "U | 345_faster_whisper_cpu.sh"
 	#    "S | 350_dns_systemd_resolve.sh"
 	#    "U | 355_hyprexpo_plugin.sh"
-	#    "U | 356_dusky_plugin_manager.sh"
+	#    "U | 356_dawn_plugin_manager.sh"
 	#    "U | 360_obsidian_pensive_vault_configure.sh"
 	#    "U | 365_cache_purge.sh"
 	#    "S | 370_arch_install_scripts_cleanup.sh"
@@ -300,7 +300,7 @@ declare -ra UPDATE_SEQUENCE=(
 	#    "S | 465_sddm_setup.sh"
 	#    "U | 470_vesktop_matugen.sh"
 	#    "U | 475_reverting_sleep_timeout.sh"
-	#    "U | 480_dusky_commands.sh"
+	#    "U | 480_dawn_commands.sh"
 	"S | 485_sudoers_nopassword.sh"
 
 	#================= CUSTOM=====================
@@ -308,15 +308,15 @@ declare -ra UPDATE_SEQUENCE=(
 	"U | copy_service_files.sh --default"
 	"U | update_checker.sh --num"
 	"U | cc_restart.sh --quiet"
-	"S | dusky_service_manager.sh"
+	"S | dawn_service_manager.sh"
 	"U | append_defaults_keybinds_edit_here.sh"
 	"U | append_sourcing_line_workspace.sh"
 	"U | append_gaps_line_in_appearance.sh"
-	"U | ignore-fail | dusky_matugen_config_tui.sh --smart"
-	#    "U | ignore-fail | dusky_firefox_tui.sh --sync --all"
+	"U | ignore-fail | dawn_matugen_config_tui.sh --smart"
+	#    "U | ignore-fail | dawn_firefox_tui.sh --sync --all"
 	"U | ignore-fail | hypr_anim.sh --current"
 	"U | ignore-fail | theme_ctl.sh refresh"
-	"U | dusky_commands_after.sh"
+	"U | dawn_commands_after.sh"
 )
 
 # ==============================================================================
@@ -571,7 +571,7 @@ show_help() {
 	cat <<'HELPEOF'
 Dusky Updater — Dotfile sync and setup tool for Arch Linux / Hyprland
 
-Usage: dusky_updater.sh [OPTIONS]
+Usage: dawn_updater.sh [OPTIONS]
 
 Options:
   --help, -h               Show this help message and exit
@@ -606,11 +606,11 @@ Rules:
 
 Logs are saved to:
   ~/Documents/logs/
-  Fallback: ~/.local/state/dusky/logs/
+  Fallback: ~/.local/state/dawn/logs/
 
 Backups are saved to:
-  ~/Documents/dusky_backups/
-  Fallback: ~/.local/state/dusky/backups/
+  ~/Documents/dawn_backups/
+  Fallback: ~/.local/state/dawn/backups/
 HELPEOF
 }
 
@@ -911,7 +911,7 @@ setup_runtime_dir() {
 	local candidate=""
 
 	if [[ -n "${XDG_RUNTIME_DIR:-}" ]]; then
-		candidate="${XDG_RUNTIME_DIR}/dusky-updater"
+		candidate="${XDG_RUNTIME_DIR}/dawn-updater"
 		if ensure_secure_runtime_dir "$candidate"; then
 			RUNTIME_DIR="$candidate"
 			LOCK_FILE="${candidate}/lock"
@@ -919,7 +919,7 @@ setup_runtime_dir() {
 		fi
 	fi
 
-	candidate="/tmp/dusky-updater-${EUID}"
+	candidate="/tmp/dawn-updater-${EUID}"
 	if ! ensure_secure_runtime_dir "$candidate"; then
 		printf 'Error: Cannot create secure runtime directory: %s\n' "$candidate" >&2
 		exit 1
@@ -964,7 +964,7 @@ setup_storage_roots() {
 }
 
 setup_logging() {
-	LOG_FILE="$(make_private_file_under "$ACTIVE_LOG_BASE_DIR" "dusky_update_${RUN_TIMESTAMP}_XXXXXX.log")" || {
+	LOG_FILE="$(make_private_file_under "$ACTIVE_LOG_BASE_DIR" "dawn_update_${RUN_TIMESTAMP}_XXXXXX.log")" || {
 		printf 'Error: Cannot create log file\n' >&2
 		exit 1
 	}
@@ -1126,7 +1126,7 @@ run_logged_command() {
 
 auto_prune() {
 	if [[ -d "$ACTIVE_LOG_BASE_DIR" ]]; then
-		find "$ACTIVE_LOG_BASE_DIR" -type f -name 'dusky_update_*.log' -mtime "+${LOG_RETENTION_DAYS}" -delete \
+		find "$ACTIVE_LOG_BASE_DIR" -type f -name 'dawn_update_*.log' -mtime "+${LOG_RETENTION_DAYS}" -delete \
 			2>/dev/null || true
 	fi
 
@@ -2129,7 +2129,7 @@ atomic_restore_path() {
 		ensure_free_space_for_bytes "$probe_path" "$copy_bytes" "restoring $(quote_for_log "$target")" || return 1
 	fi
 
-	tmpdir="$(mktemp -d -p "$parent" ".${base}.dusky_tmp.XXXXXX")" || return 1
+	tmpdir="$(mktemp -d -p "$parent" ".${base}.dawn_tmp.XXXXXX")" || return 1
 	CREATED_TEMP_DIRS+=("$tmpdir")
 
 	tmp="${tmpdir}/${base}"
@@ -2284,8 +2284,8 @@ restore_user_modifications() {
 				continue
 			}
 
-			marker="${MERGE_DIR}/${path}.dusky_deleted"
-			ensure_relative_parent_dir "$MERGE_DIR" "${path}.dusky_deleted" mkdir_cache || {
+			marker="${MERGE_DIR}/${path}.dawn_deleted"
+			ensure_relative_parent_dir "$MERGE_DIR" "${path}.dawn_deleted" mkdir_cache || {
 				log ERROR "Failed to create deletion-marker directory for: $(quote_for_log "$path")"
 				all_ok=false
 				continue

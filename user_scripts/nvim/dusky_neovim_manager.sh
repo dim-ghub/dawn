@@ -27,7 +27,7 @@ log_error()   { printf "%s[ERROR]%s %s\n" "${RED}" "${RESET}" "$1"; }
 # Configuration & Globals
 # ==============================================================================
 readonly BACKUP_DIR="${HOME}/.local/share/nvim_backups"
-readonly DUSKY_SRC="${XDG_CONFIG_HOME:-$HOME/.config}/dusky_nvim"
+readonly DUSKY_SRC="${XDG_CONFIG_HOME:-$HOME/.config}/dawn_nvim"
 
 declare -A NVIM_PATHS=(
     [config]="${XDG_CONFIG_HOME:-$HOME/.config}/nvim"
@@ -229,7 +229,7 @@ install_astronvim() {
     log_success "AstroNvim deployed."
 }
 
-install_dusky_nvim() {
+install_dawn_nvim() {
     log_info "Deploying Dusky Neovim..."
     if [[ ! -d "${DUSKY_SRC}" ]]; then
         log_error "Dusky Neovim source not found at ${DUSKY_SRC}"
@@ -396,7 +396,7 @@ main() {
             1) prompt_state_management; install_nvchad; action_taken=true; break ;;
             2) prompt_state_management; install_lazyvim; action_taken=true; break ;;
             3) prompt_state_management; install_astronvim; action_taken=true; break ;;
-            4) prompt_state_management; install_dusky_nvim; action_taken=true; break ;;
+            4) prompt_state_management; install_dawn_nvim; action_taken=true; break ;;
             5) 
                 echo ""
                 local main_ps3="${PS3}"

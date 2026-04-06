@@ -15,16 +15,16 @@ shopt -s extglob
 # CONFIGURATION
 # =============================================================================
 
-declare -r GIT_DIR="${HOME}/dusky/"
+declare -r GIT_DIR="${HOME}/dawn/"
 declare -r WORK_TREE="${HOME}"
-declare -r STATE_FILE="${HOME}/.config/dusky/settings/dusky_update_behind_commit"
+declare -r STATE_FILE="${HOME}/.config/dawn/settings/dawn_update_behind_commit"
 declare -r STATE_DIR="${STATE_FILE%/*}"
 
 declare -ri NOTIFY_THRESHOLD=30
 declare -ri TIMEOUT_SEC=15
 declare -ri TIMEOUT_KILL_SEC=2
 declare -ri LOCK_WAIT_SEC=$(( TIMEOUT_SEC + TIMEOUT_KILL_SEC + 1 ))
-declare -r LOCK_BASENAME="dusky_git_fetch.${UID}.lock"
+declare -r LOCK_BASENAME="dawn_git_fetch.${UID}.lock"
 
 # TUI settings
 declare -r APP_TITLE="Dusky Updates"
@@ -188,7 +188,7 @@ write_state_file() {
 
     [[ -d "$STATE_DIR" ]] || mkdir -p "$STATE_DIR"
 
-    tmp=$(/usr/bin/mktemp --tmpdir="$STATE_DIR" '.dusky_update_behind_commit.XXXXXX') || return 1
+    tmp=$(/usr/bin/mktemp --tmpdir="$STATE_DIR" '.dawn_update_behind_commit.XXXXXX') || return 1
 
     if ! printf '%s\n' "$value" > "$tmp"; then
         /usr/bin/rm -f -- "$tmp" || true

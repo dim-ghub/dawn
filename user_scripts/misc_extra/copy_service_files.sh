@@ -37,12 +37,12 @@ readonly SERVICES_CONFIG=(
     # Add your own paths below...
 
     # Dusky Control Center Daemon (Default: Disable)
-    "$HOME/user_scripts/dusky_system/control_center/service/dusky.service | disable"
+    "$HOME/user_scripts/dawn_system/control_center/service/dawn.service | disable"
 
-    # dusky update checker
-    "$HOME/user_scripts/update_dusky/update_checker/service/update_checker.service | disable"
-    "$HOME/user_scripts/update_dusky/update_checker/service/update_checker.timer | enable"
-    "$HOME/user_scripts/sliders/service/dusky_sliders.service | disable"
+    # dawn update checker
+    "$HOME/user_scripts/update_dawn/update_checker/service/update_checker.service | disable"
+    "$HOME/user_scripts/update_dawn/update_checker/service/update_checker.timer | enable"
+    "$HOME/user_scripts/sliders/service/dawn_sliders.service | disable"
 )
 
 # XDG Standard: ~/.config/systemd/user

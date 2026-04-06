@@ -3,12 +3,12 @@ set -euo pipefail
 # ---------------- CONFIG ----------------
 
 WALL_DIR="$HOME/Pictures/wallpapers/active_theme"
-STATE_DIR="$HOME/.config/dusky/settings/dusky_theme"
+STATE_DIR="$HOME/.config/dawn/settings/dawn_theme"
 FAV_FILE="$STATE_DIR/favorites.list"
 CACHE_FILE="$STATE_DIR/current_wallpaper.cache"
 INDEX_FILE="$STATE_DIR/favorites.index"
 
-THEME_CTL="$HOME/Documents/dusky/user_scripts/theme_matugen/theme_ctl.sh"
+THEME_CTL="$HOME/Documents/dawn/user_scripts/theme_matugen/theme_ctl.sh"
 
 mkdir -p "$STATE_DIR"
 touch "$FAV_FILE" "$CACHE_FILE" "$INDEX_FILE"

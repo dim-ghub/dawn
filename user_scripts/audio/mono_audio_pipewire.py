@@ -43,7 +43,7 @@ RUNTIME_DIR = Path(os.environ.get("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}")
 STATE_FILE = RUNTIME_DIR / f"mono_audio_state_{os.getuid()}"
 LOCK_FILE = RUNTIME_DIR / f"mono_audio_lock_{os.getuid()}"
 
-INDICATOR_FILE = Path.home() / ".config/dusky/settings/mono_audio"
+INDICATOR_FILE = Path.home() / ".config/dawn/settings/mono_audio"
 
 STATE_VERSION = 1
 

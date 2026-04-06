@@ -43,16 +43,16 @@ die()         { log_error "$*"; exit 1; }
 
 declare -a COPY_TASKS=(
     # 0. User Scripts Directory (Directory contents)
-    # "dusky/user_scripts/ :: /etc/skel/Documents/user_scripts"
+    # "dawn/user_scripts/ :: /etc/skel/Documents/user_scripts"
 
     # 1. Deployment Script (Script -> Executable)
     "deploy_dotfiles.sh :: /etc/skel/deploy_dotfiles.sh"
 
     # 2. Zsh Config (Config -> Not Executable)
-    "dusky/.zshrc :: /etc/skel/.zshrc"
+    "dawn/.zshrc :: /etc/skel/.zshrc"
 
     # 3. Network Manager Script (New Addition)
-    "dusky/user_scripts/network_manager/nmcli_wifi_no_gum.sh :: /etc/skel/wifi_connect.sh"
+    "dawn/user_scripts/network_manager/nmcli_wifi_no_gum.sh :: /etc/skel/wifi_connect.sh"
 )
 
 # Files matching these patterns will be forced to be executable (755)

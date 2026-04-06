@@ -58,7 +58,7 @@ for _arg in "$@"; do
 done
 
 # 2. Define State File
-readonly STATE_FILE="$HOME/.config/dusky/settings/vesktop_matugen"
+readonly STATE_FILE="$HOME/.config/dawn/settings/vesktop_matugen"
 
 # 3. Logic Flow
 if [[ "$_auto_mode" == "false" ]]; then

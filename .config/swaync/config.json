@@ -45,7 +45,7 @@
       "actions": [
         {
           "label": "󰡬",
-          "command": "$HOME/user_scripts/sliders/dusky_sliders.py"
+          "command": "$HOME/user_scripts/sliders/dawn_sliders.py"
         },
         {
           "label": "",
@@ -69,7 +69,7 @@
         },
         {
           "label": "󱫓",
-          "command": "kitty -e --class dusky_hypridle.sh $HOME/user_scripts/hypridle/dusky_hypridle.sh"
+          "command": "kitty -e --class dawn_hypridle.sh $HOME/user_scripts/hypridle/dawn_hypridle.sh"
         }
       ]
     }

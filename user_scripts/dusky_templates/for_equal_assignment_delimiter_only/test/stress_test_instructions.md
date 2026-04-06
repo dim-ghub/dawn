@@ -1,6 +1,6 @@
 # Dusky TUI Master Template - Extreme Stress Testing Guide
 
-This guide details the specific edge cases implemented in the `stress_test_dusky.sh` environment. The goal is to break the parsers, trap the bash math evaluators, and verify UI state integrity under extreme load.
+This guide details the specific edge cases implemented in the `stress_test_dawn.sh` environment. The goal is to break the parsers, trap the bash math evaluators, and verify UI state integrity under extreme load.
 
 ## 1. Tab 0: "The Wall" (Massive List & Memory/Render Load)
 **Objective:** Test rendering performance, terminal buffer overrun, and scrolling logic with massive datasets.

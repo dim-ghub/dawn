@@ -50,7 +50,7 @@ declare -ra FM_CATALOG=(
 # Paths
 declare -r CONF_VARS="${HOME}/.config/hypr/edit_here/source/default_apps.conf"
 declare -r CONF_BINDS="${HOME}/.config/hypr/edit_here/source/keybinds.conf"
-declare -r STATE_FILE="${HOME}/.config/dusky/settings/filemanager_switch"
+declare -r STATE_FILE="${HOME}/.config/dawn/settings/filemanager_switch"
 
 # UI Configuration (Template Aligned)
 declare -r APP_TITLE="Dusky File Manager"

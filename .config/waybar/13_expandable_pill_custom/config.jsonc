@@ -56,7 +56,7 @@
         "format": "󰣇",
         "tooltip": true,
         "tooltip-format": "Control Center",
-        "on-click": "python3 ~/user_scripts/dusky_system/control_center/dusky_control_center.py"
+        "on-click": "python3 ~/user_scripts/dawn_system/control_center/dawn_control_center.py"
     },
     "clock": {
         "format": "{:%I:%M %p}",

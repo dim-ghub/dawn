@@ -36,20 +36,20 @@ readonly SERVICES_CONFIG=(
 	"$HOME/user_scripts/waybar/network/network_meter.service | enable"
 
 	# Dusky Control Center Daemon (Default: Disable)
-	"$HOME/user_scripts/dusky_system/control_center/service/dusky.service | disable"
+	"$HOME/user_scripts/dawn_system/control_center/service/dawn.service | disable"
 
-	# dusky update checker
-	"$HOME/user_scripts/update_dusky/update_checker/service/update_checker.service | disable"
-	"$HOME/user_scripts/update_dusky/update_checker/service/update_checker.timer | enable"
+	# dawn update checker
+	"$HOME/user_scripts/update_dawn/update_checker/service/update_checker.service | disable"
+	"$HOME/user_scripts/update_dawn/update_checker/service/update_checker.timer | enable"
 
-	# dusky sliders
-	"$HOME/user_scripts/sliders/service/dusky_sliders.service | disable"
+	# dawn sliders
+	"$HOME/user_scripts/sliders/service/dawn_sliders.service | disable"
 )
 
 # OpenRC init scripts (for Artix Linux)
 readonly OPENRC_SERVICES_CONFIG=(
 	"$HOME/user_scripts/openrc/init.d/network-meter | enable"
-	"$HOME/user_scripts/openrc/init.d/dusky-sliders | disable"
+	"$HOME/user_scripts/openrc/init.d/dawn-sliders | disable"
 	"$HOME/user_scripts/openrc/init.d/update-checker | disable"
 	"$HOME/user_scripts/openrc/init.d/waybar | enable"
 	"$HOME/user_scripts/openrc/init.d/hypridle | disable"

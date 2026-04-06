@@ -22,7 +22,7 @@ shopt -s extglob
 # ▼ USER CONFIGURATION (EDIT THIS SECTION) ▼
 # =============================================================================
 
-declare -r CONFIG_FILE="${HOME}/user_scripts/wayclick/dusky_wayclick.sh"
+declare -r CONFIG_FILE="${HOME}/user_scripts/wayclick/dawn_wayclick.sh"
 declare -r APP_TITLE="Dusky WayClick Configurator"
 declare -r APP_VERSION="v1.0.0"
 

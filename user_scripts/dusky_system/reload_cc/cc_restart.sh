@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # -----------------------------------------------------------------------------
-# Script: restart_dusky_cc.sh
+# Script: restart_dawn_cc.sh
 # Purpose: Forcefully manages the Dusky Control Center lifecycle.
 #          1. Snapshots and terminates running instances (SIGTERM -> SIGKILL).
 #          2. Resets systemd failure state.
@@ -21,9 +21,9 @@ trap '' HUP
 # Configuration
 # -----------------------------------------------------------------------------
 readonly APP_NAME="Dusky Control Center"
-readonly SERVICE_NAME="dusky.service"
-readonly PROCESS_PATTERN='dusky_control_center\.py'
-readonly GUI_SCRIPT_PATH="${HOME}/user_scripts/dusky_system/control_center/dusky_control_center.py"
+readonly SERVICE_NAME="dawn.service"
+readonly PROCESS_PATTERN='dawn_control_center\.py'
+readonly GUI_SCRIPT_PATH="${HOME}/user_scripts/dawn_system/control_center/dawn_control_center.py"
 
 # Timing Constants (Seconds)
 readonly GRACE_PERIOD_LOOPS=20

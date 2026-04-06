@@ -1,6 +1,6 @@
 # 🎛️ Dusky Control Center Configuration
 
-This document serves as the master reference for editing `dusky_config.yaml`. The Control Center is a Python/GTK4 application that renders this YAML file dynamically.
+This document serves as the master reference for editing `dawn_config.yaml`. The Control Center is a Python/GTK4 application that renders this YAML file dynamically.
 
 > [!TIP] **Hot Reload**
 > 
@@ -86,7 +86,7 @@ A switch that maintains state (On/Off).
   properties:
     title: "Dark Mode"
     icon: weather-clear-night-symbolic
-    key: dusky_theme/state   # FILE/KEY where state is saved
+    key: dawn_theme/state   # FILE/KEY where state is saved
     key_inverse: true        # If true, logic is flipped
     save_as_int: true        # Saves as 1/0 instead of true/false
   on_toggle:
@@ -126,7 +126,7 @@ _Value Source Options:_
 
 > [!WARNING] Experimental
 > 
-> Sliders generally require specific Python backend handling in `dusky_control_center.py` to map values correctly unless bound to a specific script that accepts arguments.
+> Sliders generally require specific Python backend handling in `dawn_control_center.py` to map values correctly unless bound to a specific script that accepts arguments.
 
 ```
 - type: slider

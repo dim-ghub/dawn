@@ -3,7 +3,7 @@
 name="Dusky Sliders Service"
 description="Dusky sliders daemon for system controls"
 command="/usr/bin/python3"
-command_args="/home/dim/duskyRC/user_scripts/sliders/dusky_sliders.py"
+command_args="/home/dim/dawn/user_scripts/sliders/dawn_sliders.py"
 command_background="yes"
 pidfile="/run/${RC_SVCNAME}.pid"
 output_log="/var/log/${RC_SVCNAME}.log"

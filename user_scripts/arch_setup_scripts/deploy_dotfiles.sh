@@ -12,8 +12,8 @@ set -euo pipefail
 # -----------------------------------------------------------------------------
 # Constants & Configuration
 # -----------------------------------------------------------------------------
-readonly REPO_URL="https://github.com/dim-ghub/duskyRC"
-readonly DOTFILES_DIR="${HOME}/dusky"
+readonly REPO_URL="https://github.com/dim-ghub/dawn"
+readonly DOTFILES_DIR="${HOME}/dawn"
 readonly GIT_EXEC="/usr/bin/git"
 
 # ANSI Color Codes for modern, readable output

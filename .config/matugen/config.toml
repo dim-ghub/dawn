@@ -251,20 +251,20 @@ if command -v btop >/dev/null 2>&1; then
 fi
 '''
 
-[templates.dusky_control_center]
+[templates.dawn_control_center]
 input_path  = '/dev/null'
 output_path = '/dev/null'
 post_hook   = '''
-  systemctl --user reset-failed dusky.service || :
-  systemctl --user restart dusky.service || :
+  systemctl --user reset-failed dawn.service || :
+  systemctl --user restart dawn.service || :
 '''
 
-[templates.dusky_sliders]
+[templates.dawn_sliders]
 input_path  = '/dev/null'
 output_path = '/dev/null'
 post_hook   = '''
-  systemctl --user reset-failed dusky_sliders.service || :
-  systemctl --user restart dusky_sliders.service || :
+  systemctl --user reset-failed dawn_sliders.service || :
+  systemctl --user restart dawn_sliders.service || :
 '''
 
 

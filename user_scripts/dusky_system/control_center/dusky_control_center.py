@@ -64,7 +64,7 @@ def _setup_cache() -> None:
     try:
         xdg_cache_env = os.environ.get("XDG_CACHE_HOME", "").strip()
         xdg_cache = Path(xdg_cache_env) if xdg_cache_env else Path.home() / ".cache"
-        cache_dir = xdg_cache / "duskycc"
+        cache_dir = xdg_cache / "dawncc"
         cache_dir.mkdir(parents=True, exist_ok=True)
         sys.pycache_prefix = str(cache_dir)
     except OSError as e:
@@ -94,10 +94,10 @@ if TYPE_CHECKING:
 # =============================================================================
 # CONSTANTS
 # =============================================================================
-APP_ID: Final[str] = "com.github.dusky.controlcenter"
+APP_ID: Final[str] = "com.github.dawn.controlcenter"
 APP_TITLE: Final[str] = "Dusky Control Center"
-CONFIG_FILENAME: Final[str] = "dusky_config.yaml"
-CSS_FILENAME: Final[str] = "dusky_style.css"
+CONFIG_FILENAME: Final[str] = "dawn_config.yaml"
+CSS_FILENAME: Final[str] = "dawn_style.css"
 SCRIPT_DIR: Final[Path] = Path(__file__).resolve().parent
 
 # UI Layout Constants

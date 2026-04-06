@@ -2,8 +2,8 @@
 .config/autostart/
 .config/btop/btop.conf
 .config/cava/config
-.config/dusky/version
-.config/dusky_nvim/
+.config/dawn/version
+.config/dawn_nvim/
 .config/fastfetch/
 .config/firefox_extention_export_data_backup/
 .config/fontconfig/
@@ -60,14 +60,14 @@
 .config/zathura/
 .config/zshrc/
 .zshrc
-.git_dusky_list
+.git_dawn_list
 .gitignore
 .config/starship.toml
 .config/mimeapps.list
 .local/share/applications/
 .local/share/rofi_cliphist_and_errands_backup/errands/data.json
 .local/share/rofi_cliphist_and_errands_backup/rofi-cliphist/
-Documents/dusky_backups/
+Documents/dawn_backups/
 Documents/pensive/Adobe/
 Documents/pensive/linux/
 Documents/pensive/templates/

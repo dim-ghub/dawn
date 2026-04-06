@@ -52,8 +52,8 @@ declare -ra USER_SERVICE_DEFS=(
     "hyprsunset.service|Night Light (Blue Light Filter)"
     "battery_notify.service|Battery Level Notifications"
     "network_meter.service|Waybar Network Traffic Monitor"
-    "dusky.service|Dusky Background Service"
-    "dusky_sliders.service|Dusky Sliders Service"
+    "dawn.service|Dusky Background Service"
+    "dawn_sliders.service|Dusky Sliders Service"
     "update_checker.timer|Automatic Update Checker"
     "hypridle.service|Hyprland Idle Daemon"
 )

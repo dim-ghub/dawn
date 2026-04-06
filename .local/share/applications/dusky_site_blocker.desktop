@@ -7,5 +7,5 @@ Exec=kitty --hold --class 325_hosts_files_block.sh -e /home/dusk/user_scripts/ar
 Icon=utilities-terminal
 Terminal=false
 Categories=System;Utility;ConsoleOnly;
-Keywords=dusky;site;websites;hosts;block;focus;distraction;
+Keywords=dawn;site;websites;hosts;block;focus;distraction;
 StartupNotify=true

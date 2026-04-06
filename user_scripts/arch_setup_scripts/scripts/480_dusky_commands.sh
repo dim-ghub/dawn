@@ -31,11 +31,11 @@ declare -ra FLEET_COMMANDS=(
     'U | ln -nfs "$HOME/.config/matugen/generated/gtk-4.css" "$HOME/.config/gtk-4.0/gtk.css"'
     'U | ln -nfs "/usr/share/themes/adw-gtk3/gtk-4.0/libadwaita.css" "$HOME/.config/gtk-4.0/libadwaita.css"'
     'U | ln -nfs "/usr/share/themes/adw-gtk3/gtk-4.0/libadwaita-tweaks.css" "$HOME/.config/gtk-4.0/libadwaita-tweaks.css"'
-    'U | "$HOME/user_scripts/dusky_system/reload_cc/cc_restart.sh" --quiet &'
+    'U | "$HOME/user_scripts/dawn_system/reload_cc/cc_restart.sh" --quiet &'
     'U | "$HOME/user_scripts/sliders/reload_sliders/reload_sliders.sh" --quiet &'
 
     # --- System Services ---
-#    "U | systemctl --user disable dusky.service || true"
+#    "U | systemctl --user disable dawn.service || true"
 #    "S | systemctl enable --now tlp.service || true"
 
 )
@@ -45,10 +45,10 @@ declare -ra FLEET_COMMANDS=(
 # ==============================================================================
 
 # 2. Paths & Constants
-readonly STATE_DIR="${HOME}/.local/state/dusky"
+readonly STATE_DIR="${HOME}/.local/state/dawn"
 readonly STATE_FILE="${STATE_DIR}/patch_history.state"
-readonly LOG_FILE="${HOME}/Documents/logs/dusky_patcher_$(date +%Y%m%d_%H%M%S).log"
-readonly LOCK_FILE="${XDG_RUNTIME_DIR:-/run/user/$UID}/dusky_fleet_patcher.lock"
+readonly LOG_FILE="${HOME}/Documents/logs/dawn_patcher_$(date +%Y%m%d_%H%M%S).log"
+readonly LOCK_FILE="${XDG_RUNTIME_DIR:-/run/user/$UID}/dawn_fleet_patcher.lock"
 readonly SUDO_REFRESH_INTERVAL=50
 
 # 3. Global Variables

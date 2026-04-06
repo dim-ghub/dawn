@@ -64,12 +64,12 @@ pacman -Sy git
 
 ##### Clone the repo (type carefully or it asks a password if you enter the wrong repo)
 ```bash
-git clone --depth 1 https://github.com/dim-ghub/duskyRC.git
+git clone --depth 1 https://github.com/dim-ghub/dawn.git
 ```
 
 ##### Copy the pre-chroot scripts to the current directory
 ```bash
-cp dusky/user_scripts/arch_iso_scripts/000_pre_chroot/* .
+cp dawn/user_scripts/arch_iso_scripts/000_pre_chroot/* .
 ```
 
 ### Step 3: Run the ISO Orchestra

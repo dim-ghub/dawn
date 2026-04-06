@@ -8,8 +8,8 @@
 # Ecosystem:   Arch Linux / Hyprland / UWSM / Wayland
 #
 # Architecture:
-#   1. INTERNAL STATE: ~/.config/dusky/settings/dusky_theme/state.conf
-#   2. PUBLIC STATE:   ~/.config/dusky/settings/dusky_theme/state (true/false)
+#   1. INTERNAL STATE: ~/.config/dawn/settings/dawn_theme/state.conf
+#   2. PUBLIC STATE:   ~/.config/dawn/settings/dawn_theme/state (true/false)
 #   3. LOCKING:        Single global flock across all mutating operations via run_locked
 #   4. DIRECTORY OPS:  Swaps stored folders into wallpaper_root/active_theme
 #
@@ -28,7 +28,7 @@
 set -euo pipefail
 
 # --- CONFIGURATION ---
-readonly STATE_DIR="${HOME}/.config/dusky/settings/dusky_theme"
+readonly STATE_DIR="${HOME}/.config/dawn/settings/dawn_theme"
 readonly STATE_FILE="${STATE_DIR}/state.conf"
 readonly PUBLIC_STATE_FILE="${STATE_DIR}/state"
 readonly TRACK_LIGHT="${STATE_DIR}/light_wal"

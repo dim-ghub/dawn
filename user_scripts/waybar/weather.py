@@ -49,7 +49,7 @@ WEATHER_CODES: dict[int, tuple[str, str]] = {
 }
 
 IMPERIAL_COUNTRIES = {"US", "LR", "MM"}
-STATE_FILE = Path.home() / ".config" / "dusky" / "settings" / "waybar_weather"
+STATE_FILE = Path.home() / ".config" / "dawn" / "settings" / "waybar_weather"
 
 HTTP_HEADERS = {
     "User-Agent": "waybar-weather/2.0 (Arch Linux; Python 3.14)",

@@ -21,12 +21,12 @@ trap '' HUP
 # -----------------------------------------------------------------------------
 readonly APP_NAME="Dusky Sliders"
 if command -v systemctl >/dev/null 2>&1; then
-	readonly SERVICE_NAME="dusky_sliders.service"
+	readonly SERVICE_NAME="dawn_sliders.service"
 else
-	readonly SERVICE_NAME="dusky-sliders"
+	readonly SERVICE_NAME="dawn-sliders"
 fi
-readonly PROCESS_PATTERN='dusky_sliders\.py'
-readonly GUI_SCRIPT_PATH="${HOME}/user_scripts/sliders/dusky_sliders.py"
+readonly PROCESS_PATTERN='dawn_sliders\.py'
+readonly GUI_SCRIPT_PATH="${HOME}/user_scripts/sliders/dawn_sliders.py"
 
 # Timing Constants (Seconds)
 readonly GRACE_PERIOD_LOOPS=20

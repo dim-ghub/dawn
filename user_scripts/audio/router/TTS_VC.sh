@@ -11,7 +11,7 @@ echo -n "$TEXT" | wl-copy
 
 sleep 1
 
-~/user_scripts/tts_stt/dusky_kokoro/trigger.sh
+~/user_scripts/tts_stt/dawn_kokoro/trigger.sh
 
 while ! pgrep -x mpv >/dev/null; do
 	sleep 0.5

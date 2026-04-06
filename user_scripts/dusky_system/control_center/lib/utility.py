@@ -65,8 +65,8 @@ def _get_xdg_path(env_var: str, default_suffix: str) -> Path:
 _XDG_CACHE_HOME: Final[Path] = _get_xdg_path("XDG_CACHE_HOME", ".cache")
 _XDG_CONFIG_HOME: Final[Path] = _get_xdg_path("XDG_CONFIG_HOME", ".config")
 
-CACHE_DIR: Final[Path] = _XDG_CACHE_HOME / "duskycc"
-SETTINGS_DIR: Final[Path] = _XDG_CONFIG_HOME / "dusky" / "settings"
+CACHE_DIR: Final[Path] = _XDG_CACHE_HOME / "dawncc"
+SETTINGS_DIR: Final[Path] = _XDG_CONFIG_HOME / "dawn" / "settings"
 
 
 # =============================================================================
@@ -319,7 +319,7 @@ def _build_command_list(
             "--",
             "kitty",
             "--class",
-            "dusky-term",
+            "dawn-term",
             "--title",
             safe_title,
             "--hold",

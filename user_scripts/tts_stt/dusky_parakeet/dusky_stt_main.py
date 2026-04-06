@@ -21,17 +21,17 @@ STT_MODEL_NAME = "nemo-parakeet-tdt-0.6b-v2"
 QUANTIZATION = "int8" 
 
 ZRAM_MOUNT = Path("/mnt/zram1")
-AUDIO_DIR = ZRAM_MOUNT if ZRAM_MOUNT.is_dir() else Path("/tmp/dusky_stt_audio")
+AUDIO_DIR = ZRAM_MOUNT if ZRAM_MOUNT.is_dir() else Path("/tmp/dawn_stt_audio")
 AUDIO_DIR.mkdir(parents=True, exist_ok=True)
 
-FIFO_PATH = Path("/tmp/dusky_stt.fifo")
-PID_FILE = Path("/tmp/dusky_stt.pid")
-READY_FILE = Path("/tmp/dusky_stt.ready")
+FIFO_PATH = Path("/tmp/dawn_stt.fifo")
+PID_FILE = Path("/tmp/dawn_stt.pid")
+READY_FILE = Path("/tmp/dawn_stt.ready")
 
 IDLE_TIMEOUT = 10.0  
 QUEUE_SIZE = 5
 
-logger = logging.getLogger("dusky_stt")
+logger = logging.getLogger("dawn_stt")
 logger.setLevel(logging.INFO)
 c_handler = logging.StreamHandler()
 c_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))

@@ -88,7 +88,7 @@ sync_state_file() {
 		exit 1
 	fi
 
-	local state_dir="${user_home}/.config/dusky/settings"
+	local state_dir="${user_home}/.config/dawn/settings"
 	local state_file="${state_dir}/auto_login_tty"
 
 	# Drop privileges to target user to ensure correct ownership of directories and files

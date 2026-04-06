@@ -17,7 +17,7 @@ declare -ar DEFAULT_BINARIES=(
 
 #    "/usr/bin/powertop"
     "/usr/bin/papirus-folders"
-    "~/user_scripts/btrfs_snapshots/cc/04_dusky_snapshot_manager.py"
+    "~/user_scripts/btrfs_snapshots/cc/04_dawn_snapshot_manager.py"
     "~/user_scripts/btrfs_snapshots/cc/bash_wrapper_for_cc.sh"
 )
 

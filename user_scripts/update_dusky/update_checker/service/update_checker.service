@@ -4,7 +4,7 @@ Description=Dusky Update Checker Service
 [Service]
 Type=oneshot
 # %h is a systemd specifier for the User's Home Directory
-ExecStart=%h/user_scripts/update_dusky/update_checker/update_checker.sh --num
+ExecStart=%h/user_scripts/update_dawn/update_checker/update_checker.sh --num
 
 [Install]
 WantedBy=default.target

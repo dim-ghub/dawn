@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Disable animation
 # -----------------------------------------------------------------------------
-# Purpose: Copy 'dusky.conf' to 'active.conf' & reload Hyprland
+# Purpose: Copy 'dawn.conf' to 'active.conf' & reload Hyprland
 # Env:     Arch Linux / Hyprland / UWSM
 # -----------------------------------------------------------------------------
 

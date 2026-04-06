@@ -52,10 +52,10 @@ declare -ra OPTIONAL_PROCESSES=("inotifywait" "wl-paste" "wl-copy" "firefox" "di
 declare -ra DEFAULT_SYSTEM_SERVICES=("firewalld" "vsftpd" "waydroid-container" "logrotate.timer" "sshd")
 declare -ra OPTIONAL_SYSTEM_SERVICES=("udisks2" "swayosd-libinput-backend" "warp-svc" "NetworkManager")
 
-declare -ra DEFAULT_USER_SERVICES=("battery_notify" "blueman-applet" "hypridle" "hyprpolkitagent" "swaync" "gvfs-daemon" "waybar" "blueman-manager" "gvfs-metadata" "network_meter" "dusky_sliders" "dusky")
+declare -ra DEFAULT_USER_SERVICES=("battery_notify" "blueman-applet" "hypridle" "hyprpolkitagent" "swaync" "gvfs-daemon" "waybar" "blueman-manager" "gvfs-metadata" "network_meter" "dawn_sliders" "dawn")
 declare -ra OPTIONAL_USER_SERVICES=("gnome-keyring-daemon" "swayosd-server" "pipewire-pulse.socket" "pipewire.socket" "wireplumber" "pipewire")
 
-declare -ra DEFAULT_SCRIPTS=("dusky_main.py" "dusky_stt_main.py")
+declare -ra DEFAULT_SCRIPTS=("dawn_main.py" "dawn_stt_main.py")
 declare -ra OPTIONAL_SCRIPTS=()
 
 # --- DEPENDENCY VALIDATION ---
@@ -77,7 +77,7 @@ contains_element() {
 
 # Safely identifies script PIDs. 
 # Uses `-ww` to prevent line truncation. Filters out text editors/pagers from the `comm` field
-# to prevent collateral damage (e.g., won't kill `nano dusky_main.py`).
+# to prevent collateral damage (e.g., won't kill `nano dawn_main.py`).
 get_script_pids() {
     local target="$1"
     local mypid="$$"

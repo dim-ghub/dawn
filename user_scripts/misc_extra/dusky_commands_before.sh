@@ -25,9 +25,9 @@ declare -ra FLEET_COMMANDS=(
 #    "U | gsettings set org.gnome.desktop.interface icon-theme 'Papirus'"
     "U | gsettings set org.cinnamon.desktop.default-applications.terminal exec 'kitty'"
     "U | rm -f ~/.config/hypr/edit_here/source/workspace_rules.conf || true"
-    "U | sed -i 's/^zen$/zen-browser/' ~/.config/dusky/settings/browser_switch.smart || true"
+    "U | sed -i 's/^zen$/zen-browser/' ~/.config/dawn/settings/browser_switch.smart || true"
     # --- System Services ---
-#    "U | systemctl --user disable dusky.service || true"
+#    "U | systemctl --user disable dawn.service || true"
 #    "S | systemctl enable --now tlp.service || true"
 
 )
@@ -37,10 +37,10 @@ declare -ra FLEET_COMMANDS=(
 # ==============================================================================
 
 # 2. Paths & Constants
-readonly STATE_DIR="${HOME}/.local/state/dusky"
+readonly STATE_DIR="${HOME}/.local/state/dawn"
 readonly STATE_FILE="${STATE_DIR}/patch_history.state"
-readonly LOG_FILE="${HOME}/Documents/logs/dusky_patcher_$(date +%Y%m%d_%H%M%S).log"
-readonly LOCK_FILE="${XDG_RUNTIME_DIR:-/run/user/$UID}/dusky_fleet_patcher.lock"
+readonly LOG_FILE="${HOME}/Documents/logs/dawn_patcher_$(date +%Y%m%d_%H%M%S).log"
+readonly LOCK_FILE="${XDG_RUNTIME_DIR:-/run/user/$UID}/dawn_fleet_patcher.lock"
 readonly SUDO_REFRESH_INTERVAL=50
 
 # 3. Global Variables

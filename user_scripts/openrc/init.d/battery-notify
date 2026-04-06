@@ -2,7 +2,7 @@
 
 name="Dusky Battery Notifier"
 description="Battery notification daemon"
-command="/home/dim/duskyRC/user_scripts/battery/notify/battery_notify.sh"
+command="/home/dim/dawn/user_scripts/battery/notify/battery_notify.sh"
 command_background="yes"
 pidfile="/run/${RC_SVCNAME}.pid"
 output_log="/var/log/${RC_SVCNAME}.log"

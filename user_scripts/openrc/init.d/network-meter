@@ -2,7 +2,7 @@
 
 name="Waybar Network Meter Daemon"
 description="Waybar network speed monitoring daemon"
-command="/home/dim/duskyRC/user_scripts/waybar/network/network_meter_daemon.sh"
+command="/home/dim/dawn/user_scripts/waybar/network/network_meter_daemon.sh"
 command_background="yes"
 pidfile="/run/${RC_SVCNAME}.pid"
 output_log="/var/log/${RC_SVCNAME}.log"

@@ -23,9 +23,9 @@ warnings.filterwarnings("ignore", category=UserWarning, module="multiprocessing.
 VERSION = "1.2 (Dusky STT - Explicit Caching & Wayland Optimized)"
 
 ZRAM_MOUNT = Path("/tmp") # Using /tmp for audio buffering
-FIFO_PATH = Path("/tmp/dusky_stt.fifo")
-PID_FILE = Path("/tmp/dusky_stt.pid")
-READY_FILE = Path("/tmp/dusky_stt.ready")
+FIFO_PATH = Path("/tmp/dawn_stt.fifo")
+PID_FILE = Path("/tmp/dawn_stt.pid")
+READY_FILE = Path("/tmp/dawn_stt.ready")
 
 DEFAULT_MODEL = "distil-large-v3"
 IDLE_TIMEOUT = 10.0  # Time before model is unloaded from VRAM
@@ -34,7 +34,7 @@ QUEUE_SIZE = 5
 # ==============================================================================
 # LOGGING
 # ==============================================================================
-logger = logging.getLogger("dusky_stt_daemon")
+logger = logging.getLogger("dawn_stt_daemon")
 logger.setLevel(logging.INFO)
 
 c_handler = logging.StreamHandler()

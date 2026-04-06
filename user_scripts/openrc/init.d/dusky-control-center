@@ -2,7 +2,7 @@
 
 name="Dusky Control Center"
 description="Dusky system control center"
-command="/home/dim/duskyRC/user_scripts/dusky_system/control_center/dusky_control_center"
+command="/home/dim/dawn/user_scripts/dawn_system/control_center/dawn_control_center"
 command_background="yes"
 pidfile="/run/${RC_SVCNAME}.pid"
 output_log="/var/log/${RC_SVCNAME}.log"

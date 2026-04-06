@@ -18,7 +18,7 @@ readonly CONFIG_FILE="${CONFIG_DIR}/keybinds.conf"
 readonly MARKER_START='# -- TERMINAL-CLIPBOARD-START --'
 readonly MARKER_END='# -- TERMINAL-CLIPBOARD-END --'
 readonly BIND_SIGNATURE='close_terminal_clipboard.sh'
-readonly STATE_FILE="${HOME}/.config/dusky/settings/clipboard_state"
+readonly STATE_FILE="${HOME}/.config/dawn/settings/clipboard_state"
 readonly LOCK_FILE="${CONFIG_FILE}.lock"
 
 # --- Global Mutable State ----------------------------------------------------

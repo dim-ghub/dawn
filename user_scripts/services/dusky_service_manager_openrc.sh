@@ -3,7 +3,7 @@
 # DESCRIPTION:  Idempotent Declarative Unit State Manager (System & User scopes)
 # PLATFORM:     Artix Linux · Wayland / Hyprland · OpenRC
 # REQUIRES:     Bash 5.3+, rc-service, rc-update, rc-status, id, flock
-# USAGE:        ./dusky_service_manager_openrc.sh [--dry-run|--check]
+# USAGE:        ./dawn_service_manager_openrc.sh [--dry-run|--check]
 #===============================================================================
 
 readonly SCRIPT_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
@@ -78,12 +78,12 @@ declare -A SYSTEM_SERVICES=(
 )
 
 declare -A USER_SERVICES=(
-	["dusky-sliders"]="false"
+	["dawn-sliders"]="false"
 	["network-meter"]="false"
 	["update-checker"]="false"
 )
 
-OPENRC_INITD_DIR="/home/dim/duskyRC/user_scripts/openrc/init.d"
+OPENRC_INITD_DIR="/home/dim/dawn/user_scripts/openrc/init.d"
 
 check_service_exists() {
 	local svc="$1"

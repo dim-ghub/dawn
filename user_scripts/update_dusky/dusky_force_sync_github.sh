@@ -12,12 +12,12 @@ set -euo pipefail
 # CONFIGURATION
 # ------------------------------------------------------------------------------
 readonly GIT_BIN="/usr/bin/git"
-readonly DOTFILES_GIT_DIR="${HOME}/dusky"
+readonly DOTFILES_GIT_DIR="${HOME}/dawn"
 readonly WORK_TREE="${HOME}"
 readonly BACKUP_NAME="recovery-backup-$(date +%s)"
 readonly BRANCH="main"
 # This is the Source of Truth. We enforce this URL.
-readonly REPO_URL="https://github.com/dim-ghub/duskyRC"
+readonly REPO_URL="https://github.com/dim-ghub/dawn"
 
 # ------------------------------------------------------------------------------
 # VISUALS & LOGGING

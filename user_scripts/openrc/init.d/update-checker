@@ -2,7 +2,7 @@
 
 name="Dusky Update Checker"
 description="Checks for system updates periodically"
-command="/home/dim/duskyRC/user_scripts/update_dusky/update_checker/update_checker.sh"
+command="/home/dim/dawn/user_scripts/update_dawn/update_checker/update_checker.sh"
 command_args="--num"
 command_background="yes"
 pidfile="/run/${RC_SVCNAME}.pid"

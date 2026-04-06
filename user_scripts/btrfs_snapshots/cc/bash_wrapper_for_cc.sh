@@ -17,7 +17,7 @@ TARGET_DATE=$1
 TARGET_DESC=${2-}
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
-MANAGER_SCRIPT="${SCRIPT_DIR}/04_dusky_snapshot_manager.py"
+MANAGER_SCRIPT="${SCRIPT_DIR}/04_dawn_snapshot_manager.py"
 
 if [[ ! -f "$MANAGER_SCRIPT" || ! -r "$MANAGER_SCRIPT" ]]; then
     printf '%s\n' "[!] Error: Manager script not found or not readable at $MANAGER_SCRIPT" >&2

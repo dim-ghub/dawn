@@ -46,10 +46,10 @@ VERSION = "4.9 (Infinite Cache Fix + Precision Toggle)"
 
 ZRAM_MOUNT = Path("/mnt/zram1")
 AUDIO_OUTPUT_DIR = ZRAM_MOUNT / "kokoro_audio"
-FIFO_PATH = Path("/tmp/dusky_kokoro.fifo")
-PID_FILE = Path("/tmp/dusky_kokoro.pid")
-READY_FILE = Path("/tmp/dusky_kokoro.ready")
-LOCK_FILE = Path("/tmp/dusky_kokoro.lock")
+FIFO_PATH = Path("/tmp/dawn_kokoro.fifo")
+PID_FILE = Path("/tmp/dawn_kokoro.pid")
+READY_FILE = Path("/tmp/dawn_kokoro.ready")
+LOCK_FILE = Path("/tmp/dawn_kokoro.lock")
 
 # --- VOICE SETUP ---
 # Handled safely by Dusky TUI. Do not use multi-line dicts here.
@@ -88,7 +88,7 @@ MPV_WRITE_STALL_TIMEOUT = None
 # ==============================================================================
 # LOGGING
 # ==============================================================================
-logger = logging.getLogger("dusky_daemon")
+logger = logging.getLogger("dawn_daemon")
 logger.setLevel(logging.INFO)
 
 c_handler = logging.StreamHandler()

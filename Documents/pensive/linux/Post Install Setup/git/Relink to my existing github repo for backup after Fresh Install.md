@@ -2,7 +2,7 @@
 # 🔗 Relink to an Existing Dotfiles Repository
 
 > [!help] READ THIS FIRST
-> This guide outlines the process for pushing to an existing github repo to continue backing-up your local files after a fresh install of arch. this is after you've already restored with git_dusky checkout -f [[Restore Backup On a Fresh Install]]  
+> This guide outlines the process for pushing to an existing github repo to continue backing-up your local files after a fresh install of arch. this is after you've already restored with git_dawn checkout -f [[Restore Backup On a Fresh Install]]  
 > you may have made some changes and that's perfectly fine, it'll add the changes as a commit, just like it would have previously on your old system when making changes. 
 
 ---
@@ -13,10 +13,10 @@
 
 First, ensure no old dotfiles repository exists. This command will remove the directory if it's present.
 
-> This command permanently deletes the `dusky` directory from your home folder. 
+> This command permanently deletes the `dawn` directory from your home folder. 
 
 ```bash
-rm -rf $HOME/dusky
+rm -rf $HOME/dawn
 ```
 
 ### 2. 🆔 Set Global Git Identity
@@ -36,7 +36,7 @@ To securely communicate with GitHub without passwords, you must set up SSH keys.
 Download your dotfiles' version history from GitHub into a hidden "bare" repository in your home directory.
 
 ```bash
-git clone --bare git@github.com:dim-ghub/duskyRC.git $HOME/dusky
+git clone --bare git@github.com:dim-ghub/dawn.git $HOME/dawn
 ```
 
 this usually works 
@@ -55,24 +55,24 @@ Use your custom alias to add all tracked files from your list and then check the
 
 this will show a bunch of deleted files but that's okay. 
 ```bash
-git_dusky status
+git_dawn status
 ```
 this will reset the working area. 
 ```bash
-git_dusky reset
+git_dawn reset
 ```
 now it should be clean. 
 ```bash
-git_dusky status
+git_dawn status
 ```
 
 ```bash
-git_dusky_add_list
+git_dawn_add_list
 ```
 
 Make your first commit but **DONT** push yet. 
 ```bash
-git_dusky commit -m "fresh install first commit to the same old git repo"
+git_dawn commit -m "fresh install first commit to the same old git repo"
 ```
 
 ### 7. 🤝 Link Local and Remote Repositories
@@ -85,7 +85,7 @@ Ensure your local repository is correctly pointing to the remote one on GitHub. 
 Finalize the setup by making an initial commit on the new machine and pushing it to your remote repository. This confirms the link is working.
 
 ```bash
-git_dusky push -u origin main
+git_dawn push -u origin main
 ```
 
 > [!SUCCESS]

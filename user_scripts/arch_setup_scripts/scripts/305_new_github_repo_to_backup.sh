@@ -14,9 +14,9 @@ set -euo pipefail
 IFS=$'\n\t'
 
 # 2. CONSTANTS
-readonly DEFAULT_REPO_NAME="dusky"
+readonly DEFAULT_REPO_NAME="dawn"
 readonly LOCAL_REPO_PATH="$HOME/$DEFAULT_REPO_NAME"
-readonly DOTFILES_LIST="$HOME/.git_dusky_list"
+readonly DOTFILES_LIST="$HOME/.git_dawn_list"
 readonly SSH_KEY_PATH="$HOME/.ssh/id_ed25519"
 readonly SSH_DIR="$HOME/.ssh"
 readonly REQUIRED_CMDS=(git ssh ssh-keygen ssh-agent grep mktemp)
@@ -174,7 +174,7 @@ dotgit config --local status.showUntrackedFiles no
 
 # 5. SMART ADD (Filtered List)
 if [[ -f "$DOTFILES_LIST" ]]; then
-    log_info "Processing .git_dusky_list..."
+    log_info "Processing .git_dawn_list..."
     
     CLEAN_LIST=$(mktemp)
     
@@ -198,7 +198,7 @@ if [[ -f "$DOTFILES_LIST" ]]; then
         dotgit add "$0"
     fi
 else
-    log_warn "No .git_dusky_list found! Adding script as placeholder."
+    log_warn "No .git_dawn_list found! Adding script as placeholder."
     dotgit add "$0"
 fi
 

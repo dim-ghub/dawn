@@ -16,8 +16,8 @@ shopt -s extglob
 declare -r APP_TITLE="Dusky Firefox Themer"
 declare -r APP_VERSION="v1.5.0 (Stable)"
 
-declare -r REPO_URL="https://github.com/dim-ghub/dusky-websites/archive/refs/heads/main.tar.gz"
-declare -r CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/dusky_themer"
+declare -r REPO_URL="https://github.com/dim-ghub/dawn-websites/archive/refs/heads/main.tar.gz"
+declare -r CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/dawn_themer"
 
 # Category Mapping Array (Target -> Tab Name)
 declare -A THEME_CATEGORIES=(
@@ -465,7 +465,7 @@ deploy_changes() {
         printf "%s\n" "${to_import[@]}" >> "$tmp_css"
     fi
     
-    # 3. Append existing content (excluding legacy dusky imports and old colors.css imports)
+    # 3. Append existing content (excluding legacy dawn imports and old colors.css imports)
     grep -vE '^[[:space:]]*@import url\("?(websites/[^"]+\.css|colors\.css)"?\);' "$user_content" >> "$tmp_css" || true
     
     # 4. Replace atomically

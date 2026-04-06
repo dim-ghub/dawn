@@ -15,13 +15,13 @@ Environment=PYTHONUNBUFFERED=1
 MemoryAccounting=yes
 
 # Replace the path below with the actual path to the new python slider script
-ExecStart=%h/user_scripts/sliders/dusky_sliders.py --gapplication-service
+ExecStart=%h/user_scripts/sliders/dawn_sliders.py --gapplication-service
 
 # Restart automatically if it crashes
 Restart=always
 RestartSec=3
 
-SyslogIdentifier=dusky-sliders
+SyslogIdentifier=dawn-sliders
 Slice=app.slice
 
 [Install]

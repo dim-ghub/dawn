@@ -5,7 +5,7 @@
 #              Automatically handles TOS acceptance if pending.
 #              Soft-fails if WARP is not installed (prevents orchestrator errors).
 #              also supports --disconnect and --connect flags
-#              Maintains state file at ~/.config/dusky/settings/warp_state
+#              Maintains state file at ~/.config/dawn/settings/warp_state
 # Author: Elite DevOps
 # Environment: Arch Linux / Hyprland / UWSM
 # Dependencies: warp-cli, libnotify (notify-send) [optional], util-linux (script)
@@ -21,7 +21,7 @@ readonly ICON_CONN="network-vpn"
 readonly ICON_DISC="network-offline"
 readonly ICON_WAIT="network-transmit-receive"
 readonly ICON_ERR="dialog-error"
-readonly STATE_FILE="$HOME/.config/dusky/settings/warp_state"
+readonly STATE_FILE="$HOME/.config/dawn/settings/warp_state"
 
 # --- Runtime Checks ---
 # Cache notify-send availability

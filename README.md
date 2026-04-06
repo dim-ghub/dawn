@@ -33,7 +33,7 @@ here's what it looks like.
 
 ### There's also a brand new Dusky Control Center that acts as a system overview gui for settings and features, it's exhaustive in it's scope, almost anything you want to set/change can be done from this one stop shop intuitive gui app. I'll keep adding more quality of life features to it over time.
 
-![Dusky Control Center](Pictures/readme_assets/dusky_control_center.webp)
+![Dusky Control Center](Pictures/readme_assets/dawn_control_center.webp)
 
 This repository is the result of 8 months of tinkering/breaking/fixing and polishing. Its a labor of love designed to feel as easy to install as a "standard" distribution but with the raw power and minimalism of arch. **please consider starring ⭐ this repo** as a token of support.
 
@@ -91,13 +91,13 @@ sudo pacman -Syu --needed git
 
 clone the repo
 ```
-git clone --bare --depth 1 https://github.com/dim-ghub/duskyRC.git $HOME/dusky
+git clone --bare --depth 1 https://github.com/dim-ghub/dawn.git $HOME/dawn
 ```
 
 deploy the files on your system.
 
 ```bash
-git --git-dir=$HOME/dusky/ --work-tree=$HOME checkout -f
+git --git-dir=$HOME/dawn/ --work-tree=$HOME checkout -f
 ```
 
 > Note:
@@ -210,7 +210,7 @@ Note : i've purposely decided to not use quickshell for anything in the interest
 - neovim configured, you could also use your own later on. or install lazyvim or any another neovim rice
 
 
-- github repo integration so you can easily create your own repo to backup all files, this uses bare repo so your specific existing files, listed in ~/.git_dusky_list will backup to github, you can add more files/remove existing ones from this text file.
+- github repo integration so you can easily create your own repo to backup all files, this uses bare repo so your specific existing files, listed in ~/.git_dawn_list will backup to github, you can add more files/remove existing ones from this text file.
 
 - btrfs system compression ratio - scans your os files to see how much space zstd compression is saving you. 
 

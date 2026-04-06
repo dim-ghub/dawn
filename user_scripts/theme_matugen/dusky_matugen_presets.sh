@@ -28,7 +28,7 @@ declare -r APP_VERSION="v4.0.5"
 
 # --- State & Favorites Paths ---
 declare -r USE_STATE_FILE=true
-declare -r STATE_DIR="${HOME}/.config/dusky/settings/dusky_theme"
+declare -r STATE_DIR="${HOME}/.config/dawn/settings/dawn_theme"
 declare -r STATE_FILE="${STATE_DIR}/state.conf"
 declare -r FAVORITES_FILE="${STATE_DIR}/theme_preset_fav"
 declare -r THEME_CTL="${HOME}/user_scripts/theme_matugen/theme_ctl.sh"

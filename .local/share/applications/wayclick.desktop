@@ -2,7 +2,7 @@
 Type=Application
 Name=Toggle Wayclick
 Comment=Key Press Sounds
-Exec=/home/dusk/user_scripts/wayclick/dusky_wayclick.sh
+Exec=/home/dusk/user_scripts/wayclick/dawn_wayclick.sh
 Terminal=false
 Categories=keyboard;sounds;
 Icon=preferences-desktop-theme

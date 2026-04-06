@@ -6,9 +6,9 @@ set -euo pipefail
 # ==============================================================================
 
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-readonly ENV_DIR="$HOME/contained_apps/uv/dusky_kokoro"
+readonly ENV_DIR="$HOME/contained_apps/uv/dawn_kokoro"
 readonly MODEL_DIR="$ENV_DIR/models"
-readonly TRIGGER_DIR="$HOME/user_scripts/tts_stt/dusky_kokoro"
+readonly TRIGGER_DIR="$HOME/user_scripts/tts_stt/dawn_kokoro"
 readonly TARGET_TRIGGER="$TRIGGER_DIR/trigger.sh"
 
 readonly URL_F32="https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/kokoro-v1.0.onnx"
@@ -101,11 +101,11 @@ if ! command -v uv &> /dev/null; then
     source "$HOME/.cargo/env"
 fi
 
-if [[ -f "$SCRIPT_DIR/dusky_main.py" ]]; then
-    cp "$SCRIPT_DIR/dusky_main.py" "$ENV_DIR/"
-    echo ":: dusky_main.py deployed."
+if [[ -f "$SCRIPT_DIR/dawn_main.py" ]]; then
+    cp "$SCRIPT_DIR/dawn_main.py" "$ENV_DIR/"
+    echo ":: dawn_main.py deployed."
 else
-    echo ":: ERROR: dusky_main.py not found in current directory."
+    echo ":: ERROR: dawn_main.py not found in current directory."
     exit 1
 fi
 
@@ -173,12 +173,12 @@ cat << EOF > "$TARGET_TRIGGER"
 # Dusky Kokoro Trigger V36 ($MODE edition)
 # Features: Universal HW, Robust Detection, Cold Boot Fix, Hard Kill, Base64 IPC
 
-readonly APP_DIR="$HOME/contained_apps/uv/dusky_kokoro"
-readonly PID_FILE="/tmp/dusky_kokoro.pid"
-readonly READY_FILE="/tmp/dusky_kokoro.ready"
-readonly FIFO_PATH="/tmp/dusky_kokoro.fifo"
-readonly DAEMON_LOG="/tmp/dusky_kokoro.log"
-readonly DEBUG_LOG="\$APP_DIR/dusky_debug.log"
+readonly APP_DIR="$HOME/contained_apps/uv/dawn_kokoro"
+readonly PID_FILE="/tmp/dawn_kokoro.pid"
+readonly READY_FILE="/tmp/dawn_kokoro.ready"
+readonly FIFO_PATH="/tmp/dawn_kokoro.fifo"
+readonly DAEMON_LOG="/tmp/dawn_kokoro.log"
+readonly DEBUG_LOG="\$APP_DIR/dawn_debug.log"
 readonly INSTALL_MODE="$MODE"
 
 # --- Helpers ---
@@ -241,9 +241,9 @@ start_daemon() {
         echo ":: Starting Daemon in FORENSIC DEBUG Mode..."
         export DUSKY_LOG_LEVEL="DEBUG"
         export DUSKY_LOG_FILE="\$DEBUG_LOG"
-        nohup uv run dusky_main.py --daemon --debug-file "\$DEBUG_LOG" > "\$DAEMON_LOG" 2>&1 &
+        nohup uv run dawn_main.py --daemon --debug-file "\$DEBUG_LOG" > "\$DAEMON_LOG" 2>&1 &
     else
-        nohup uv run dusky_main.py --daemon > "\$DAEMON_LOG" 2>&1 &
+        nohup uv run dawn_main.py --daemon > "\$DAEMON_LOG" 2>&1 &
     fi
 
     # IMMEDIATE PID LOCK: Prevents double-start during cold boot

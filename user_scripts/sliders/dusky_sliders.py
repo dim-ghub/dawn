@@ -29,7 +29,7 @@ try:
 except (ImportError, ValueError) as exc:
     raise SystemExit(f"Failed to load GTK4/Libadwaita: {exc}")
 
-APP_ID = "org.dusky.sliders"
+APP_ID = "org.dawn.sliders"
 
 if not logging.getLogger().handlers:
     logging.basicConfig(

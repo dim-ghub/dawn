@@ -42,7 +42,7 @@
     "custom/arch": {
         "format": "󰣇",
         "tooltip-format": "Control Center",
-        "on-click": "python3 ~/user_scripts/dusky_system/control_center/dusky_control_center.py"
+        "on-click": "python3 ~/user_scripts/dawn_system/control_center/dawn_control_center.py"
     },
     "custom/lock": {
         "format": "󰌾",
@@ -110,8 +110,8 @@
         "format": "{icon} {percent}%",
         "format-icons": ["󰃞", "󰃟", "󰃠"],
         "tooltip-format": "LMB: Brightness Slider\nRMB: hyprsunset Slider\nMMB: Shaders",
-        "on-click": "uwsm-app -- ~/user_scripts/sliders/dusky_sliders.py",
-        "on-click-right": "uwsm-app -- ~/user_scripts/sliders/dusky_sliders.py",
+        "on-click": "uwsm-app -- ~/user_scripts/sliders/dawn_sliders.py",
+        "on-click-right": "uwsm-app -- ~/user_scripts/sliders/dawn_sliders.py",
         "on-click-middle": "uwsm-app -- ~/user_scripts/rofi/shader_menu.sh",
         "on-scroll-up": "swayosd-client --brightness raise",
         "on-scroll-down": "swayosd-client --brightness lower"
@@ -145,7 +145,7 @@
         "format-plugged": "󰚥 {capacity}%",
         "format-icons": ["󰂎", "󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"],
         "on-click": "uwsm-app -- kitty --class power_saver.sh --hold -e $HOME/user_scripts/battery/power_saving/power_saver.sh",
-        "on-click-right": "uwsm-app -- kitty --class dusky_hypridle.sh -e $HOME/user_scripts/hypridle/dusky_hypridle.sh"
+        "on-click-right": "uwsm-app -- kitty --class dawn_hypridle.sh -e $HOME/user_scripts/hypridle/dawn_hypridle.sh"
 
 
     },

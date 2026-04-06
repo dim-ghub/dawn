@@ -6,7 +6,7 @@
 # Target: Artix Linux / Hyprland / OpenRC / Wayland
 #
 # Description: Toggles cliphist persistence between RAM and disk storage.
-#              Stores configuration in ~/.config/dusky/clipboard_persistence.conf
+#              Stores configuration in ~/.config/dawn/clipboard_persistence.conf
 #
 # v2.0.0 CHANGELOG:
 #   - BREAKING: Removed UWSM dependency (systemd-only, incompatible with OpenRC)
@@ -43,10 +43,10 @@ declare -r C_BOLD=$'\033[1m'
 # =============================================================================
 # Configuration
 # =============================================================================
-declare -r CONFIG_DIR="${HOME}/.config/dusky"
+declare -r CONFIG_DIR="${HOME}/.config/dawn"
 declare -r CONFIG_FILE="${CONFIG_DIR}/clipboard_persistence.conf"
 declare -r ENV_FILE="${HOME}/.config/hypr/edit_here/source/environment_variables.conf"
-declare -r STATE_DIR="${HOME}/.config/dusky/settings"
+declare -r STATE_DIR="${HOME}/.config/dawn/settings"
 declare -r STATE_FILE="${STATE_DIR}/clipboard_persistance"
 
 # Default config values

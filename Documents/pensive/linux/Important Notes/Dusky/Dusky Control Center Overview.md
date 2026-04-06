@@ -22,7 +22,7 @@ Before you configure, understand _why_ Dusky works the way it does.
 
 To understand how the configuration works, think of Dusky Control Center like a high-end restaurant:
 
-1. **The YAML (`dusky_config.yaml`) is the Menu.** It lists what is available, the prices, and the descriptions. It doesn't cook the food; it just describes it.
+1. **The YAML (`dawn_config.yaml`) is the Menu.** It lists what is available, the prices, and the descriptions. It doesn't cook the food; it just describes it.
     
 2. **The Python Backend (`rows.py`) is the Kitchen.** It takes the order and actually prepares the widget (buttons, sliders, toggles).
     
@@ -44,13 +44,13 @@ To understand how the configuration works, think of Dusky Control Center like a 
 
 ## 2. Configuration Structure
 
-The configuration file is located at `$HOME/user_scripts/dusky_config.yaml`.
+The configuration file is located at `$HOME/user_scripts/dawn_config.yaml`.
 
 The hierarchy is strict. If the indentation is wrong, the "Menu" is unreadable.
 
 **Pages** $\to$ **Layouts** (Sections) $\to$ **Items** (Widgets)
 
-The `dusky_config.yaml` is the heart of the system with this hierarchical structure:
+The `dawn_config.yaml` is the heart of the system with this hierarchical structure:
 
 ```
 pages (list)
@@ -123,7 +123,7 @@ This is smarter than a doorbell. It needs to know: "Is the light currently ON?" 
     
 - `state_command`: A shell command. If it returns "enabled", "on", or "active", the switch turns green.
     
-- `key`: Alternatively, link to a file in `~/.config/dusky/settings/` for internal state.
+- `key`: Alternatively, link to a file in `~/.config/dawn/settings/` for internal state.
     
 - `interval`: How often (in seconds) to check the state.
     
@@ -237,7 +237,7 @@ These are large, square buttons used in the `grid_section` layout. Ideal for the
   properties:
     title: Dark Mode
     icon: weather-clear-night-symbolic
-    key: dusky_theme/state # Saves state to file
+    key: dawn_theme/state # Saves state to file
   on_toggle:
     enabled:
       type: exec
@@ -329,7 +329,7 @@ A visual alert to warn users about sensitive settings.
 
 You do **not** need to close and reopen the application to see your changes.
 
-1. Edit `dusky_config.yaml`.
+1. Edit `dawn_config.yaml`.
     
 2. Focus the Dusky window.
     
@@ -386,11 +386,11 @@ The interface uses `Adw.OverlaySplitView`.
 
 ### "The app won't open"
 
-- **Check:** Run `dusky_control_center.py` from a terminal to see the error output.
+- **Check:** Run `dawn_control_center.py` from a terminal to see the error output.
     
 - **Recover:** If the config is broken, Dusky will launch into a special "Error State" page showing you the Python stack trace, allowing you to fix the YAML and Hot Reload (`Ctrl+R`) without crashing.
 
-### 1. `dusky_control_center.py` (The Manager)
+### 1. `dawn_control_center.py` (The Manager)
 
 **Role:** Main Application Logic & Window Management. This is the file you actually run. It creates the window, manages the sidebar navigation, handles the Search bar logic (`Ctrl+F`), and listens for the Hot Reload command (`Ctrl+R`). It doesn't know how to build a specific slider or button; it just coordinates everything.
 
@@ -417,14 +417,14 @@ The interface uses `Adw.OverlaySplitView`.
 - **Key Job:** ensuring thread safety and preventing crashes when interacting with the OS.
     
 
-### 4. `dusky_config.yaml` (The Menu)
+### 4. `dawn_config.yaml` (The Menu)
 
 **Role:** User Configuration. This is the **only** file a normal user interacts with. It defines _what_ goes in the app. It lists the pages, the icons, the titles, and the commands to run.
 
 - **Key Job:** Tells the app what to display. If you delete everything in this file, the app opens as a blank window (or shows the "Empty State" error page).
     
 
-### 5. `dusky_style.css` (The Decor)
+### 5. `dawn_style.css` (The Decor)
 
 **Role:** Visual Styling. This standard CSS file overrides the default GTK look. It defines the rounded corners of the cards, the specific colors of the toggle switches, the "dim" look of labels, and the hover effects.
 

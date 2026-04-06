@@ -41,7 +41,7 @@ pages:
       properties:
         title: Dark Mode
         icon: weather-clear-night-symbolic
-        key: dusky_theme/state
+        key: dawn_theme/state
       on_toggle:
         enabled:
           type: exec
@@ -58,14 +58,14 @@ pages:
         style: destructive
       on_press:
         type: exec
-        command: $HOME/user_scripts/dusky_system/reload_cc/cc_restart.sh
+        command: $HOME/user_scripts/dawn_system/reload_cc/cc_restart.sh
         terminal: false
     - type: grid_card
       properties:
         title: Dusky
         icon: software-update-available-symbolic
-        badge_file: ~/.config/dusky/settings/dusky_update_behind_commit
-        button_text_file: ~/.config/dusky/settings/dusky_update_behind_commit
+        badge_file: ~/.config/dawn/settings/dawn_update_behind_commit
+        button_text_file: ~/.config/dawn/settings/dawn_update_behind_commit
         button_text_map:
           "0": "Updated"
           "default": "Available"
@@ -74,7 +74,7 @@ pages:
           "default": "suggested"
       on_press:
         type: exec
-        command: kitty --class update_dusky.sh --title "System Updater" --hold sh -c "$HOME/user_scripts/update_dusky/update_dusky.sh"
+        command: kitty --class update_dawn.sh --title "System Updater" --hold sh -c "$HOME/user_scripts/update_dawn/update_dawn.sh"
         terminal: false
     - type: grid_card
       properties:
@@ -201,7 +201,7 @@ pages:
         icon: help-about-symbolic
       on_press:
         type: redirect
-        page: about_dusky
+        page: about_dawn
 
   - type: section
     properties:
@@ -259,7 +259,7 @@ pages:
               on_action:
                 type: exec
                 # Executes both sequentially. The Python script will inject the quoted description into {value}.
-                command: "sudo ~/user_scripts/btrfs_snapshots/cc/04_dusky_snapshot_manager.py -c root -C {value} && sudo ~/user_scripts/btrfs_snapshots/cc/04_dusky_snapshot_manager.py -c home -C {value}"
+                command: "sudo ~/user_scripts/btrfs_snapshots/cc/04_dawn_snapshot_manager.py -c root -C {value} && sudo ~/user_scripts/btrfs_snapshots/cc/04_dawn_snapshot_manager.py -c home -C {value}"
             - type: entry
               properties:
                 title: "Create Root Snapshot"
@@ -268,7 +268,7 @@ pages:
                 button_text: "Create"
               on_action:
                 type: exec
-                command: "sudo ~/user_scripts/btrfs_snapshots/cc/04_dusky_snapshot_manager.py -c root -C {value}"
+                command: "sudo ~/user_scripts/btrfs_snapshots/cc/04_dawn_snapshot_manager.py -c root -C {value}"
             - type: entry
               properties:
                 title: "Create Home Snapshot"
@@ -277,7 +277,7 @@ pages:
                 button_text: "Create"
               on_action:
                 type: exec
-                command: "sudo ~/user_scripts/btrfs_snapshots/cc/04_dusky_snapshot_manager.py -c home -C {value}"
+                command: "sudo ~/user_scripts/btrfs_snapshots/cc/04_dawn_snapshot_manager.py -c home -C {value}"
 
         - type: section
           properties:
@@ -289,7 +289,7 @@ pages:
                 title: "Combined Recovery (Root + Home)"
                 description: "Select an exact timestamp. Requires immediate reboot."
                 icon: system-reboot-symbolic
-                list_command: "sudo ~/user_scripts/btrfs_snapshots/cc/04_dusky_snapshot_manager.py -c root -l --json"
+                list_command: "sudo ~/user_scripts/btrfs_snapshots/cc/04_dawn_snapshot_manager.py -c root -l --json"
                 display_template: "[{date}] {description}"
                 button_text: "Restore Both"
                 style: "destructive"
@@ -310,7 +310,7 @@ pages:
                 title: "System Recovery (Root Only)"
                 description: "Revert pacman updates or system configs. Requires reboot."
                 icon: drive-harddisk-system-symbolic
-                list_command: "sudo ~/user_scripts/btrfs_snapshots/cc/04_dusky_snapshot_manager.py -c root -l --json"
+                list_command: "sudo ~/user_scripts/btrfs_snapshots/cc/04_dawn_snapshot_manager.py -c root -l --json"
                 display_template: "[{id}] {date} | {description}"
                 button_text: "Restore Root"
                 style: "destructive"
@@ -319,13 +319,13 @@ pages:
                 display_max_length: 45
               on_action:
                 type: "exec"
-                command: "sudo ~/user_scripts/btrfs_snapshots/cc/04_dusky_snapshot_manager.py -c root -R {id}"
+                command: "sudo ~/user_scripts/btrfs_snapshots/cc/04_dawn_snapshot_manager.py -c root -R {id}"
             - type: async_selector
               properties:
                 title: "Data Recovery (Home Only)"
                 description: "Revert personal files. Hot-reloads instantly (no reboot)."
                 icon: user-home-symbolic
-                list_command: "sudo ~/user_scripts/btrfs_snapshots/cc/04_dusky_snapshot_manager.py -c home -l --json"
+                list_command: "sudo ~/user_scripts/btrfs_snapshots/cc/04_dawn_snapshot_manager.py -c home -l --json"
                 display_template: "[{id}] {date} | {description}"
                 button_text: "Restore Home"
                 style: "suggested"
@@ -334,7 +334,7 @@ pages:
                 display_max_length: 45
               on_action:
                 type: "exec"
-                command: "sudo ~/user_scripts/btrfs_snapshots/cc/04_dusky_snapshot_manager.py -c home -R {id}"
+                command: "sudo ~/user_scripts/btrfs_snapshots/cc/04_dawn_snapshot_manager.py -c home -R {id}"
 
   - type: section
     properties:
@@ -357,8 +357,8 @@ pages:
               title: Dusky Updater
               description: Update Dusky specific configuration files
               icon: software-update-available-symbolic
-              badge_file: ~/.config/dusky/settings/dusky_update_behind_commit
-              button_text_file: ~/.config/dusky/settings/dusky_update_behind_commit
+              badge_file: ~/.config/dawn/settings/dawn_update_behind_commit
+              button_text_file: ~/.config/dawn/settings/dawn_update_behind_commit
               button_text_map:
                 "0": "Updated"
                 "default": "Available"
@@ -367,7 +367,7 @@ pages:
                 "default": "suggested"
             on_press:
               type: exec
-              command: kitty --class update_dusky.sh --title "System Updater" --hold sh -c "$HOME/user_scripts/update_dusky/update_dusky.sh"
+              command: kitty --class update_dawn.sh --title "System Updater" --hold sh -c "$HOME/user_scripts/update_dawn/update_dawn.sh"
               terminal: false
           - type: button
             properties:
@@ -387,20 +387,20 @@ pages:
           - type: button
             properties:
               title: View Backups
-              description: Browse ~/Documents/dusky_backups/
+              description: Browse ~/Documents/dawn_backups/
               icon: edit-copy-symbolic
               buttons:
                 - icon: utilities-terminal-symbolic
                   button_text: "Yazi"
                   on_press:
                     type: exec
-                    command: kitty --class yazi --title "Backup Viewer" --hold sh -c "yazi $HOME/Documents/dusky_backups/"
+                    command: kitty --class yazi --title "Backup Viewer" --hold sh -c "yazi $HOME/Documents/dawn_backups/"
                 - icon: system-file-manager-symbolic
                   button_text: "nemo"
                   style: suggested
                   on_press:
                     type: exec
-                    command: nemo "$HOME/Documents/dusky_backups/"
+                    command: nemo "$HOME/Documents/dawn_backups/"
           - type: button
             properties:
               title: Send Logs
@@ -794,7 +794,7 @@ pages:
         button_text: "Open"
       on_press:
         type: exec
-        command: kitty --class dusky_power.sh --title "Power Manager" --hold sh -c "$HOME/user_scripts/power/dusky_power.sh"
+        command: kitty --class dawn_power.sh --title "Power Manager" --hold sh -c "$HOME/user_scripts/power/dawn_power.sh"
         terminal: false
   - type: section
     properties:
@@ -866,7 +866,7 @@ pages:
         button_text: "Open"
       on_press:
         type: exec
-        command: $HOME/user_scripts/sliders/dusky_sliders.py
+        command: $HOME/user_scripts/sliders/dawn_sliders.py
         terminal: false
   - type: section
     properties:
@@ -882,8 +882,8 @@ pages:
         button_text: "Open"
       on_press:
         type: exec
-        command: kitty --class dusky_monitor.sh --hold
-          sh -c "$HOME/user_scripts/hypr/dusky_monitor.sh"
+        command: kitty --class dawn_monitor.sh --hold
+          sh -c "$HOME/user_scripts/hypr/dawn_monitor.sh"
         terminal: false
     - type: button
       properties:
@@ -940,11 +940,11 @@ pages:
       on_toggle:
         enabled:
           type: exec
-          command: $HOME/user_scripts/wayclick/dusky_wayclick.sh
+          command: $HOME/user_scripts/wayclick/dawn_wayclick.sh
           terminal: false
         disabled:
           type: exec
-          command: $HOME/user_scripts/wayclick/dusky_wayclick.sh
+          command: $HOME/user_scripts/wayclick/dawn_wayclick.sh
           terminal: false
 
   - type: section
@@ -1016,7 +1016,7 @@ pages:
       properties:
         title: Dark Mode
         icon: weather-clear-night-symbolic
-        key: dusky_theme/state
+        key: dawn_theme/state
       on_toggle:
         enabled:
           type: exec
@@ -1032,7 +1032,7 @@ pages:
         icon: view-grid-symbolic
       on_press:
         type: exec
-        command: kitty --class dusky_matugen_presets.sh -e ~/user_scripts/theme_matugen/dusky_matugen_presets.sh
+        command: kitty --class dawn_matugen_presets.sh -e ~/user_scripts/theme_matugen/dawn_matugen_presets.sh
         terminal: false
     - type: toggle_card
       properties:
@@ -1144,7 +1144,7 @@ pages:
                 button_text: "Open"
               on_press:
                 type: exec
-                command: kitty --class dusky_appearances.sh --hold sh -c "$HOME/user_scripts/hypr/dusky_appearances.sh"
+                command: kitty --class dawn_appearances.sh --hold sh -c "$HOME/user_scripts/hypr/dawn_appearances.sh"
                 terminal: false
             - type: button
               properties:
@@ -1193,7 +1193,7 @@ pages:
             style: suggested
             on_press:
               type: exec
-              command: kitty --class dusky_gsettings.sh --hold sh -c "$HOME/user_scripts/gtk/dusky_gsettings.sh"
+              command: kitty --class dawn_gsettings.sh --hold sh -c "$HOME/user_scripts/gtk/dawn_gsettings.sh"
               terminal: false
     - type: selection
       properties:
@@ -1287,7 +1287,7 @@ pages:
         button_text: "Swap"
       on_press:
         type: exec
-        command: kitty --class dusky_waybars.sh --hold sh -c $HOME/user_scripts/waybar/dusky_waybars.sh
+        command: kitty --class dawn_waybars.sh --hold sh -c $HOME/user_scripts/waybar/dawn_waybars.sh
         terminal: false
     - type: button
       properties:
@@ -1297,7 +1297,7 @@ pages:
         button_text: "Switch"
       on_press:
         type: exec
-        command: kitty --class dusky_swaync_side.sh --hold sh -c $HOME/user_scripts/swaync/dusky_swaync_side.sh
+        command: kitty --class dawn_swaync_side.sh --hold sh -c $HOME/user_scripts/swaync/dawn_swaync_side.sh
         terminal: false
   - type: section
     properties:
@@ -1319,7 +1319,7 @@ pages:
               button_text: "Open"
             on_press:
               type: exec
-              command: kitty --class dusky_hyprlock_switcher.sh --hold sh -c $HOME/user_scripts/hyprlock/dusky_hyprlock_switcher.sh
+              command: kitty --class dawn_hyprlock_switcher.sh --hold sh -c $HOME/user_scripts/hyprlock/dawn_hyprlock_switcher.sh
               terminal: false
           - type: button
             properties:
@@ -1329,7 +1329,7 @@ pages:
               button_text: "Open"
             on_press:
               type: exec
-              command: kitty --class dusky_hypridle.sh --hold sh -c "$HOME/user_scripts/hypridle/dusky_hypridle.sh"
+              command: kitty --class dawn_hypridle.sh --hold sh -c "$HOME/user_scripts/hypridle/dawn_hypridle.sh"
               terminal: false
           - type: button
             properties:
@@ -1360,8 +1360,8 @@ pages:
         button_text: "Open"
       on_press:
         type: exec
-        command: kitty --class dusky_service_toggle.sh --hold
-          sh -c "$HOME/user_scripts/services/dusky_service_toggle.sh"
+        command: kitty --class dawn_service_toggle.sh --hold
+          sh -c "$HOME/user_scripts/services/dawn_service_toggle.sh"
         terminal: false
     - type: button
       properties:
@@ -1489,7 +1489,7 @@ pages:
                     style: suggested
                     on_press:
                       type: exec
-                      command: kitty --class dusky_keybinds.sh --hold sh -c "$HOME/user_scripts/hypr/dusky_keybinds.sh"
+                      command: kitty --class dawn_keybinds.sh --hold sh -c "$HOME/user_scripts/hypr/dawn_keybinds.sh"
             - type: button
               properties:
                 title: Input
@@ -1506,7 +1506,7 @@ pages:
                     style: suggested
                     on_press:
                       type: exec
-                      command: kitty --class dusky_input.sh --hold sh -c "$HOME/user_scripts/hypr/dusky_input.sh"
+                      command: kitty --class dawn_input.sh --hold sh -c "$HOME/user_scripts/hypr/dawn_input.sh"
 
     - type: navigation
       properties:
@@ -1567,7 +1567,7 @@ pages:
                     style: suggested
                     on_press:
                       type: exec
-                      command: kitty --class dusky_monitor.sh --hold sh -c "$HOME/user_scripts/hypr/dusky_monitor.sh"
+                      command: kitty --class dawn_monitor.sh --hold sh -c "$HOME/user_scripts/hypr/dawn_monitor.sh"
             - type: button
               properties:
                 title: Window Rules
@@ -1584,7 +1584,7 @@ pages:
                     style: suggested
                     on_press:
                       type: exec
-                      command: kitty --class dusky_window_rules.sh --hold sh -c "$HOME/user_scripts/hypr/dusky_window_rules.sh"
+                      command: kitty --class dawn_window_rules.sh --hold sh -c "$HOME/user_scripts/hypr/dawn_window_rules.sh"
 
     - type: navigation
       properties:
@@ -1612,7 +1612,7 @@ pages:
                     style: suggested
                     on_press:
                       type: exec
-                      command: kitty --class dusky_appearances.sh --hold sh -c "$HOME/user_scripts/hypr/dusky_appearances.sh"
+                      command: kitty --class dawn_appearances.sh --hold sh -c "$HOME/user_scripts/hypr/dawn_appearances.sh"
             - type: button
               properties:
                 title: Workspace Rules
@@ -1629,7 +1629,7 @@ pages:
                     style: suggested
                     on_press:
                       type: exec
-                      command: kitty --class dusky_workspace_manager.sh --hold sh -c "$HOME/user_scripts/hypr/dusky_workspace_manager.sh"
+                      command: kitty --class dawn_workspace_manager.sh --hold sh -c "$HOME/user_scripts/hypr/dawn_workspace_manager.sh"
             - type: button
               properties:
                 title: Hypridle
@@ -1646,7 +1646,7 @@ pages:
                     style: suggested
                     on_press:
                       type: exec
-                      command: kitty --class dusky_hypridle.sh --hold sh -c "$HOME/user_scripts/hypridle/dusky_hypridle.sh"
+                      command: kitty --class dawn_hypridle.sh --hold sh -c "$HOME/user_scripts/hypridle/dawn_hypridle.sh"
 
   - type: section
     properties:
@@ -1672,7 +1672,7 @@ pages:
                 button_text: "Swap"
               on_press:
                 type: exec
-                command: kitty --class dusky_waybars.sh --hold sh -c $HOME/user_scripts/waybar/dusky_waybars.sh
+                command: kitty --class dawn_waybars.sh --hold sh -c $HOME/user_scripts/waybar/dawn_waybars.sh
                 terminal: false
             - type: selection
               properties:
@@ -1741,7 +1741,7 @@ pages:
                 button_text: "Switch"
               on_press:
                 type: exec
-                command: kitty --class dusky_swaync_side.sh --hold sh -c $HOME/user_scripts/swaync/dusky_swaync_side.sh
+                command: kitty --class dawn_swaync_side.sh --hold sh -c $HOME/user_scripts/swaync/dawn_swaync_side.sh
                 terminal: false
             - type: button
               properties:
@@ -1833,7 +1833,7 @@ pages:
                 button_text: "Swap"
               on_press:
                 type: exec
-                command: kitty --class dusky_hyprlock_switcher.sh --hold sh -c $HOME/user_scripts/hyprlock/dusky_hyprlock_switcher.sh
+                command: kitty --class dawn_hyprlock_switcher.sh --hold sh -c $HOME/user_scripts/hyprlock/dawn_hyprlock_switcher.sh
                 terminal: false
 
         - type: section
@@ -1968,8 +1968,8 @@ pages:
         button_text: "Open"
       on_press:
         type: exec
-        command: kitty --class dusky_keybinds.sh --hold
-          sh -c "$HOME/user_scripts/hypr/dusky_keybinds.sh"
+        command: kitty --class dawn_keybinds.sh --hold
+          sh -c "$HOME/user_scripts/hypr/dawn_keybinds.sh"
         terminal: false
 
 - id: tools_and_ai
@@ -2033,7 +2033,7 @@ pages:
         button_text: "Install"
       on_press:
         type: exec
-        command: kitty --class kokoro_installer.sh --hold sh -c "$HOME/user_scripts/tts_stt/dusky_kokoro/kokoro_installer.sh"
+        command: kitty --class kokoro_installer.sh --hold sh -c "$HOME/user_scripts/tts_stt/dawn_kokoro/kokoro_installer.sh"
         terminal: false
   - type: section
     properties:
@@ -2049,7 +2049,7 @@ pages:
         button_text: "Install"
       on_press:
         type: exec
-        command: kitty --class parakeet_installer.sh --hold sh -c "$HOME/user_scripts/tts_stt/dusky_parakeet/parakeet_installer.sh"
+        command: kitty --class parakeet_installer.sh --hold sh -c "$HOME/user_scripts/tts_stt/dawn_parakeet/parakeet_installer.sh"
         terminal: false
 
 - id: setup_features
@@ -2149,7 +2149,7 @@ pages:
 ###                button_text: "Install"
 ###              on_press:
 ###                type: exec
-###                command: kitty --class 356_dusky_plugin_manager.sh --hold sh -c "$HOME/user_scripts/arch_setup_scripts/scripts/356_dusky_plugin_manager.sh --expo"
+###                command: kitty --class 356_dawn_plugin_manager.sh --hold sh -c "$HOME/user_scripts/arch_setup_scripts/scripts/356_dawn_plugin_manager.sh --expo"
 ###                terminal: false
 ###            - type: button
 ###              properties:
@@ -2159,7 +2159,7 @@ pages:
 ###                button_text: "Install"
 ###              on_press:
 ###                type: exec
-###                command: kitty --class 356_dusky_plugin_manager.sh --hold sh -c "$HOME/user_scripts/arch_setup_scripts/scripts/356_dusky_plugin_manager.sh --space"
+###                command: kitty --class 356_dawn_plugin_manager.sh --hold sh -c "$HOME/user_scripts/arch_setup_scripts/scripts/356_dawn_plugin_manager.sh --space"
 ###                terminal: false
 ###            - type: button
 ###              properties:
@@ -2169,7 +2169,7 @@ pages:
 ###                button_text: "Install"
 ###              on_press:
 ###                type: exec
-###                command: kitty --class 356_dusky_plugin_manager.sh --hold sh -c "$HOME/user_scripts/arch_setup_scripts/scripts/356_dusky_plugin_manager.sh --scrolling"
+###                command: kitty --class 356_dawn_plugin_manager.sh --hold sh -c "$HOME/user_scripts/arch_setup_scripts/scripts/356_dawn_plugin_manager.sh --scrolling"
 ###                terminal: false
 ###            - type: button
 ###              properties:
@@ -2179,7 +2179,7 @@ pages:
 ###                button_text: "Install"
 ###              on_press:
 ###                type: exec
-###                command: kitty --class 356_dusky_plugin_manager.sh --hold sh -c "$HOME/user_scripts/arch_setup_scripts/scripts/356_dusky_plugin_manager.sh --hy3"
+###                command: kitty --class 356_dawn_plugin_manager.sh --hold sh -c "$HOME/user_scripts/arch_setup_scripts/scripts/356_dawn_plugin_manager.sh --hy3"
 ###                terminal: false
 ###
 ###        - type: section
@@ -2194,7 +2194,7 @@ pages:
 ###                button_text: "Install"
 ###              on_press:
 ###                type: exec
-###                command: kitty --class 356_dusky_plugin_manager.sh --hold sh -c "$HOME/user_scripts/arch_setup_scripts/scripts/356_dusky_plugin_manager.sh --cursors"
+###                command: kitty --class 356_dawn_plugin_manager.sh --hold sh -c "$HOME/user_scripts/arch_setup_scripts/scripts/356_dawn_plugin_manager.sh --cursors"
 ###                terminal: false
 ###            - type: button
 ###              properties:
@@ -2204,7 +2204,7 @@ pages:
 ###                button_text: "Install"
 ###              on_press:
 ###                type: exec
-###                command: kitty --class 356_dusky_plugin_manager.sh --hold sh -c "$HOME/user_scripts/arch_setup_scripts/scripts/356_dusky_plugin_manager.sh --bars"
+###                command: kitty --class 356_dawn_plugin_manager.sh --hold sh -c "$HOME/user_scripts/arch_setup_scripts/scripts/356_dawn_plugin_manager.sh --bars"
 ###                terminal: false
 ###            - type: button
 ###              properties:
@@ -2214,7 +2214,7 @@ pages:
 ###                button_text: "Install"
 ###              on_press:
 ###                type: exec
-###                command: kitty --class 356_dusky_plugin_manager.sh --hold sh -c "$HOME/user_scripts/arch_setup_scripts/scripts/356_dusky_plugin_manager.sh --glass"
+###                command: kitty --class 356_dawn_plugin_manager.sh --hold sh -c "$HOME/user_scripts/arch_setup_scripts/scripts/356_dawn_plugin_manager.sh --glass"
 ###                terminal: false
 ###            - type: button
 ###              properties:
@@ -2224,7 +2224,7 @@ pages:
 ###                button_text: "Install"
 ###              on_press:
 ###                type: exec
-###                command: kitty --class 356_dusky_plugin_manager.sh --hold sh -c "$HOME/user_scripts/arch_setup_scripts/scripts/356_dusky_plugin_manager.sh --darkwindow"
+###                command: kitty --class 356_dawn_plugin_manager.sh --hold sh -c "$HOME/user_scripts/arch_setup_scripts/scripts/356_dawn_plugin_manager.sh --darkwindow"
 ###                terminal: false
 ###
 ###        - type: section
@@ -2239,7 +2239,7 @@ pages:
 ###                button_text: "Install"
 ###              on_press:
 ###                type: exec
-###                command: kitty --class 356_dusky_plugin_manager.sh --hold sh -c "$HOME/user_scripts/arch_setup_scripts/scripts/356_dusky_plugin_manager.sh --hotedge"
+###                command: kitty --class 356_dawn_plugin_manager.sh --hold sh -c "$HOME/user_scripts/arch_setup_scripts/scripts/356_dawn_plugin_manager.sh --hotedge"
 ###                terminal: false
 ###            - type: button
 ###              properties:
@@ -2249,7 +2249,7 @@ pages:
 ###                button_text: "Install"
 ###              on_press:
 ###                type: exec
-###                command: kitty --class 356_dusky_plugin_manager.sh --hold sh -c "$HOME/user_scripts/arch_setup_scripts/scripts/356_dusky_plugin_manager.sh --grass"
+###                command: kitty --class 356_dawn_plugin_manager.sh --hold sh -c "$HOME/user_scripts/arch_setup_scripts/scripts/356_dawn_plugin_manager.sh --grass"
 ###                terminal: false
 
     - type: navigation
@@ -2271,7 +2271,7 @@ pages:
                 button_text: "Reset"
               on_press:
                 type: exec
-                command: kitty --class dusky_wayclick.sh --hold sh -c "$HOME/user_scripts/wayclick/dusky_wayclick.sh --reset"
+                command: kitty --class dawn_wayclick.sh --hold sh -c "$HOME/user_scripts/wayclick/dawn_wayclick.sh --reset"
                 terminal: false
             - type: button
               properties:
@@ -2281,7 +2281,7 @@ pages:
                 button_text: "Install"
               on_press:
                 type: exec
-                command: kitty --class dusky_wayclick.sh --hold sh -c "$HOME/user_scripts/wayclick/dusky_wayclick.sh --setup"
+                command: kitty --class dawn_wayclick.sh --hold sh -c "$HOME/user_scripts/wayclick/dawn_wayclick.sh --setup"
                 terminal: false
             - type: button
               properties:
@@ -2293,13 +2293,13 @@ pages:
                     button_text: "File"
                     on_press:
                       type: exec
-                      command: gnome-text-editor "$HOME/user_scripts/wayclick/dusky_wayclick.sh"
+                      command: gnome-text-editor "$HOME/user_scripts/wayclick/dawn_wayclick.sh"
                   - icon: input-keyboard-symbolic
                     button_text: "TUI"
                     style: suggested
                     on_press:
                       type: exec
-                      command: kitty --class dusky_tui_wayclick.sh --hold sh -c "$HOME/user_scripts/wayclick/dusky_tui_wayclick.sh"
+                      command: kitty --class dawn_tui_wayclick.sh --hold sh -c "$HOME/user_scripts/wayclick/dawn_tui_wayclick.sh"
                       terminal: false
     - type: navigation
       properties:
@@ -2321,7 +2321,7 @@ pages:
                 button_text: "Open"
               on_press:
                 type: exec
-                command: kitty --class dusky_neovim_manager.sh --hold sh -c "$HOME/user_scripts/nvim/dusky_neovim_manager.sh"
+                command: kitty --class dawn_neovim_manager.sh --hold sh -c "$HOME/user_scripts/nvim/dawn_neovim_manager.sh"
                 terminal: false
 
         - type: section
@@ -2587,7 +2587,7 @@ pages:
                 command: kitty --class 02_cli_plugins_download.sh --hold sh -c "$HOME/user_scripts/nvim/reset/02_cli_plugins_download.sh"
                 terminal: false
 
-- id: about_dusky
+- id: about_dawn
   title: About System
   layout:
   - type: section
@@ -2601,7 +2601,7 @@ pages:
         title: Dusky Version
       value:
         type: file
-        path: ~/.config/dusky/version
+        path: ~/.config/dawn/version
     - type: label
       properties:
         title: Hyprland Version

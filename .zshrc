@@ -168,11 +168,11 @@ alias lightmode='~/user_scripts/theme_matugen/matugen_config.sh --mode light'
 #submit logs 
 alias sendlogs='~/user_scripts/arch_setup_scripts/send_logs.sh --auto'
 
-# update dusky
-alias update_dusky='~/user_scripts/update_dusky/update_dusky.sh'
+# update dawn
+alias update_dawn='~/user_scripts/update_dawn/update_dawn.sh'
 
-# update dusky reset
-alias dusky_force_sync_github='~/user_scripts/update_dusky/dusky_force_sync_github.sh'
+# update dawn reset
+alias dawn_force_sync_github='~/user_scripts/update_dawn/dawn_force_sync_github.sh'
 
 # Check if eza is installed
 if command -v eza >/dev/null; then
@@ -202,21 +202,21 @@ alias io_drives='~/user_scripts/drives/io_monitor.sh'
 
 # 1. Base Bare Repo Alias
 # (Defined first for logical clarity, though strictly not required by Zsh)
-alias git_dusky='/usr/bin/git --git-dir=$HOME/dusky/ --work-tree=$HOME'
+alias git_dawn='/usr/bin/git --git-dir=$HOME/dawn/ --work-tree=$HOME'
 
 # 2. Add List Alias (FIXED with Subshell)
 # The ( ) runs this specific command inside $HOME so the paths match,
 # but it DOES NOT change your actual terminal directory.
-alias git_dusky_add_list='(cd $HOME && git_dusky add --pathspec-from-file=.git_dusky_list)'
+alias git_dawn_add_list='(cd $HOME && git_dawn add --pathspec-from-file=.git_dawn_list)'
 
 # 3. Alias for discarding all local changes (both staged and unstaged) and revert the state of tracked files to exactly match the last commit (HEAD), this is a destructive operation. (DANGER ZONE)
- alias git_dusky_restore='echo "git --git-dir=$HOME/dusky/ --work-tree=$HOME reset --hard HEAD" && git_dusky reset --hard HEAD'
+ alias git_dawn_restore='echo "git --git-dir=$HOME/dawn/ --work-tree=$HOME reset --hard HEAD" && git_dawn reset --hard HEAD'
 
 # 4. Delta/Diff Alias
-alias gitdelta='git_dusky_add_list && git_dusky diff HEAD'
+alias gitdelta='git_dawn_add_list && git_dawn diff HEAD'
 
 # 5. Lazygit Bare Repo Alias
-alias lazygit_dusky='lazygit --git-dir=$HOME/dusky/ --work-tree=$HOME'
+alias lazygit_dawn='lazygit --git-dir=$HOME/dawn/ --work-tree=$HOME'
 
 # unlock block_devices
 alias unlock='$HOME/user_scripts/drives/drive_manager.sh unlock'

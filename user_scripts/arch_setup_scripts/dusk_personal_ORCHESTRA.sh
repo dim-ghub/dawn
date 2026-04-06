@@ -61,7 +61,7 @@ INSTALL_SEQUENCE=(
 	"U | 131_dbus_copy_service_files.sh"
 	"U | 135_battery_notify_service.sh"
 
-	"U | dusky_matugen_config_tui.sh --smart"
+	"U | dawn_matugen_config_tui.sh --smart"
 
 	"U | 140_fc_cache_fv.sh"
 	"U | 145_matugen_directories.sh"
@@ -108,7 +108,7 @@ INSTALL_SEQUENCE=(
 	"U | 345_faster_whisper_cpu.sh"
 	"S | 350_dns_systemd_resolve.sh"
 	"U | 355_hyprexpo_plugin.sh"
-	"U | 356_dusky_plugin_manager.sh"
+	"U | 356_dawn_plugin_manager.sh"
 	"U | 360_obsidian_pensive_vault_configure.sh"
 	"U | 365_cache_purge.sh"
 	"S | 370_arch_install_scripts_cleanup.sh"
@@ -133,7 +133,7 @@ INSTALL_SEQUENCE=(
 	"S | 465_sddm_setup.sh"
 	"U | 470_vesktop_matugen.sh"
 	"U | 475_reverting_sleep_timeout.sh"
-	"U | 480_dusky_commands.sh"
+	"U | 480_dawn_commands.sh"
 	"S | 485_sudoers_nopassword.sh"
 
 	# ------ CUSTOM PATH SCRIPTS -------

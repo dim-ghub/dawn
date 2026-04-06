@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# set Hyprland animation config to dusky (Default)
+# set Hyprland animation config to dawn (Default)
 # -----------------------------------------------------------------------------
-# Purpose: Copy 'dusky.conf' to 'active.conf' & reload Hyprland
+# Purpose: Copy 'dawn.conf' to 'active.conf' & reload Hyprland
 # Env:     Arch Linux / Hyprland / UWSM
 # -----------------------------------------------------------------------------
 
 set -euo pipefail
 
 # --- Configuration ---
-readonly SOURCE_FILE="${HOME}/.config/hypr/source/animations/dusky.conf"
+readonly SOURCE_FILE="${HOME}/.config/hypr/source/animations/dawn.conf"
 readonly TARGET_FILE="${HOME}/.config/hypr/source/animations/active/active.conf"
 
 # --- Colors ---
@@ -69,7 +69,7 @@ main() {
         # 5. Reload Hyprland (Safe wrapper)
         reload_hyprland
 
-        printf "[${C_GREY}%s${C_RESET}] ${C_BLUE}[INFO]${C_RESET}  Switched animation to: ${C_GREEN}dusky${C_RESET}\n" \
+        printf "[${C_GREY}%s${C_RESET}] ${C_BLUE}[INFO]${C_RESET}  Switched animation to: ${C_GREEN}dawn${C_RESET}\n" \
             "$(date +%T)"
     else
         printf "[${C_GREY}%s${C_RESET}] ${C_RED}[ERROR]${C_RESET} Failed to copy config to: %s\n" \

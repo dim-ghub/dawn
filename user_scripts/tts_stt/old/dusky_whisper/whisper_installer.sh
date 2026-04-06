@@ -8,7 +8,7 @@ set -euo pipefail
 # ==============================================================================
 
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-readonly ENV_DIR="$HOME/contained_apps/uv/dusky_stt"
+readonly ENV_DIR="$HOME/contained_apps/uv/dawn_stt"
 readonly MODEL_DIR="$ENV_DIR/models"
 
 # FIX: Target trigger stays exactly in the directory where you run the installer.
@@ -101,11 +101,11 @@ echo ":: Selected Default Model: $DEFAULT_MODEL"
 # --- 4. Environment Setup ---
 mkdir -p "$ENV_DIR" "$MODEL_DIR"
 
-if [[ -f "$SCRIPT_DIR/dusky_stt_main.py" ]]; then
-    cp "$SCRIPT_DIR/dusky_stt_main.py" "$ENV_DIR/"
-    echo ":: dusky_stt_main.py deployed."
+if [[ -f "$SCRIPT_DIR/dawn_stt_main.py" ]]; then
+    cp "$SCRIPT_DIR/dawn_stt_main.py" "$ENV_DIR/"
+    echo ":: dawn_stt_main.py deployed."
 else
-    echo ":: ERROR: dusky_stt_main.py not found in current directory."
+    echo ":: ERROR: dawn_stt_main.py not found in current directory."
     exit 1
 fi
 
@@ -156,18 +156,18 @@ cat << EOF > "$TARGET_TRIGGER"
 # Dusky STT Trigger ($MODE edition)
 # Toggle behavior: First run starts recording. Second run stops recording and transcribes.
 
-readonly APP_DIR="$HOME/contained_apps/uv/dusky_stt"
-readonly PID_FILE="/tmp/dusky_stt.pid"
-readonly READY_FILE="/tmp/dusky_stt.ready"
-readonly FIFO_PATH="/tmp/dusky_stt.fifo"
-readonly DAEMON_LOG="/tmp/dusky_stt.log"
-readonly DEBUG_LOG="\$APP_DIR/dusky_stt_debug.log"
+readonly APP_DIR="$HOME/contained_apps/uv/dawn_stt"
+readonly PID_FILE="/tmp/dawn_stt.pid"
+readonly READY_FILE="/tmp/dawn_stt.ready"
+readonly FIFO_PATH="/tmp/dawn_stt.fifo"
+readonly DAEMON_LOG="/tmp/dawn_stt.log"
+readonly DEBUG_LOG="\$APP_DIR/dawn_stt_debug.log"
 readonly INSTALL_MODE="$MODE"
 
 # Recording vars
-readonly RECORD_PID_FILE="/tmp/dusky_stt_record.pid"
-readonly YAD_PID_FILE="/tmp/dusky_stt_yad.pid"
-readonly AUDIO_TMP_FILE="/tmp/dusky_stt_capture.wav"
+readonly RECORD_PID_FILE="/tmp/dawn_stt_record.pid"
+readonly YAD_PID_FILE="/tmp/dawn_stt_yad.pid"
+readonly AUDIO_TMP_FILE="/tmp/dawn_stt_capture.wav"
 DEFAULT_MODEL="$DEFAULT_MODEL"
 
 # --- Helpers ---
@@ -210,9 +210,9 @@ start_daemon() {
     if [[ "\$debug_mode" == "true" ]]; then
         export DUSKY_STT_LOG_LEVEL="DEBUG"
         export DUSKY_STT_LOG_FILE="\$DEBUG_LOG"
-        nohup uv run dusky_stt_main.py --daemon --mode "\$INSTALL_MODE" --debug-file "\$DEBUG_LOG" > "\$DAEMON_LOG" 2>&1 &
+        nohup uv run dawn_stt_main.py --daemon --mode "\$INSTALL_MODE" --debug-file "\$DEBUG_LOG" > "\$DAEMON_LOG" 2>&1 &
     else
-        nohup uv run dusky_stt_main.py --daemon --mode "\$INSTALL_MODE" > "\$DAEMON_LOG" 2>&1 &
+        nohup uv run dawn_stt_main.py --daemon --mode "\$INSTALL_MODE" > "\$DAEMON_LOG" 2>&1 &
     fi
 
     local daemon_pid=\$!

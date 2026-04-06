@@ -20,7 +20,7 @@ set -o pipefail
 
 # --- Configuration ---
 readonly CONFIG_FILE="${HOME}/.config/hypr/edit_here/source/appearance.conf"
-readonly STATE_FILE="${HOME}/.config/dusky/settings/opacity_blur"
+readonly STATE_FILE="${HOME}/.config/dawn/settings/opacity_blur"
 
 # Visual Constants
 readonly OP_ACTIVE_ON="0.8"

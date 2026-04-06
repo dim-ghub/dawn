@@ -38,7 +38,7 @@ readonly CYAN='\033[0;36m'
 readonly YELLOW='\033[1;33m'
 readonly RESET='\033[0m'
 
-readonly THEME_NAME="dusky"
+readonly THEME_NAME="dawn"
 readonly REPO_URL="https://github.com/dusklinux/sddm_theme.git"
 readonly INSTALL_DIR="/usr/share/sddm/themes/${THEME_NAME}"
 readonly CONF_FILE="/etc/sddm.conf.d/10-${THEME_NAME}-theme.conf"

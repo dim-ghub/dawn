@@ -42,12 +42,12 @@ pacman -Sy git
 
 if you enter the wrong name, it'll assume it's a private repo and ask you for passowrd so make sure you enter the correct link. 
 ```bash
-git clone --depth 1 https://github.com/dim-ghub/duskyRC.git
+git clone --depth 1 https://github.com/dim-ghub/dawn.git
 ```
 
 dont forget the period at the end '.' after a space.  
 ```bash
-cp dusky/user_scripts/arch_iso_scripts/000_pre_chroot/* .
+cp dawn/user_scripts/arch_iso_scripts/000_pre_chroot/* .
 ```
 
 

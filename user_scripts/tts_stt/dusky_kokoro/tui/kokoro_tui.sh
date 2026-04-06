@@ -12,8 +12,8 @@ shopt -s extglob
 # ▼ USER CONFIGURATION & TARGETS ▼
 # =============================================================================
 
-declare -r CONFIG_FILE="${HOME}/contained_apps/uv/dusky_kokoro/dusky_main.py"
-declare -r TRIGGER_SCRIPT="${HOME}/user_scripts/tts_stt/dusky_kokoro/trigger.sh"
+declare -r CONFIG_FILE="${HOME}/contained_apps/uv/dawn_kokoro/dawn_main.py"
+declare -r TRIGGER_SCRIPT="${HOME}/user_scripts/tts_stt/dawn_kokoro/trigger.sh"
 
 declare -r APP_TITLE="Kokoro TTS Setup"
 declare -r APP_VERSION="v5.0.2"
@@ -152,7 +152,7 @@ clear_status() {
 }
 
 check_daemon_status() {
-    local pid_file="/tmp/dusky_kokoro.pid"
+    local pid_file="/tmp/dawn_kokoro.pid"
     if [[ -f "$pid_file" ]] && kill -0 "$(cat "$pid_file" 2>/dev/null)" 2>/dev/null; then
         DAEMON_STATUS_UI="${C_GREEN}● RUNNING${C_RESET}"
         DAEMON_IS_RUNNING="1"

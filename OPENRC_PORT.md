@@ -18,10 +18,10 @@ Located in `user_scripts/openrc/init.d/`:
 - `pipewire` - Audio server
 - `wireplumber` - PipeWire session manager
 - `network-meter` - Network speed monitoring daemon
-- `dusky-sliders` - System control sliders
+- `dawn-sliders` - System control sliders
 - `update-checker` - Update checking service
 - `battery-notify` - Battery notifications
-- `dusky-control-center` - Control center
+- `dawn-control-center` - Control center
 - `swww` - Wallpaper daemon
 
 ### OpenRC Timer
@@ -29,14 +29,14 @@ Located in `user_scripts/openrc/timers/`:
 - `update-checker-timer` - Periodic update checking
 
 ### OpenRC Service Manager
-- `user_scripts/services/dusky_service_manager_openrc.sh` - Declarative service state manager
+- `user_scripts/services/dawn_service_manager_openrc.sh` - Declarative service state manager
 
 ### OpenRC Service Toggle
-- `user_scripts/services/dusky_service_toggle_openrc.sh` - Interactive TUI for toggling services
+- `user_scripts/services/dawn_service_toggle_openrc.sh` - Interactive TUI for toggling services
 
 ### OpenRC Session Management
-- `user_scripts/wlogout/dusky_session_openrc.sh` - Session/power actions (logout, suspend, reboot, etc.)
-- `user_scripts/power/dusky_power_openrc.sh` - Power settings management (elogind/login.conf)
+- `user_scripts/wlogout/dawn_session_openrc.sh` - Session/power actions (logout, suspend, reboot, etc.)
+- `user_scripts/power/dawn_power_openrc.sh` - Power settings management (elogind/login.conf)
 
 ## Modified Scripts
 
@@ -44,7 +44,7 @@ The following scripts have been updated to detect and use OpenRC when available:
 
 1. **powermenu.sh** - Now uses OpenRC session script when systemd is not available
 2. **waybar_autostart.sh** - Falls back to OpenRC service or direct launch
-3. **dusky_wayclick.sh** - Uses rc-service for PipeWire when systemd unavailable
+3. **dawn_wayclick.sh** - Uses rc-service for PipeWire when systemd unavailable
 4. **reload_sliders.sh** - Supports both systemd and OpenRC service management
 5. **restart_swayosd.sh** - Supports OpenRC service or fallback
 6. **theme_ctl.sh** - Supports OpenRC swww service
@@ -71,46 +71,46 @@ rc-service -l
 
 ```bash
 # Run the declarative service manager
-sudo ./user_scripts/services/dusky_service_manager_openrc.sh
+sudo ./user_scripts/services/dawn_service_manager_openrc.sh
 
 # Dry-run mode
-sudo ./user_scripts/services/dusky_service_manager_openrc.sh --dry-run
+sudo ./user_scripts/services/dawn_service_manager_openrc.sh --dry-run
 ```
 
 ### Using the Service Toggle
 
 ```bash
 # Interactive TUI
-./user_scripts/services/dusky_service_toggle_openrc.sh
+./user_scripts/services/dawn_service_toggle_openrc.sh
 
 # List all services
-./user_scripts/services/dusky_service_toggle_openrc.sh --list
+./user_scripts/services/dawn_service_toggle_openrc.sh --list
 
 # Toggle specific service
-./user_scripts/services/dusky_service_toggle_openrc.sh --toggle waybar
+./user_scripts/services/dawn_service_toggle_openrc.sh --toggle waybar
 ```
 
 ### Session Management
 
 ```bash
 # Logout
-./user_scripts/wlogout/dusky_session_openrc.sh logout
+./user_scripts/wlogout/dawn_session_openrc.sh logout
 
 # Suspend
-./user_scripts/wlogout/dusky_session_openrc.sh suspend
+./user_scripts/wlogout/dawn_session_openrc.sh suspend
 
 # Reboot
-./user_scripts/wlogout/dusky_session_openrc.sh reboot
+./user_scripts/wlogout/dawn_session_openrc.sh reboot
 
 # Poweroff
-./user_scripts/wlogout/dusky_session_openrc.sh poweroff
+./user_scripts/wlogout/dawn_session_openrc.sh poweroff
 ```
 
 ### Power Settings
 
 ```bash
 # Interactive power configuration
-sudo ./user_scripts/power/dusky_power_openrc.sh
+sudo ./user_scripts/power/dawn_power_openrc.sh
 ```
 
 ## Dependencies
@@ -139,7 +139,7 @@ pacman -S util-linux
 | pipewire.service | pipewire |
 | wireplumber.service | wireplumber |
 | network-meter.service | network-meter |
-| dusky_sliders.service | dusky-sliders |
+| dawn_sliders.service | dawn-sliders |
 | update-checker.service | update-checker |
 | swww.service | swww |
 | hypridle.service | hypridle |

@@ -5,7 +5,7 @@
 # A pure Bash TUI for Hyprland monitor management.
 #
 # v4.0.0 CHANGELOG:
-#   - REFACTOR: Full TUI engine replacement based on dusky_tui.sh v3.9.5.
+#   - REFACTOR: Full TUI engine replacement based on dawn_tui.sh v3.9.5.
 #   - FEAT: Added Sliding Tabs logic (future-proofs UI).
 #   - FEAT: Added 'g' (top), 'G' (bottom), PageUp/Down navigation.
 #   - FIX: Atomic save now uses 'cat > target' to preserve symlinks/inodes.
@@ -27,8 +27,8 @@ export LC_NUMERIC=C
 declare -r APP_TITLE="DUSKY MONITOR WIZARD v4.0.0"
 declare -r APP_SUBTITLE="Hyprland Edition"
 declare -r TARGET_CONFIG="${HOME}/.config/hypr/edit_here/source/monitors.conf"
-declare -r BACKUP_DIR="/tmp/dusky_backups"
-declare -r DEBUG_LOG="/tmp/dusky_debug.log"
+declare -r BACKUP_DIR="/tmp/dawn_backups"
+declare -r DEBUG_LOG="/tmp/dawn_debug.log"
 
 # Dimensions & Layout (Synced with Template standards)
 declare -ri BOX_INNER_WIDTH=76

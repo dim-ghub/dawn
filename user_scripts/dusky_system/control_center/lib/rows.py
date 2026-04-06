@@ -113,7 +113,7 @@ class _ExecutorManager:
                     self._is_shutdown = False
                     self._executor = ThreadPoolExecutor(
                         max_workers=EXECUTOR_MAX_WORKERS,
-                        thread_name_prefix="dusky-io-",
+                        thread_name_prefix="dawn-io-",
                     )
         return self._executor
 
@@ -159,7 +159,7 @@ class _SettingsExecutorManager:
                     self._is_shutdown = False
                     self._executor = ThreadPoolExecutor(
                         max_workers=1,
-                        thread_name_prefix="dusky-settings-",
+                        thread_name_prefix="dawn-settings-",
                     )
         return self._executor
 
