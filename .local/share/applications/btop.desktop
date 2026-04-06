@@ -8,7 +8,7 @@ Comment=Resource monitor that shows usage and stats for processor, memory, disks
 Comment[it]=Monitoraggio delle risorse: mostra utilizzo e statistiche per CPU, dischi, rete e processi
 Icon=btop
 # CHANGE 1: Explicitly run btop at the end of the kitty command
-Exec=uwsm-app -- kitty --class btop btop
+Exec=kitty --class btop btop
 Terminal=false
 Categories=System;Monitor;ConsoleOnly;
 Keywords=system;process;task

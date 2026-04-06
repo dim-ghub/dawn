@@ -3,7 +3,7 @@
 Type=Application
 Name=Toggle Notification Center
 Comment=Open/Close SwayNC
-Exec=uwsm-app -- swaync-client -t
+Exec=swaync-client -t
 Terminal=false
 Categories=Utility;
 Icon=preferences-system-notifications

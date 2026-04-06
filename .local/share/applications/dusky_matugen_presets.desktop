@@ -2,7 +2,7 @@
 Type=Application
 Name=Dusky Matugen Presets
 Comment=Vibrant Material Design Theme Switcher
-Exec=uwsm-app -- kitty --class dusky_matugen_presets.sh -e /home/dusk/user_scripts/theme_matugen/dusky_matugen_presets.sh
+Exec=kitty --class dusky_matugen_presets.sh -e /home/dusk/user_scripts/theme_matugen/dusky_matugen_presets.sh
 Icon=preferences-desktop-theme
 Terminal=false
 Categories=Settings;Utility;System;
