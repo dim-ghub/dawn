@@ -24,7 +24,7 @@ declare -ar pkgs_appearance=(
 
 # Group 4: Desktop Experience
 declare -ar pkgs_desktop=(
-	"waybar" "swww" "hyprlock" "hypridle" "hyprsunset" "hyprpicker" "swaync" "swayosd" "rofi" "libdbusmenu-qt5" "libdbusmenu-glib" "brightnessctl"
+	"waybar" "swww" "hyprlock" "hypridle" "hyprsunset" "hyprpicker" "swaync" "swayosd" "rofi" "libdbusmenu-qt5" "libdbusmenu-glib" "brightnessctl" "connman" "connman-gtk" "connman-openrc"
 )
 
 # Group 5: Audio & Bluetooth
@@ -45,7 +45,7 @@ declare -ar pkgs_filesystem=(
 
 # Group 7: Network & Internet
 declare -ar pkgs_network=(
-	"networkmanager" "iwd" "NetworkManager-openrc" "nm-connection-editor" "inetutils" "wget" "curl" "openssh" "firewalld" "vsftpd" "reflector" "bmon" "ethtool" "httrack" "wavemon" "firefox" "network-manager-applet"
+	"iwd" "nm-connection-editor" "inetutils" "wget" "curl" "openssh" "firewalld" "vsftpd" "reflector" "bmon" "ethtool" "httrack" "wavemon" "firefox" "network-manager-applet"
 )
 
 # Group 8: Terminal & Shell

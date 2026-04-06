@@ -42,7 +42,7 @@ pkgs_appearance=(
 
 # Group 4: Desktop Experience
 pkgs_desktop=(
-	"waybar" "swww" "hyprlock" "hypridle" "hyprsunset" "hyprpicker" "swaync" "swayosd" "rofi" "libdbusmenu-qt5" "libdbusmenu-glib" "brightnessctl"
+	"waybar" "swww" "hyprlock" "hypridle" "hyprsunset" "hyprpicker" "swaync" "swayosd" "rofi" "libdbusmenu-qt5" "libdbusmenu-glib" "brightnessctl" "connman" "connman-gtk" "connman-openrc"
 )
 
 # Group 5: Audio & Bluetooth
@@ -57,7 +57,7 @@ pkgs_filesystem=(
 
 # Group 7: Network & Internet
 pkgs_network=(
-	"networkmanager" "iwd" "NetworkManager-openrc" "nm-connection-editor" "inetutils" "wget" "curl" "openssh" "firewalld" "vsftpd" "reflector" "bmon" "ethtool" "httrack" "filezilla" "qbittorrent" "wavemon" "firefox" "arch-wiki-lite" "arch-wiki-docs" "network-manager-applet" "aria2" "uget"
+	"iwd" "nm-connection-editor" "inetutils" "wget" "curl" "openssh" "firewalld" "vsftpd" "reflector" "bmon" "ethtool" "httrack" "filezilla" "qbittorrent" "wavemon" "firefox" "arch-wiki-lite" "arch-wiki-docs" "network-manager-applet" "aria2" "uget"
 )
 
 # Group 8: Terminal & Shell

@@ -99,6 +99,7 @@ declare -ar PACKAGES=(
 	"waypaper"
 	"peaclock"
 	"tray-tui"
+	"rofi-connman"
 	"xdg-terminal-exec"
 	"papirus-icon-theme-git"
 	"papirus-folders-git"

@@ -49,7 +49,7 @@
         },
         {
           "label": "",
-          "command": "kitty --class dusky_network.sh -e $HOME/user_scripts/network_manager/dusky_network.sh"
+          "command": "rofi-connman"
         },
         {
           "label": "󰂯",

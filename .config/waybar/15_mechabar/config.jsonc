@@ -231,7 +231,7 @@
 		],
 		"min-length": 2,
 		"max-length": 2,
-		"on-click": "uwsm-app -- kitty --class $HOME/user_scripts/network_manager/dusky_network.sh",
+		"on-click": "uwsm-app -- rofi-connman",
 		"on-click-right": "nmcli radio wifi off && notify-send 'Turned OFF WiFi'",
 		"tooltip-format": "<b>Gateway</b>: {gwaddr}",
 		"tooltip-format-ethernet": "<b>Interface</b>: {ifname}",
