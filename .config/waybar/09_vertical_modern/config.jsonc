@@ -125,7 +125,7 @@
         "return-type": "json",
         "exec": "$HOME/user_scripts/waybar/network/network_meter_calling.sh vertical",
         "interval": 1, 
-        "on-click": "uwsm-app -- kitty --class wifitui -e wifitui",
+        "on-click": "uwsm-app -- kitty --class $HOME/user_scripts/network_manager/dusky_network.sh",
         "on-click-right": "nmcli radio wifi on",
         "on-click-middle": "nmcli radio wifi off"
     },

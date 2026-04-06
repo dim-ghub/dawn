@@ -108,7 +108,7 @@
         "tooltip-format-wifi": "󰤨 {essid}\n󱑽 {signalStrength}%\n󰩟 {ipaddr}",
         "tooltip-format-ethernet": "󰈀 Ethernet\n󰩟 {ipaddr}",
         "tooltip-format-disconnected": "󰤭 Disconnected",
-        "on-click": "uwsm-app -- kitty --class wifitui -e wifitui"
+        "on-click": "uwsm-app -- kitty --class $HOME/user_scripts/network_manager/dusky_network.sh"
     },
     
     "cpu": {

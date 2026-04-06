@@ -256,7 +256,7 @@
         "tooltip-format-ethernet": "󰈀 Wired Connected\n\nInterface: {ifname}\nIP: {ipaddr}/{cidr}\nGateway: {gwaddr}\n\n(Speed shown in center meter)",
         "tooltip-format-disconnected": "No connection\n\nRMB: Turn WiFi ON",
         "interval": 2,
-        "on-click": "uwsm-app -- kitty --class wifitui -e wifitui",
+        "on-click": "uwsm-app -- kitty --class $HOME/user_scripts/network_manager/dusky_network.sh",
         "on-click-right": "nmcli radio wifi on && notify-send 'WiFi' 'Turned ON'",
         "on-click-middle": "nmcli radio wifi off && notify-send 'WiFi' 'Turned OFF'"
     },
