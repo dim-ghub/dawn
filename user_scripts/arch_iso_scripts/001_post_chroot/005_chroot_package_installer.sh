@@ -47,7 +47,7 @@ pkgs_desktop=(
 
 # Group 5: Audio & Bluetooth
 pkgs_audio=(
-	"pipewire" "wireplumber" "pipewire-pulse" "playerctl" "bluez" "bluez-utils" "blueman" "bluetui" "pavucontrol" "gst-plugin-pipewire" "libcanberra"
+	"pipewire" "wireplumber" "pipewire-pulse" "playerctl" "bluez" "bluez-utils" "blueman" "bluetui" "pavucontrol" "gst-plugin-pipewire" "libcanberra" "pipewire-openrc" "wireplumber-openrc" "pipewire-pulse-openrc" "bluez-openrc"
 )
 
 # Group 6: Filesystem & Archives
