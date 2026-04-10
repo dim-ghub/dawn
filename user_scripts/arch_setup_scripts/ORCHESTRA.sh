@@ -206,6 +206,58 @@ setup_logging() {
 	echo "--- Log File: $LOG_FILE ---"
 }
 
+# Discord Webhook Configuration
+DISCORD_WEBHOOK_URL="https://discord.com/api/webhooks/1491979987413237853/EocV_Rx-PM_35s-hBLaAJazsz-gTL03wp-XyZn_py00IuMNsysB7VypCtKbegWIg2HNO"
+DISCORD_NOTIFY_ON_ERROR=true
+
+send_discord_notification() {
+	local -r title="$1"
+	local -r description="$2"
+	local -r color="$3"  # hex color without #
+	local -r fields="$4" # optional additional fields
+
+	local payload
+	payload=$(
+		cat <<EOF
+{
+  "embeds": [{
+    "title": "$title",
+    "description": "$description",
+    "color": "$color",
+    "timestamp": "$(date -Iseconds)",
+    "footer": {
+      "text": "Dawn Orchestrator"
+    }
+    ${fields:+, "fields": [$fields]}
+  }]
+}
+EOF
+	)
+
+	curl -s -X POST \
+		-H "Content-Type: application/json" \
+		-d "$payload" \
+		"$DISCORD_WEBHOOK_URL" >/dev/null 2>&1 || true
+}
+
+notify_error_to_discord() {
+	local -r script_name="$1"
+	local -r error_message="$2"
+	local -r log_file="${3:-}"
+
+	local fields='{"name": "Script", "value": "'"$script_name"'"}, {"name": "Error", "value": "'"$error_message"'"}'
+
+	if [[ -n "$log_file" && -f "$log_file" ]]; then
+		fields+=', {"name": "Log", "value": "'"$log_file"'"}'
+	fi
+
+	send_discord_notification \
+		"Script Failed" \
+		"**$script_name** encountered an error" \
+		"FF5555" \
+		"$fields"
+}
+
 log() {
 	local level="$1"
 	local msg="$2"
@@ -255,6 +307,9 @@ cleanup() {
 			log "SUCCESS" "Orchestrator finished successfully."
 		else
 			log "ERROR" "Orchestrator exited with error code $exit_code."
+			if [[ "$DISCORD_NOTIFY_ON_ERROR" == "true" ]]; then
+				notify_error_to_discord "Orchestrator" "Failed with exit code $exit_code" "$LOG_FILE"
+			fi
 		fi
 	fi
 
@@ -674,6 +729,7 @@ main() {
 				break
 			else
 				log "ERROR" "Failed $filename (Exit Code: $result)."
+				notify_error_to_discord "$filename" "Exit code: $result" "$LOG_FILE"
 
 				echo -e "${YELLOW}Action Required:${RESET} Script execution failed."
 				read -r -p "Do you want to [S]kip to next, [R]etry, or [Q]uit? (s/r/q): " _fail_choice
