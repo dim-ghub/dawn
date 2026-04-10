@@ -12,17 +12,8 @@
 # 1. Strict Safety & Error Handling
 set -euo pipefail
 
-# --- Detect Init System ---
-detect_init() {
-	if command -v systemctl >/dev/null 2>&1 && [[ -d /run/systemd/system ]]; then
-		echo "systemd"
-	elif command -v rc-service >/dev/null 2>&1; then
-		echo "openrc"
-	else
-		echo "unknown"
-	fi
-}
-readonly INIT_SYSTEM=$(detect_init)
+# --- Init System ---
+readonly INIT_SYSTEM="openrc"
 
 # 2. Configuration Content
 # This configuration is tuned for aggressive caching on systems with ample RAM.
@@ -334,43 +325,22 @@ main() {
 	# ---------------------------------------------------------
 	log_info "Managing Preload service ($INIT_SYSTEM)..."
 
-	if [[ "$INIT_SYSTEM" == "systemd" ]]; then
-		if systemctl is-enabled preload.service &>/dev/null; then
-			log_info "Preload service is already enabled."
-		else
-			log_info "Enabling Preload service..."
-			if systemctl enable --now preload.service; then
-				log_success "Preload service enabled and started."
-				sleep 0.5
-			else
-				log_error "Failed to enable Preload service."
-				exit 1
-			fi
-		fi
-
-		if systemctl restart preload.service; then
-			log_success "Preload configuration applied (Service Restarted)."
-		else
-			log_warn "Service restart failed. Please check 'systemctl status preload'."
-		fi
+	# OpenRC
+	if rc-update show default 2>/dev/null | grep -q "preload"; then
+		log_info "Preload service is already enabled."
 	else
-		# OpenRC
-		if rc-update show default 2>/dev/null | grep -q "preload"; then
-			log_info "Preload service is already enabled."
+		log_info "Enabling Preload service..."
+		if rc-update add preload default 2>/dev/null; then
+			log_success "Preload service enabled."
 		else
-			log_info "Enabling Preload service..."
-			if rc-update add preload default 2>/dev/null; then
-				log_success "Preload service enabled."
-			else
-				log_error "Failed to enable Preload service."
-			fi
+			log_error "Failed to enable Preload service."
 		fi
+	fi
 
-		if rc-service preload restart 2>/dev/null; then
-			log_success "Preload configuration applied (Service Restarted)."
-		else
-			log_warn "Service restart failed. Please check 'rc-service preload status'."
-		fi
+	if rc-service preload restart 2>/dev/null; then
+		log_success "Preload configuration applied (Service Restarted)."
+	else
+		log_warn "Service restart failed. Please check 'rc-service preload status'."
 	fi
 }
 

@@ -26,15 +26,8 @@ log() {
 	esac
 }
 
-detect_init() {
-	if command -v systemctl >/dev/null 2>&1; then
-		echo "systemd"
-	elif command -v rc-service >/dev/null 2>&1; then
-		echo "openrc"
-	else
-		echo "unknown"
-	fi
-}
+# --- Init System ---
+readonly INIT_SYSTEM="openrc"
 
 # --- Root Privilege Check ---
 if [[ $EUID -eq 0 ]]; then

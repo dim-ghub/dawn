@@ -11,17 +11,8 @@
 set -euo pipefail
 IFS=$'\n\t'
 
-# --- Detect Init System ---
-detect_init() {
-	if command -v systemctl >/dev/null 2>&1 && [[ -d /run/systemd/system ]]; then
-		echo "systemd"
-	elif command -v rc-service >/dev/null 2>&1; then
-		echo "openrc"
-	else
-		echo "unknown"
-	fi
-}
-readonly INIT_SYSTEM=$(detect_init)
+# --- Init System ---
+readonly INIT_SYSTEM="openrc"
 
 # Trap for clean exit (no temp files to clean, but good practice)
 trap 'exit_code=$?; [[ $exit_code -ne 0 ]] && printf "\n[!] Script failed with code %d\n" "$exit_code"' EXIT
@@ -61,36 +52,20 @@ enable_service() {
 	local service="$1"
 	local svc_name="${service%.service}"
 
-	if [[ "$INIT_SYSTEM" == "systemd" ]]; then
-		if systemctl list-unit-files "${service}.service" &>/dev/null; then
-			if systemctl is-enabled --quiet "${service}.service"; then
-				log_info "$service is already enabled."
-			else
-				if systemctl enable --now "${service}.service" &>/dev/null; then
-					log_success "Enabled & Started: $service"
-				else
-					log_err "Failed to enable: $service (Check logs)"
-				fi
-			fi
+	# OpenRC
+	if rc-service -l 2>/dev/null | grep -q "^${svc_name}$"; then
+		if rc-update show default 2>/dev/null | grep -q "$svc_name"; then
+			log_info "$svc_name is already enabled."
 		else
-			log_warn "Skipping: $service (Package not installed / Unit not found)"
+			if rc-update add "$svc_name" default 2>/dev/null; then
+				rc-service "$svc_name" start 2>/dev/null || true
+				log_success "Enabled & Started: $svc_name"
+			else
+				log_err "Failed to enable: $svc_name"
+			fi
 		fi
 	else
-		# OpenRC
-		if rc-service -l 2>/dev/null | grep -q "^${svc_name}$"; then
-			if rc-update show default 2>/dev/null | grep -q "$svc_name"; then
-				log_info "$svc_name is already enabled."
-			else
-				if rc-update add "$svc_name" default 2>/dev/null; then
-					rc-service "$svc_name" start 2>/dev/null || true
-					log_success "Enabled & Started: $svc_name"
-				else
-					log_err "Failed to enable: $svc_name"
-				fi
-			fi
-		else
-			log_warn "Skipping: $svc_name (Package not installed / Service not found)"
-		fi
+		log_warn "Skipping: $svc_name (Package not installed / Service not found)"
 	fi
 }
 

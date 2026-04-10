@@ -62,17 +62,7 @@ readonly OPENRC_SERVICES_CONFIG=(
 readonly SYSTEMD_USER_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
 
 # Detect init system
-detect_init() {
-	if command -v systemctl >/dev/null 2>&1; then
-		echo "systemd"
-	elif command -v rc-service >/dev/null 2>&1; then
-		echo "openrc"
-	else
-		echo "unknown"
-	fi
-}
-
-readonly INIT_SYSTEM=$(detect_init)
+readonly INIT_SYSTEM="openrc"
 
 # --- Privilege Check ---
 if [[ "$INIT_SYSTEM" == "openrc" && "$EUID" -ne 0 ]]; then
@@ -222,11 +212,7 @@ main() {
 
 	# Choose config based on init system
 	local config_array
-	if [[ "$INIT_SYSTEM" == "systemd" ]]; then
-		config_array=("${SERVICES_CONFIG[@]}")
-	else
-		config_array=("${OPENRC_SERVICES_CONFIG[@]}")
-	fi
+	config_array=("${OPENRC_SERVICES_CONFIG[@]}")
 
 	if [[ ${#config_array[@]} -eq 0 ]]; then
 		log_warn "No services configured in SERVICES_CONFIG."

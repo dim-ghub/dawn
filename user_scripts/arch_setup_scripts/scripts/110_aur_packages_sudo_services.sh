@@ -25,16 +25,8 @@ readonly TARGET_SERVICES=(
 	# "bluetooth"
 )
 
-# Detect init system
-detect_init() {
-	if command -v systemctl >/dev/null 2>&1; then
-		echo "systemd"
-	elif command -v rc-service >/dev/null 2>&1; then
-		echo "openrc"
-	else
-		echo "unknown"
-	fi
-}
+# --- Init System ---
+readonly INIT_SYSTEM="openrc"
 
 # --- 3. Formatting & Visuals ---
 # We use $'\e...' to ensure the escape character is interpreted correctly

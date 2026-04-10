@@ -4,17 +4,8 @@
 set -euo pipefail
 IFS=$'\n\t'
 
-# --- Detect Init System ---
-detect_init() {
-	if command -v systemctl >/dev/null 2>&1 && [[ -d /run/systemd/system ]]; then
-		echo "systemd"
-	elif command -v rc-service >/dev/null 2>&1; then
-		echo "openrc"
-	else
-		echo "unknown"
-	fi
-}
-readonly INIT_SYSTEM=$(detect_init)
+# --- Init System ---
+readonly INIT_SYSTEM="openrc"
 
 # =============================================================================
 # Configuration
@@ -160,19 +151,11 @@ install_package() {
 configure_service() {
 	log_step "Initializing Service..."
 
-	if [[ "$INIT_SYSTEM" == "systemd" ]]; then
-		systemctl enable --now "${SERVICE_NAME}.service"
+	rc-update add "$SERVICE_NAME" default 2>/dev/null || true
+	rc-service "$SERVICE_NAME" start 2>/dev/null || true
 
-		if ! wait_for "service activation" "$MAX_SERVICE_WAIT" "systemctl is-active --quiet ${SERVICE_NAME}.service"; then
-			die "Service failed to start within ${MAX_SERVICE_WAIT}s."
-		fi
-	else
-		rc-update add "$SERVICE_NAME" default 2>/dev/null || true
-		rc-service "$SERVICE_NAME" start 2>/dev/null || true
-
-		if ! wait_for "service activation" "$MAX_SERVICE_WAIT" "rc-service $SERVICE_NAME status >/dev/null 2>&1"; then
-			die "Service failed to start within ${MAX_SERVICE_WAIT}s."
-		fi
+	if ! wait_for "service activation" "$MAX_SERVICE_WAIT" "rc-service $SERVICE_NAME status >/dev/null 2>&1"; then
+		die "Service failed to start within ${MAX_SERVICE_WAIT}s."
 	fi
 
 	# Wait for daemon internal state (socket readiness)

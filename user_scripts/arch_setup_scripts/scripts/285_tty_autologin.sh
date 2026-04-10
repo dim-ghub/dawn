@@ -8,17 +8,7 @@
 
 set -euo pipefail
 
-# --- Detect Init System ---
-detect_init() {
-	if command -v systemctl >/dev/null 2>&1 && [[ -d /run/systemd/system ]]; then
-		echo "systemd"
-	elif command -v rc-service >/dev/null 2>&1; then
-		echo "openrc"
-	else
-		echo "unknown"
-	fi
-}
-readonly INIT_SYSTEM=$(detect_init)
+readonly INIT_SYSTEM="openrc"
 
 # --- Constants & Styling ---
 readonly SYSTEMD_UNIT="getty@tty1.service"
@@ -69,11 +59,7 @@ parse_args() {
 
 # --- Helpers ---
 sddm_is_installed() {
-	if [[ "$INIT_SYSTEM" == "systemd" ]]; then
-		systemctl list-unit-files sddm.service 2>/dev/null | grep -q '^sddm\.service'
-	else
-		[[ -f /etc/init.d/sddm ]] || rc-service -l 2>/dev/null | grep -q "^sddm$"
-	fi
+	[[ -f /etc/init.d/sddm ]] || rc-service -l 2>/dev/null | grep -q "^sddm$"
 }
 
 sync_state_file() {
@@ -126,58 +112,33 @@ do_setup() {
 	local user="$1"
 	log_info "Configuring TTY1 autologin for: ${user} (${INIT_SYSTEM})"
 
-	if [[ "$INIT_SYSTEM" == "systemd" ]]; then
-		# Systemd path
-		if sddm_is_installed && systemctl is-enabled --quiet sddm.service 2>/dev/null; then
-			log_info "Disabling SDDM..."
-			systemctl disable sddm.service --quiet
-			log_success "SDDM disabled."
-		fi
-
-		local expected_exec="ExecStart=-/usr/bin/agetty --autologin ${user} --noclear --noissue %I \$TERM"
-		if [[ -f "${SYSTEMD_OVERRIDE_FILE}" ]] && grep -qF -- "${expected_exec}" "${SYSTEMD_OVERRIDE_FILE}"; then
-			sync_state_file "${user}" "true"
-			log_success "Autologin is already correctly configured for ${user}. Nothing to do."
-			return 0
-		fi
-
-		mkdir -p "${SYSTEMD_DIR}"
-		cat >"${SYSTEMD_OVERRIDE_FILE}" <<EOF
-[Service]
-ExecStart=
-ExecStart=-/usr/bin/agetty --autologin ${user} --noclear --noissue %I \$TERM
-EOF
-
-		systemctl daemon-reload
-	else
-		# OpenRC path - modify /etc/inittab
-		if sddm_is_installed && rc-service sddm status >/dev/null 2>&1; then
-			log_info "Disabling SDDM..."
-			rc-update del sddm default 2>/dev/null || true
-			log_success "SDDM disabled."
-		fi
-
-		# Check if already configured
-		if grep -q "agetty.*--autologin.*${user}" "${OPENRC_INITTAB}" 2>/dev/null; then
-			sync_state_file "${user}" "true"
-			log_success "Autologin is already configured for ${user}. Nothing to do."
-			return 0
-		fi
-
-		# Backup inittab
-		cp "${OPENRC_INITTAB}" "${OPENRC_INITTAB}.bak"
-
-		# Add autologin for tty1
-		sed -i "s|^c1:12345:respawn:/sbin/agetty.*|c1:12345:respawn:/sbin/agetty --autologin ${user} --noclear %I linux|" "${OPENRC_INITTAB}"
-
-		# If line doesn't exist, add it
-		if ! grep -q "agetty.*--autologin.*${user}" "${OPENRC_INITTAB}" 2>/dev/null; then
-			echo "c1:12345:respawn:/sbin/agetty --autologin ${user} --noclear %I linux" >>"${OPENRC_INITTAB}"
-		fi
-
-		# Tell init to reload
-		init q 2>/dev/null || true
+	# OpenRC path - modify /etc/inittab
+	if sddm_is_installed && rc-service sddm status >/dev/null 2>&1; then
+		log_info "Disabling SDDM..."
+		rc-update del sddm default 2>/dev/null || true
+		log_success "SDDM disabled."
 	fi
+
+	# Check if already configured
+	if grep -q "agetty.*--autologin.*${user}" "${OPENRC_INITTAB}" 2>/dev/null; then
+		sync_state_file "${user}" "true"
+		log_success "Autologin is already configured for ${user}. Nothing to do."
+		return 0
+	fi
+
+	# Backup inittab
+	cp "${OPENRC_INITTAB}" "${OPENRC_INITTAB}.bak"
+
+	# Add autologin for tty1
+	sed -i "s|^c1:12345:respawn:/sbin/agetty.*|c1:12345:respawn:/sbin/agetty --autologin ${user} --noclear %I linux|" "${OPENRC_INITTAB}"
+
+	# If line doesn't exist, add it
+	if ! grep -q "agetty.*--autologin.*${user}" "${OPENRC_INITTAB}" 2>/dev/null; then
+		echo "c1:12345:respawn:/sbin/agetty --autologin ${user} --noclear %I linux" >>"${OPENRC_INITTAB}"
+	fi
+
+	# Tell init to reload
+	init q 2>/dev/null || true
 
 	sync_state_file "${user}" "true"
 	log_success "Autologin configured successfully."
@@ -188,42 +149,25 @@ do_revert() {
 	log_info "Reverting TTY1 autologin configuration... (${INIT_SYSTEM})"
 	local changed=false
 
-	if [[ "$INIT_SYSTEM" == "systemd" ]]; then
-		if [[ -f "${SYSTEMD_OVERRIDE_FILE}" ]]; then
-			rm -f "${SYSTEMD_OVERRIDE_FILE}"
-			rmdir --ignore-fail-on-non-empty "${SYSTEMD_DIR}" 2>/dev/null || true
-			systemctl daemon-reload
-			changed=true
-			log_success "Removed autologin drop-in override for ${SYSTEMD_UNIT}."
+	# OpenRC
+	if [[ -f "${OPENRC_INITTAB}" ]] && grep -q "agetty.*--autologin" "${OPENRC_INITTAB}" 2>/dev/null; then
+		# Restore from backup if exists
+		if [[ -f "${OPENRC_INITTAB}.bak" ]]; then
+			cp "${OPENRC_INITTAB}.bak" "${OPENRC_INITTAB}"
+		else
+			# Remove autologin line
+			sed -i "s|--autologin ${user}||g" "${OPENRC_INITTAB}"
 		fi
+		init q 2>/dev/null || true
+		changed=true
+		log_success "Removed autologin from inittab."
+	fi
 
-		if sddm_is_installed && ! systemctl is-enabled --quiet sddm.service 2>/dev/null; then
-			log_info "Re-enabling SDDM..."
-			systemctl enable sddm.service --quiet
-			changed=true
-			log_success "SDDM enabled."
-		fi
-	else
-		# OpenRC
-		if [[ -f "${OPENRC_INITTAB}" ]] && grep -q "agetty.*--autologin" "${OPENRC_INITTAB}" 2>/dev/null; then
-			# Restore from backup if exists
-			if [[ -f "${OPENRC_INITTAB}.bak" ]]; then
-				cp "${OPENRC_INITTAB}.bak" "${OPENRC_INITTAB}"
-			else
-				# Remove autologin line
-				sed -i "s|--autologin ${user}||g" "${OPENRC_INITTAB}"
-			fi
-			init q 2>/dev/null || true
-			changed=true
-			log_success "Removed autologin from inittab."
-		fi
-
-		if sddm_is_installed && ! rc-service sddm status >/dev/null 2>&1; then
-			log_info "Re-enabling SDDM..."
-			rc-update add sddm default 2>/dev/null || true
-			changed=true
-			log_success "SDDM enabled."
-		fi
+	if sddm_is_installed && ! rc-service sddm status >/dev/null 2>&1; then
+		log_info "Re-enabling SDDM..."
+		rc-update add sddm default 2>/dev/null || true
+		changed=true
+		log_success "SDDM enabled."
 	fi
 
 	sync_state_file "${user}" "false"

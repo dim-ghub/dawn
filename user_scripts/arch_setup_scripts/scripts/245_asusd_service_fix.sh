@@ -6,17 +6,8 @@
 
 set -euo pipefail
 
-# --- Detect Init System ---
-detect_init() {
-	if command -v systemctl >/dev/null 2>&1 && [[ -d /run/systemd/system ]]; then
-		echo "systemd"
-	elif command -v rc-service >/dev/null 2>&1; then
-		echo "openrc"
-	else
-		echo "unknown"
-	fi
-}
-readonly INIT_SYSTEM=$(detect_init)
+# --- Init System ---
+readonly INIT_SYSTEM="openrc"
 
 # --- Configuration ---
 readonly TARGET_FILE="/usr/share/dbus-1/system.d/asusd.conf"
@@ -87,18 +78,10 @@ main() {
 
 	# 6. Service Restart
 	log_info "Restarting $SERVICE_NAME ($INIT_SYSTEM)..."
-	if [[ "$INIT_SYSTEM" == "systemd" ]]; then
-		if systemctl restart "${SERVICE_NAME}.service"; then
-			log_success "Service restarted successfully."
-		else
-			log_warn "Service restart failed. You may need to start it manually."
-		fi
+	if rc-service "$SERVICE_NAME" restart 2>/dev/null; then
+		log_success "Service restarted successfully."
 	else
-		if rc-service "$SERVICE_NAME" restart 2>/dev/null; then
-			log_success "Service restarted successfully."
-		else
-			log_warn "Service restart failed. You may need to start it manually."
-		fi
+		log_warn "Service restart failed. You may need to start it manually."
 	fi
 }
 

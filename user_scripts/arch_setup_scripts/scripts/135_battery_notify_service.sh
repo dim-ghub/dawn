@@ -29,17 +29,7 @@ readonly SOURCE_FILE="${HOME}/user_scripts/battery/notify/${SERVICE_NAME}"
 readonly OPENRC_SOURCE_FILE="${HOME}/user_scripts/openrc/init.d/${OPENRC_SERVICE_NAME}"
 readonly TARGET_FILE="${SYSTEMD_USER_DIR}/${SERVICE_NAME}"
 
-detect_init() {
-	if command -v systemctl >/dev/null 2>&1; then
-		echo "systemd"
-	elif command -v rc-service >/dev/null 2>&1; then
-		echo "openrc"
-	else
-		echo "unknown"
-	fi
-}
-
-readonly INIT_SYSTEM=$(detect_init)
+readonly INIT_SYSTEM="openrc"
 
 # --- Helper Functions ---
 log_info() {
@@ -79,19 +69,11 @@ is_service_installed() {
 }
 
 is_service_enabled() {
-	if [[ "$INIT_SYSTEM" == "systemd" ]]; then
-		systemctl --user is-enabled --quiet "${SERVICE_NAME}" 2>/dev/null
-	else
-		rc-update show default 2>/dev/null | grep -q "${OPENRC_SERVICE_NAME}"
-	fi
+	rc-update show default 2>/dev/null | grep -q "${OPENRC_SERVICE_NAME}"
 }
 
 is_service_active() {
-	if [[ "$INIT_SYSTEM" == "systemd" ]]; then
-		systemctl --user is-active --quiet "${SERVICE_NAME}" 2>/dev/null
-	else
-		rc-service "${OPENRC_SERVICE_NAME}" status >/dev/null 2>&1
-	fi
+	rc-service "${OPENRC_SERVICE_NAME}" status >/dev/null 2>&1
 }
 
 # --- Action Functions ---
@@ -99,46 +81,18 @@ is_service_active() {
 do_install() {
 	log_info "Initializing battery notify installation ($INIT_SYSTEM)..."
 
-	if [[ "$INIT_SYSTEM" == "systemd" ]]; then
-		# 1. Validation: Ensure source exists
-		if [[ ! -f "${SOURCE_FILE}" ]]; then
-			log_error "Source file not found at: ${SOURCE_FILE}"
-			return 1
-		fi
-
-		# 2. Preparation: Ensure target directory exists
-		if [[ ! -d "${SYSTEMD_USER_DIR}" ]]; then
-			log_info "Creating systemd user directory: ${SYSTEMD_USER_DIR}"
-			mkdir -p "${SYSTEMD_USER_DIR}"
-		fi
-
-		# 3. Copy the service file
-		log_info "Installing service file (copying)..."
-		rm -f "${TARGET_FILE}"
-		cp -f "${SOURCE_FILE}" "${TARGET_FILE}"
-
-		# 4. Systemd registration
-		log_info "Reloading systemd user daemon..."
-		systemctl --user daemon-reload
-
-		# 5. Enable and (re)start
-		log_info "Enabling and (re)starting ${SERVICE_NAME}..."
-		systemctl --user enable "${SERVICE_NAME}"
-		systemctl --user restart "${SERVICE_NAME}"
-	else
-		# OpenRC installation
-		if [[ ! -f "${OPENRC_SOURCE_FILE}" ]]; then
-			log_error "Source file not found at: ${OPENRC_SOURCE_FILE}"
-			return 1
-		fi
-
-		log_info "Installing OpenRC service..."
-		install -m 755 "${OPENRC_SOURCE_FILE}" /etc/init.d/"${OPENRC_SERVICE_NAME}"
-
-		log_info "Enabling and starting ${OPENRC_SERVICE_NAME}..."
-		rc-update add "${OPENRC_SERVICE_NAME}" default 2>/dev/null || true
-		rc-service "${OPENRC_SERVICE_NAME}" start 2>/dev/null || true
+	# OpenRC installation
+	if [[ ! -f "${OPENRC_SOURCE_FILE}" ]]; then
+		log_error "Source file not found at: ${OPENRC_SOURCE_FILE}"
+		return 1
 	fi
+
+	log_info "Installing OpenRC service..."
+	install -m 755 "${OPENRC_SOURCE_FILE}" /etc/init.d/"${OPENRC_SERVICE_NAME}"
+
+	log_info "Enabling and starting ${OPENRC_SERVICE_NAME}..."
+	rc-update add "${OPENRC_SERVICE_NAME}" default 2>/dev/null || true
+	rc-service "${OPENRC_SERVICE_NAME}" start 2>/dev/null || true
 
 	log_success "Battery notification service installed and running."
 }
@@ -151,47 +105,22 @@ do_uninstall() {
 	# 1. Stop the service if it's currently active
 	if is_service_active; then
 		log_info "Stopping service..."
-		if [[ "$INIT_SYSTEM" == "systemd" ]]; then
-			systemctl --user stop "${SERVICE_NAME}"
-		else
-			rc-service "${OPENRC_SERVICE_NAME}" stop 2>/dev/null || true
-		fi
+		rc-service "${OPENRC_SERVICE_NAME}" stop 2>/dev/null || true
 		changed=true
 	fi
 
 	# 2. Disable the service if it's currently enabled
 	if is_service_enabled; then
 		log_info "Disabling service..."
-		if [[ "$INIT_SYSTEM" == "systemd" ]]; then
-			systemctl --user disable "${SERVICE_NAME}"
-		else
-			rc-update del "${OPENRC_SERVICE_NAME}" default 2>/dev/null || true
-		fi
+		rc-update del "${OPENRC_SERVICE_NAME}" default 2>/dev/null || true
 		changed=true
 	fi
 
 	# 3. Remove the installed service file
-	if [[ "$INIT_SYSTEM" == "systemd" ]]; then
-		if [[ -f "${TARGET_FILE}" ]]; then
-			log_info "Removing service file: ${TARGET_FILE}"
-			rm -f "${TARGET_FILE}"
-			changed=true
-		fi
-	else
-		if [[ -f "/etc/init.d/${OPENRC_SERVICE_NAME}" ]]; then
-			log_info "Removing service file: /etc/init.d/${OPENRC_SERVICE_NAME}"
-			rm -f "/etc/init.d/${OPENRC_SERVICE_NAME}"
-			changed=true
-		fi
-	fi
-
-	# 4. Reload daemon
-	if [[ "${changed}" == true ]]; then
-		if [[ "$INIT_SYSTEM" == "systemd" ]]; then
-			log_info "Reloading systemd user daemon..."
-			systemctl --user daemon-reload
-			systemctl --user reset-failed "${SERVICE_NAME}" 2>/dev/null || true
-		fi
+	if [[ -f "/etc/init.d/${OPENRC_SERVICE_NAME}" ]]; then
+		log_info "Removing service file: /etc/init.d/${OPENRC_SERVICE_NAME}"
+		rm -f "/etc/init.d/${OPENRC_SERVICE_NAME}"
+		changed=true
 	fi
 
 	log_success "Battery notification service has been fully removed."

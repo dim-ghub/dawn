@@ -67,13 +67,7 @@ for cmd in flock pgrep pkill; do
 done
 
 # Detect init system for service management
-if command -v systemctl &>/dev/null; then
-	INIT_SYSTEM="systemd"
-elif command -v rc-service &>/dev/null; then
-	INIT_SYSTEM="openrc"
-else
-	INIT_SYSTEM="unknown"
-fi
+readonly INIT_SYSTEM="openrc"
 
 # Acquire exclusive lock to prevent concurrent execution
 exec 9>"$LOCK_FILE"
@@ -119,18 +113,11 @@ stop_services() {
 	# B. Stop Services
 	local service
 	for service in "${SERVICES[@]}"; do
-		if [[ "$INIT_SYSTEM" == "systemd" ]]; then
-			if systemctl --user is-active --quiet "$service" 2>/dev/null; then
-				log_info "Stopping service: $service"
-				systemctl --user stop "$service" || log_warn "Failed to stop $service"
-			fi
-		elif [[ "$INIT_SYSTEM" == "openrc" ]]; then
-			# OpenRC services are system-wide, but we check if they are running
-			local openrc_service="${service%.service}"
-			if rc-service "$openrc_service" status >/dev/null 2>&1; then
-				log_info "Stopping service: $openrc_service"
-				sudo rc-service "$openrc_service" stop || log_warn "Failed to stop $openrc_service"
-			fi
+		# OpenRC services are system-wide, but we check if they are running
+		local openrc_service="${service%.service}"
+		if rc-service "$openrc_service" status >/dev/null 2>&1; then
+			log_info "Stopping service: $openrc_service"
+			sudo rc-service "$openrc_service" stop || log_warn "Failed to stop $openrc_service"
 		fi
 	done
 
@@ -145,12 +132,8 @@ restart_services() {
 		log_info "Restarting background services..."
 		local service
 		for service in "${SERVICES[@]}"; do
-			if [[ "$INIT_SYSTEM" == "systemd" ]]; then
-				systemctl --user start "$service" 2>/dev/null || true
-			elif [[ "$INIT_SYSTEM" == "openrc" ]]; then
-				local openrc_service="${service%.service}"
-				sudo rc-service "$openrc_service" start 2>/dev/null || true
-			fi
+			local openrc_service="${service%.service}"
+			sudo rc-service "$openrc_service" start 2>/dev/null || true
 		done
 	fi
 }

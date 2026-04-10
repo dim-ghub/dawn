@@ -11,17 +11,8 @@ set -euo pipefail
 # Bash 4.4+: Propagate failure in subshells to parent
 shopt -s inherit_errexit 2>/dev/null || true
 
-# --- Detect Init System ---
-detect_init() {
-	if command -v systemctl >/dev/null 2>&1 && [[ -d /run/systemd/system ]]; then
-		echo "systemd"
-	elif command -v rc-service >/dev/null 2>&1; then
-		echo "openrc"
-	else
-		echo "unknown"
-	fi
-}
-readonly INIT_SYSTEM=$(detect_init)
+# --- Init System ---
+readonly INIT_SYSTEM="openrc"
 
 # --- Configuration & Colors ---
 readonly C_RESET=$'\033[0m'
@@ -250,50 +241,29 @@ fi
 # --- 6. Service Management ---
 log_info "Enabling Waydroid container service..."
 
-if [[ "$INIT_SYSTEM" == "systemd" ]]; then
-    systemctl enable --now waydroid-container
+# On OpenRC, check if waydroid has an init script or create one
+if [[ -f /etc/init.d/waydroid ]]; then
+	rc-update add waydroid default
+	rc-service waydroid start
 else
-    # On OpenRC, check if waydroid has an init script or create one
-    if [[ -f /etc/init.d/waydroid ]]; then
-        rc-update add waydroid default
-        rc-service waydroid start
-    else
-        log_warn "Waydroid container service not available for OpenRC. Install waydroid-pycma or create init script."
-    fi
+	log_warn "Waydroid container service not available for OpenRC. Install waydroid-pycma or create init script."
 fi
 
 log_info "Waiting for Waydroid container to become active..."
 elapsed=0
-while (( elapsed < SERVICE_TIMEOUT )); do
-    _active=false
-    if [[ "$INIT_SYSTEM" == "systemd" ]]; then
-        systemctl is-active --quiet waydroid-container && _active=true
-    else
-        rc-service waydroid status >/dev/null 2>&1 && _active=true
-    fi
-    if $_active; then
-        log_success "Waydroid Container is running."
-        break
-    fi
-    sleep 1
-    ((elapsed++))
-done
-
-if [[ "$INIT_SYSTEM" == "systemd" ]]; then
-    if ! systemctl is-active --quiet waydroid-container; then
-        log_error "Waydroid Container failed to start within ${SERVICE_TIMEOUT}s. Check 'systemctl status waydroid-container'."
-    fi
-else
-    if ! rc-service waydroid status >/dev/null 2>&1; then
-        log_error "Waydroid Container failed to start within ${SERVICE_TIMEOUT}s."
-    fi
-fi
+while ((elapsed < SERVICE_TIMEOUT)); do
+	_active=false
+	rc-service waydroid status >/dev/null 2>&1 && _active=true
+	if $_active; then
+		log_success "Waydroid Container is running."
+		break
+	fi
 	sleep 1
 	((elapsed++))
 done
 
-if ! systemctl is-active --quiet waydroid-container; then
-	log_error "Waydroid Container failed to start within ${SERVICE_TIMEOUT}s. Check 'systemctl status waydroid-container'."
+if ! rc-service waydroid status >/dev/null 2>&1; then
+	log_error "Waydroid Container failed to start within ${SERVICE_TIMEOUT}s."
 fi
 
 # --- 7. Fixes & Optimizations ---

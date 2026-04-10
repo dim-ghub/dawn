@@ -8,17 +8,7 @@
 
 set -euo pipefail
 
-# --- Detect Init System ---
-detect_init() {
-	if command -v systemctl >/dev/null 2>&1 && [[ -d /run/systemd/system ]]; then
-		echo "systemd"
-	elif command -v rc-service >/dev/null 2>&1; then
-		echo "openrc"
-	else
-		echo "unknown"
-	fi
-}
-readonly INIT_SYSTEM=$(detect_init)
+readonly INIT_SYSTEM="openrc"
 
 # --- Auto-Elevation -----------------------------------------------------------
 if [[ $EUID -ne 0 ]]; then
@@ -108,22 +98,14 @@ check_conflicts() {
 
 	for dm in "${dms[@]}"; do
 		_active=false
-		if [[ "$INIT_SYSTEM" == "systemd" ]]; then
-			systemctl is-active --quiet "${dm}.service" && _active=true
-		else
-			rc-service "$dm" status >/dev/null 2>&1 && _active=true
-		fi
+		rc-service "$dm" status >/dev/null 2>&1 && _active=true
 
 		if $_active; then
 			log_warn "Conflicting DM running: ${dm}"
 			conflict="true"
 			if [[ "${AUTO_MODE}" == "true" ]] || prompt_yes_no "Disable and stop ${dm}?"; then
-				if [[ "$INIT_SYSTEM" == "systemd" ]]; then
-					systemctl disable --now "${dm}.service"
-				else
-					rc-service "$dm" stop 2>/dev/null || true
-					rc-update del "$dm" default 2>/dev/null || true
-				fi
+				rc-service "$dm" stop 2>/dev/null || true
+				rc-update del "$dm" default 2>/dev/null || true
 				log_success "${dm} disabled."
 			else
 				log_warn "Proceeding with ${dm} active. SDDM may fail to start."
@@ -138,11 +120,7 @@ check_conflicts() {
 
 setup_sddm_service() {
 	_enabled=false
-	if [[ "$INIT_SYSTEM" == "systemd" ]]; then
-		systemctl is-enabled --quiet sddm.service && _enabled=true
-	else
-		rc-update show default 2>/dev/null | grep -q "^[[:space:]]*sddm[[:space:]]" && _enabled=true
-	fi
+	rc-update show default 2>/dev/null | grep -q "^[[:space:]]*sddm[[:space:]]" && _enabled=true
 
 	if $_enabled; then
 		log_success "SDDM service is already enabled."
@@ -150,19 +128,11 @@ setup_sddm_service() {
 	fi
 
 	if [[ "${AUTO_MODE}" == "true" ]]; then
-		if [[ "$INIT_SYSTEM" == "systemd" ]]; then
-			systemctl enable sddm.service
-		else
-			rc-update add sddm default
-		fi
+		rc-update add sddm default
 	else
 		printf '\nSDDM is not enabled. You can log in via TTY without it.\n'
 		if prompt_yes_no "Enable SDDM to start at boot?"; then
-			if [[ "$INIT_SYSTEM" == "systemd" ]]; then
-				systemctl enable sddm.service
-			else
-				rc-update add sddm default
-			fi
+			rc-update add sddm default
 			log_success "SDDM service enabled."
 		fi
 	fi

@@ -64,17 +64,8 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# --- Detect Init System ---
-detect_init() {
-	if command -v systemctl >/dev/null 2>&1 && [[ -d /run/systemd/system ]]; then
-		echo "systemd"
-	elif command -v rc-service >/dev/null 2>&1; then
-		echo "openrc"
-	else
-		echo "unknown"
-	fi
-}
-readonly INIT_SYSTEM=$(detect_init)
+# --- Init System ---
+readonly INIT_SYSTEM="openrc"
 
 # --- 4. Privilege Escalation ---
 if [[ $EUID -ne 0 ]]; then
@@ -357,21 +348,10 @@ persist_iptables_rules() {
 		ip6tables-save >"${rules_dir}/ip6tables.rules" 2>/dev/null || true
 	fi
 
-	if [[ "$INIT_SYSTEM" == "systemd" ]]; then
-		if systemctl enable iptables.service >/dev/null 2>&1; then
-			success "iptables rules saved and persistence enabled."
-		else
-			warn "Could not enable iptables.service. Rules may not persist across reboots."
-		fi
-		if command -v ip6tables-save &>/dev/null; then
-			systemctl enable ip6tables.service >/dev/null 2>&1 || true
-		fi
+	if rc-update add iptables default 2>/dev/null; then
+		success "iptables rules saved and persistence enabled (OpenRC)."
 	else
-		if rc-update add iptables default 2>/dev/null; then
-			success "iptables rules saved and persistence enabled (OpenRC)."
-		else
-			warn "Could not enable iptables. Rules may not persist across reboots."
-		fi
+		warn "Could not enable iptables. Rules may not persist across reboots."
 	fi
 }
 
@@ -553,74 +533,39 @@ fi
 
 # Prevent boot-time conflict: stop AND disable the opposing unit
 if [[ "$SSH_UNIT" == "sshd.service" ]]; then
-	if [[ "$INIT_SYSTEM" == "systemd" ]]; then
-		if systemctl is-enabled --quiet sshd.socket 2>/dev/null ||
-			systemctl is-active --quiet sshd.socket 2>/dev/null; then
-			info "Disabling sshd.socket to prevent conflict with sshd.service."
-			systemctl stop sshd.socket >/dev/null 2>&1 || true
-			systemctl disable sshd.socket >/dev/null 2>&1 || true
-		fi
-	else
-		if rc-service sshd.socket status >/dev/null 2>&1; then
-			info "Disabling sshd.socket to prevent conflict with sshd.service."
-			rc-service sshd.socket stop 2>/dev/null || true
-			rc-update del sshd.socket default 2>/dev/null || true
-		fi
+	if rc-service sshd.socket status >/dev/null 2>&1; then
+		info "Disabling sshd.socket to prevent conflict with sshd.service."
+		rc-service sshd.socket stop 2>/dev/null || true
+		rc-update del sshd.socket default 2>/dev/null || true
 	fi
 elif [[ "$SSH_UNIT" == "sshd.socket" ]]; then
-	if [[ "$INIT_SYSTEM" == "systemd" ]]; then
-		if systemctl is-enabled --quiet sshd.service 2>/dev/null ||
-			systemctl is-active --quiet sshd.service 2>/dev/null; then
-			info "Disabling sshd.service to prevent conflict with sshd.socket."
-			systemctl stop sshd.service >/dev/null 2>&1 || true
-			systemctl disable sshd.service >/dev/null 2>&1 || true
-		fi
-	else
-		if rc-service sshd status >/dev/null 2>&1; then
-			info "Disabling sshd.service to prevent conflict with sshd.socket."
-			rc-service sshd stop 2>/dev/null || true
-			rc-update del sshd default 2>/dev/null || true
-		fi
+	if rc-service sshd status >/dev/null 2>&1; then
+		info "Disabling sshd.service to prevent conflict with sshd.socket."
+		rc-service sshd stop 2>/dev/null || true
+		rc-update del sshd default 2>/dev/null || true
 	fi
 fi
 
 # Check if service is already active
 _service_active=false
-if [[ "$INIT_SYSTEM" == "systemd" ]]; then
-	systemctl is-active --quiet "$SSH_UNIT" 2>/dev/null && _service_active=true
-else
-	rc-service sshd status >/dev/null 2>&1 && _service_active=true
-fi
+rc-service sshd status >/dev/null 2>&1 && _service_active=true
 
 if $_service_active; then
 	success "$SSH_UNIT is already active."
 else
 	info "Starting $SSH_UNIT..."
 
-	if [[ "$INIT_SYSTEM" == "systemd" ]]; then
-		systemctl enable "$SSH_UNIT" >/dev/null 2>&1 || true
-		if ! systemctl start "$SSH_UNIT" >/dev/null 2>&1; then
-			error "Failed to start $SSH_UNIT."
-			systemctl status "$SSH_UNIT" --no-pager --lines=10 >&2 || true
-			die "Fix the issue and re-run."
-		fi
-	else
-		rc-update add sshd default 2>/dev/null || true
-		if ! rc-service sshd start >/dev/null 2>&1; then
-			error "Failed to start sshd."
-			die "Fix the issue and re-run."
-		fi
+	rc-update add sshd default 2>/dev/null || true
+	if ! rc-service sshd start >/dev/null 2>&1; then
+		error "Failed to start sshd."
+		die "Fix the issue and re-run."
 	fi
 
 	# Verify with brief retry
 	sshd_attempts=0
 	while [[ $sshd_attempts -lt 5 ]]; do
 		_service_active=false
-		if [[ "$INIT_SYSTEM" == "systemd" ]]; then
-			systemctl is-active --quiet "$SSH_UNIT" 2>/dev/null && _service_active=true
-		else
-			rc-service sshd status >/dev/null 2>&1 && _service_active=true
-		fi
+		rc-service sshd status >/dev/null 2>&1 && _service_active=true
 		if $_service_active; then
 			break
 		fi
@@ -629,7 +574,7 @@ else
 		sleep 1
 	done
 
-	if systemctl is-active --quiet "$SSH_UNIT" 2>/dev/null; then
+	if rc-service sshd status >/dev/null 2>&1; then
 		success "$SSH_UNIT is active."
 	else
 		error "$SSH_UNIT failed to stay active."

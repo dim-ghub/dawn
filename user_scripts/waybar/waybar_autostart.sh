@@ -103,13 +103,6 @@ if command -v systemd-run >/dev/null 2>&1; then
 		log_err "systemd-run failed; attempting fallback."
 		launch_fallback "$@"
 	fi
-elif command -v rc-service >/dev/null 2>&1 && [[ -x "${HOME}/user_scripts/openrc/init.d/waybar" ]]; then
-	if rc-service waybar start >/dev/null 2>&1; then
-		log_success "${APP_NAME} launched via OpenRC service."
-	else
-		log_err "OpenRC service failed; attempting fallback."
-		launch_fallback "$@"
-	fi
 else
 	launch_fallback "$@"
 fi

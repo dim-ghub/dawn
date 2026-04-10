@@ -4,17 +4,8 @@
 # 1. Strict Mode & Environment Setup
 set -euo pipefail
 
-# --- Detect Init System ---
-detect_init() {
-	if command -v systemctl >/dev/null 2>&1 && [[ -d /run/systemd/system ]]; then
-		echo "systemd"
-	elif command -v rc-service >/dev/null 2>&1; then
-		echo "openrc"
-	else
-		echo "unknown"
-	fi
-}
-readonly INIT_SYSTEM=$(detect_init)
+# --- Init System ---
+readonly INIT_SYSTEM="openrc"
 
 # 2. Output Formatting (Visual Feedback)
 GREEN=$'\033[0;32m'
@@ -78,12 +69,8 @@ pacman -Syu --needed --noconfirm vsftpd firewalld
 # 6. Firewall Configuration
 log_info "Configuring Firewalld..."
 # Ensure service is running before using firewall-cmd
-if [[ "$INIT_SYSTEM" == "systemd" ]]; then
-	systemctl enable --now firewalld
-else
-	rc-update add firewalld default 2>/dev/null || true
-	rc-service firewalld start 2>/dev/null || true
-fi
+rc-update add firewalld default 2>/dev/null || true
+rc-service firewalld start 2>/dev/null || true
 
 # Add rules idempotently
 firewall-cmd --permanent --add-service=ftp >/dev/null
@@ -170,12 +157,8 @@ log_success "Permissions set to 777 for $FTP_ROOT"
 
 # 10. Service Activation
 log_info "Starting vsftpd service..."
-if [[ "$INIT_SYSTEM" == "systemd" ]]; then
-	systemctl enable --now vsftpd
-else
-	rc-update add vsftpd default 2>/dev/null || true
-	rc-service vsftpd start 2>/dev/null || true
-fi
+rc-update add vsftpd default 2>/dev/null || true
+rc-service vsftpd start 2>/dev/null || true
 
 # 11. Final Status
 IP_ADDR=$(ip route get 1.1.1.1 2>/dev/null | grep -oP 'src \K\S+')

@@ -26,16 +26,8 @@ readonly TARGET_USER_SERVICES=(
 
 )
 
-# Detect init system
-detect_init() {
-	if command -v systemctl >/dev/null 2>&1; then
-		echo "systemd"
-	elif command -v rc-service >/dev/null 2>&1; then
-		echo "openrc"
-	else
-		echo "unknown"
-	fi
-}
+# --- Init System ---
+readonly INIT_SYSTEM="openrc"
 
 # --- 3. Formatting & Visuals ---
 # Using ANSI-C Quoting ($'\e') for robust color support

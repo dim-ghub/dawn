@@ -9,11 +9,7 @@ shopt -s inherit_errexit
 
 readonly LOCK_FILE="${XDG_RUNTIME_DIR}/rofi-power.lock"
 readonly ACTION_DELAY='0.05'
-if command -v loginctl >/dev/null 2>&1; then
-	readonly SESSION_SCRIPT="$HOME/user_scripts/wlogout/dawn_session_openrc.sh"
-else
-	readonly SESSION_SCRIPT="$HOME/user_scripts/wlogout/dawn_session.sh"
-fi
+readonly SESSION_SCRIPT="$HOME/user_scripts/wlogout/dawn_session.sh"
 
 exec {lock_fd}>"${LOCK_FILE}"
 flock -n "${lock_fd}" || exit 0
