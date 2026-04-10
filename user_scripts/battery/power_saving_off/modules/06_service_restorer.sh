@@ -12,17 +12,8 @@
 # --- STRICT MODE ---
 set -euo pipefail
 
-# --- Detect Init System ---
-detect_init() {
-	if command -v systemctl >/dev/null 2>&1 && [[ -d /run/systemd/system ]]; then
-		echo "systemd"
-	elif command -v rc-service >/dev/null 2>&1; then
-		echo "openrc"
-	else
-		echo "unknown"
-	fi
-}
-readonly INIT_SYSTEM=$(detect_init)
+# --- OpenRC only ---
+readonly INIT_SYSTEM="openrc"
 
 # --- CONSTANTS ---
 readonly START_TIMEOUT=10
@@ -161,13 +152,13 @@ start_process() {
 start_user_service() {
 	local name="$1"
 
-	if systemctl --user is-active --quiet "$name" 2>/dev/null; then
+	if pgrep -x "$name" >/dev/null 2>&1; then
 		print_status "skip" "$name"
 		return 0
 	fi
 
-	if timeout "$START_TIMEOUT" systemctl --user start "$name" 2>/dev/null; then
-		if systemctl --user is-active --quiet "$name" 2>/dev/null; then
+	if timeout "$START_TIMEOUT" "$name" &>/dev/null; then
+		if pgrep -x "$name" >/dev/null 2>&1; then
 			print_status "success" "$name"
 			return 0
 		fi
@@ -180,11 +171,7 @@ start_system_service() {
 	local name="$1"
 
 	_active=false
-	if [[ "$INIT_SYSTEM" == "systemd" ]]; then
-		systemctl is-active --quiet "$name" 2>/dev/null && _active=true
-	else
-		rc-service "$name" status >/dev/null 2>&1 && _active=true
-	fi
+	rc-service "$name" status >/dev/null 2>&1 && _active=true
 
 	if $_active; then
 		print_status "skip" "$name"
@@ -192,19 +179,10 @@ start_system_service() {
 	fi
 
 	# ESCALATION: This is the ONLY place we use sudo.
-	if [[ "$INIT_SYSTEM" == "systemd" ]]; then
-		if sudo timeout "$START_TIMEOUT" systemctl start "$name" 2>/dev/null; then
-			if systemctl is-active --quiet "$name" 2>/dev/null; then
-				print_status "success" "$name"
-				return 0
-			fi
-		fi
-	else
-		if sudo timeout "$START_TIMEOUT" rc-service "$name" start 2>/dev/null; then
-			if rc-service "$name" status >/dev/null 2>&1; then
-				print_status "success" "$name"
-				return 0
-			fi
+	if sudo timeout "$START_TIMEOUT" rc-service "$name" start 2>/dev/null; then
+		if rc-service "$name" status >/dev/null 2>&1; then
+			print_status "success" "$name"
+			return 0
 		fi
 	fi
 

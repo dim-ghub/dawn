@@ -289,7 +289,7 @@ if [[ "$(sysctl -n net.ipv4.ip_forward)" -eq 0 ]]; then
 fi
 
 # 7b. Firewall
-if systemctl is-active --quiet firewalld; then
+if rc-service firewalld status >/dev/null 2>&1; then
 	log_info "Firewalld detected. Applying rules..."
 	firewall-cmd --zone=trusted --add-interface=waydroid0 --permanent >/dev/null
 	firewall-cmd --zone=trusted --add-masquerade --permanent >/dev/null

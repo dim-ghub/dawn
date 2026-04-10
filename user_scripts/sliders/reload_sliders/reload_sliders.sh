@@ -20,11 +20,7 @@ trap '' HUP
 # Configuration
 # -----------------------------------------------------------------------------
 readonly APP_NAME="Dusky Sliders"
-if command -v systemctl >/dev/null 2>&1; then
-	readonly SERVICE_NAME="dawn_sliders.service"
-else
-	readonly SERVICE_NAME="dawn-sliders"
-fi
+readonly SERVICE_NAME="dawn-sliders"
 readonly PROCESS_PATTERN='dawn_sliders\.py'
 readonly GUI_SCRIPT_PATH="${HOME}/user_scripts/sliders/dawn_sliders.py"
 
@@ -66,9 +62,7 @@ preflight_checks() {
 		command -v "$cmd" &>/dev/null || missing+=("$cmd")
 	done
 
-	if command -v systemctl >/dev/null 2>&1; then
-		missing+=("journalctl")
-	elif ! command -v rc-service >/dev/null 2>&1; then
+	if ! command -v rc-service >/dev/null 2>&1; then
 		missing+=("rc-service")
 	fi
 
@@ -130,24 +124,7 @@ terminate_processes() {
 # Service Management
 # -----------------------------------------------------------------------------
 start_and_verify_service() {
-	if command -v systemctl >/dev/null 2>&1; then
-		log_info "Starting systemd service: ${C_BOLD}${SERVICE_NAME}${C_RESET}"
-		systemctl --user reset-failed -- "$SERVICE_NAME" 2>/dev/null || true
-
-		if ! systemctl --user start -- "$SERVICE_NAME"; then
-			log_err "systemctl start failed. Dumping logs:"
-			journalctl --user -u "$SERVICE_NAME" -n 15 --no-pager >&2
-			return 1
-		fi
-
-		sleep "$SERVICE_INIT_DELAY_SEC"
-
-		if ! systemctl --user is-active --quiet -- "$SERVICE_NAME"; then
-			log_err "Service started but immediately exited. Dumping logs:"
-			journalctl --user -u "$SERVICE_NAME" -n 10 --no-pager >&2
-			return 1
-		fi
-	elif command -v rc-service >/dev/null 2>&1; then
+	if command -v rc-service >/dev/null 2>&1; then
 		log_info "Starting OpenRC service: ${C_BOLD}${SERVICE_NAME}${C_RESET}"
 
 		if ! rc-service "$SERVICE_NAME" start; then
@@ -155,7 +132,7 @@ start_and_verify_service() {
 			return 1
 		fi
 	else
-		log_err "No service manager found (systemd or OpenRC)."
+		log_err "No service manager found (OpenRC)."
 		return 1
 	fi
 

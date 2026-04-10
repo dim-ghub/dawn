@@ -9,9 +9,7 @@ set -euo pipefail
 
 # --- Detect Init System ---
 detect_init() {
-	if command -v systemctl >/dev/null 2>&1 && [[ -d /run/systemd/system ]]; then
-		echo "systemd"
-	elif command -v rc-service >/dev/null 2>&1; then
+	if command -v rc-service >/dev/null 2>&1; then
 		echo "openrc"
 	else
 		echo "unknown"
@@ -88,22 +86,12 @@ check_dependencies() {
 ensure_ollama_running() {
 	# Check if service is running
 	_ollama_active=false
-	if [[ "$INIT_SYSTEM" == "systemd" ]]; then
-		systemctl is-active --quiet ollama.service && _ollama_active=true
-	else
-		rc-service ollama status >/dev/null 2>&1 && _ollama_active=true
-	fi
+	rc-service ollama status >/dev/null 2>&1 && _ollama_active=true
 
 	if ! $_ollama_active; then
 		log_info "Starting Ollama service..."
-		if [[ "$INIT_SYSTEM" == "systemd" ]]; then
-			if ! sudo systemctl start ollama.service; then
-				die "Failed to start ollama.service. Check 'systemctl status ollama.service'."
-			fi
-		else
-			if ! sudo rc-service ollama start; then
-				die "Failed to start ollama. Check 'rc-service ollama status'."
-			fi
+		if ! sudo rc-service ollama start; then
+			die "Failed to start ollama. Check 'rc-service ollama status'."
 		fi
 
 		# Wait for API endpoint to become responsive

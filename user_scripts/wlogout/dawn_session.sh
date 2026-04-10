@@ -72,8 +72,6 @@ do_poweroff() {
 		exec loginctl power-off --no-wall
 	elif command -v openrc-shutdown >/dev/null 2>&1; then
 		exec openrc-shutdown -p now
-	elif command -v systemctl >/dev/null 2>&1; then
-		exec systemctl poweroff --no-wall
 	else
 		exec shutdown -P now
 	fi
@@ -86,8 +84,6 @@ do_reboot() {
 		exec loginctl reboot --no-wall
 	elif command -v openrc-shutdown >/dev/null 2>&1; then
 		exec openrc-shutdown -r now
-	elif command -v systemctl >/dev/null 2>&1; then
-		exec systemctl reboot --no-wall
 	else
 		exec shutdown -r now
 	fi
@@ -98,8 +94,6 @@ do_soft_reboot() {
 
 	if command -v openrc-shutdown >/dev/null 2>&1; then
 		exec openrc-shutdown -r now
-	elif command -v systemctl >/dev/null 2>&1; then
-		exec systemctl soft-reboot --no-wall
 	else
 		exec shutdown -r now
 	fi
@@ -108,8 +102,6 @@ do_soft_reboot() {
 do_suspend() {
 	if command -v loginctl >/dev/null 2>&1; then
 		exec loginctl suspend
-	elif command -v systemctl >/dev/null 2>&1; then
-		exec systemctl suspend
 	else
 		echo "Error: No suspend mechanism available (install elogind)"
 		exit 1
@@ -119,8 +111,6 @@ do_suspend() {
 do_hibernate() {
 	if command -v loginctl >/dev/null 2>&1; then
 		exec loginctl hibernate
-	elif command -v systemctl >/dev/null 2>&1; then
-		exec systemctl hibernate
 	else
 		echo "Error: No hibernate mechanism available (install elogind)"
 		exit 1

@@ -129,17 +129,8 @@ cleanup() {
 		# 2. Kill any manual instances to prevent duplicates
 		killall hypridle 2>/dev/null || :
 
-		# 3. Attempt service restart (systemd or OpenRC)
-		if command -v systemctl >/dev/null 2>&1; then
-			systemctl --user reset-failed hypridle.service 2>/dev/null || :
-			if systemctl --user restart hypridle.service 2>/dev/null; then
-				sleep 0.2
-				if systemctl --user is-active --quiet hypridle.service; then
-					printf "%s[OK]%s Service restarted successfully.\n" "$C_GREEN" "$C_RESET"
-					return
-				fi
-			fi
-		elif command -v rc-service >/dev/null 2>&1; then
+		# 3. Attempt OpenRC service restart
+		if command -v rc-service >/dev/null 2>&1; then
 			if rc-service hypridle restart 2>/dev/null; then
 				sleep 0.2
 				if pgrep -x hypridle >/dev/null 2>&1; then
@@ -955,13 +946,9 @@ main() {
 	done
 
 	# Pre-flight check: resurrect dead service
-	if command -v systemctl >/dev/null 2>&1; then
-		if systemctl --user is-failed --quiet hypridle.service 2>/dev/null; then
-			systemctl --user reset-failed hypridle.service 2>/dev/null || :
-		fi
-	elif command -v rc-service >/dev/null 2>&1; then
+	if command -v rc-service >/dev/null 2>&1; then
 		if ! pgrep -x hypridle >/dev/null 2>&1; then
-			rc-service hypridle start 2>/dev/null || hypridle &>/dev/null &
+			rc-service hypridle start 2>/dev/null || hypridle >/dev/null &
 		fi
 	fi
 

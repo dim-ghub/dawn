@@ -10,9 +10,7 @@ set -euo pipefail
 
 # --- Detect Init System ---
 detect_init() {
-	if command -v systemctl >/dev/null 2>&1 && [[ -d /run/systemd/system ]]; then
-		echo "systemd"
-	elif command -v rc-service >/dev/null 2>&1; then
+	if command -v rc-service >/dev/null 2>&1; then
 		echo "openrc"
 	else
 		echo "unknown"
@@ -220,90 +218,42 @@ apply_limits_live() {
 
 setup_persistence() {
 	local limit=$1
-	local tmp_service="${SERVICE_FILE}.tmp"
-	local exec_starts=""
 
-	info "Configuring stateless systemd persistence..."
+	info "Configuring OpenRC persistence..."
 
-	# Systemd boot loop. Strict read-back omitted to prevent boot failure on write-only drivers
-	for file in "${TARGET_FILES[@]}"; do
-		exec_starts+="ExecStart=/bin/bash -c 'printf \"%%s\" \"${limit}\" > \"${file}\"'\n"
-	done
-
-	# Sync state to user context on boot. '%%' becomes '%' during systemd evaluation.
-	exec_starts+="ExecStartPost=/usr/bin/runuser -u ${TARGET_USER} -- /bin/bash -c 'mkdir -p \"${STATE_DIR}\" && echo \"${limit}%%\" > \"${STATE_FILE}\" && chmod 644 \"${STATE_FILE}\"'\n"
-
-	# Atomic write
-	printf "%s\n" \
-		"# Managed statelessly by the Arch Battery Optimizer" \
-		"[Unit]" \
-		"Description=Hardware Battery Charge Limit (${limit}%%)" \
-		"After=multi-user.target" \
-		"StartLimitIntervalSec=30" \
-		"StartLimitBurst=5" \
-		"" \
-		"[Service]" \
-		"Type=oneshot" \
-		"RemainAfterExit=yes" \
-		"Restart=on-failure" \
-		"RestartSec=2" \
-		>"${tmp_service}"
-
-	printf "%b" "${exec_starts}" >>"${tmp_service}"
-
-	printf "%s\n" \
-		"" \
-		"[Install]" \
-		"WantedBy=multi-user.target" \
-		>>"${tmp_service}"
-
-	mv -f "${tmp_service}" "${SERVICE_FILE}"
-	chmod 644 "${SERVICE_FILE}"
-
-	if [[ "$INIT_SYSTEM" == "systemd" ]]; then
-		systemctl daemon-reload
-		systemctl enable "${SERVICE_NAME}" >/dev/null 2>&1
-		success "Persistence bound to systemd (Hardware Tolerant)."
-	else
-		# Create OpenRC init script
-		cat >"/etc/init.d/${OPENRC_SERVICE_NAME}" <<'EOF'
+	# Create OpenRC init script
+	cat >"/etc/init.d/${OPENRC_SERVICE_NAME}" <<EOF
 #!/sbin/openrc-run
 name="Battery Charge Limit"
 command="/usr/bin/bash"
-command_args="${SERVICE_SCRIPT}"
-pidfile="/run/${RC_SVCNAME}.pid"
+command_args="-c 'printf \"${limit}\" > \${TARGET_FILE}'"
+pidfile="/run/\${RC_SVCNAME}.pid"
 
 depend() {
     need localmount
 }
 EOF
-		chmod +x "/etc/init.d/${OPENRC_SERVICE_NAME}"
-		rc-update add "${OPENRC_SERVICE_NAME}" default
-		success "Persistence bound to OpenRC (Hardware Tolerant)."
-	fi
+
+	# Write threshold to a known location for the init script to read
+	for file in "${TARGET_FILES[@]}"; do
+		echo "${limit}" >"/run/${OPENRC_SERVICE_NAME}.limit"
+		break
+	done
+
+	chmod +x "/etc/init.d/${OPENRC_SERVICE_NAME}"
+	rc-update add "${OPENRC_SERVICE_NAME}" default
+	success "Persistence bound to OpenRC (Hardware Tolerant)."
 }
 
 remove_persistence() {
-	if [[ "$INIT_SYSTEM" == "systemd" ]]; then
-		if [[ -f "${SERVICE_FILE}" ]]; then
-			info "Purging persistence configuration..."
-			systemctl disable --now "${SERVICE_NAME}" >/dev/null 2>&1 || true
-			rm -f "${SERVICE_FILE}"
-			systemctl daemon-reload
-			success "Systemd configuration cleanly removed."
-		else
-			info "No active persistence found. Nothing to remove."
-		fi
+	if [[ -f "/etc/init.d/${OPENRC_SERVICE_NAME}" ]]; then
+		info "Purging persistence configuration..."
+		rc-service "${OPENRC_SERVICE_NAME}" stop 2>/dev/null || true
+		rc-update del "${OPENRC_SERVICE_NAME}" default 2>/dev/null || true
+		rm -f "/etc/init.d/${OPENRC_SERVICE_NAME}"
+		success "OpenRC configuration cleanly removed."
 	else
-		if [[ -f "/etc/init.d/${OPENRC_SERVICE_NAME}" ]]; then
-			info "Purging persistence configuration..."
-			rc-service "${OPENRC_SERVICE_NAME}" stop 2>/dev/null || true
-			rc-update del "${OPENRC_SERVICE_NAME}" default 2>/dev/null || true
-			rm -f "/etc/init.d/${OPENRC_SERVICE_NAME}"
-			success "OpenRC configuration cleanly removed."
-		else
-			info "No active persistence found. Nothing to remove."
-		fi
+		info "No active persistence found. Nothing to remove."
 	fi
 }
 

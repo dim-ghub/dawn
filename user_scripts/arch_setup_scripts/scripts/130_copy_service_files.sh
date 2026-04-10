@@ -119,7 +119,6 @@ install_and_manage() {
 		target_file="${SYSTEMD_USER_DIR}/${service_name}"
 		log_info "Installing to $target_file..."
 		install -D -m 644 -- "$source_path" "$target_file"
-		systemctl --user daemon-reload
 		;;
 	openrc)
 		log_info "Installing to /etc/init.d/$openrc_service_name..."
@@ -160,11 +159,9 @@ install_and_manage() {
 	# Execute Action
 	case "$user_choice" in
 	y | yes)
-		log_info "Enabling and Starting..."
+		log_info "Starting..."
 		case "$INIT_SYSTEM" in
-		systemd)
-			systemctl --user enable --now "$service_name"
-			;;
+		systemd) ;;
 		openrc)
 			rc-update add "$openrc_service_name" default 2>/dev/null || true
 			rc-service "$openrc_service_name" start 2>/dev/null || true
@@ -173,11 +170,9 @@ install_and_manage() {
 		log_success "$service_name is active."
 		;;
 	*)
-		log_info "Disabling/Stopping..."
+		log_info "Stopping..."
 		case "$INIT_SYSTEM" in
-		systemd)
-			systemctl --user disable --now "$service_name" 2>/dev/null || true
-			;;
+		systemd) ;;
 		openrc)
 			rc-service "$openrc_service_name" stop 2>/dev/null || true
 			rc-update del "$openrc_service_name" default 2>/dev/null || true

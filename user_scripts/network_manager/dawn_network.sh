@@ -1696,16 +1696,9 @@ main() {
 		fi
 	done
 
-	if command -v systemctl &>/dev/null; then
-		if ! systemctl is-active --quiet NetworkManager.service; then
-			log_err "NetworkManager not running. Start with: sudo systemctl start NetworkManager"
-			exit 1
-		fi
-	else
-		if ! pgrep -x NetworkManager >/dev/null; then
-			log_err "NetworkManager not running. Start with: sudo rc-service NetworkManager start"
-			exit 1
-		fi
+	if ! pgrep -x NetworkManager >/dev/null; then
+		log_err "NetworkManager not running. Start with: sudo rc-service NetworkManager start"
+		exit 1
 	fi
 
 	ORIGINAL_STTY=$(stty -g 2>/dev/null) || ORIGINAL_STTY=""

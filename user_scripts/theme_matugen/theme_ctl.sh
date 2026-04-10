@@ -434,16 +434,7 @@ ensure_swww_running() {
 
 	log "Starting $DAEMON_BINARY..."
 
-	if command -v systemctl >/dev/null 2>&1 && systemctl --user cat swww.service >/dev/null 2>&1; then
-		if systemctl --user start swww.service >/dev/null 2>&1; then
-			if wait_for_process "$DAEMON_BINARY"; then
-				return 0
-			fi
-			warn "swww.service started, but $DAEMON_BINARY did not appear in time. Falling back to direct launch."
-		else
-			warn "Failed to start swww.service. Falling back to direct launch."
-		fi
-	elif command -v rc-service >/dev/null 2>&1 && rc-service -l 2>/dev/null | grep -qE "(swww|awww)"; then
+	if command -v rc-service >/dev/null 2>&1 && rc-service -l 2>/dev/null | grep -qE "(swww|awww)"; then
 		local svc="swww"
 		rc-service -l 2>/dev/null | grep -q "awww" && svc="awww"
 		if rc-service "$svc" start >/dev/null 2>&1; then

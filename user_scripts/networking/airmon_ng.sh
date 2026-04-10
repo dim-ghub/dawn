@@ -15,9 +15,7 @@ shopt -s extglob
 
 # --- Detect Init System ---
 detect_init() {
-	if command -v systemctl >/dev/null 2>&1 && [[ -d /run/systemd/system ]]; then
-		echo "systemd"
-	elif command -v rc-service >/dev/null 2>&1; then
+	if command -v rc-service >/dev/null 2>&1; then
 		echo "openrc"
 	else
 		echo "unknown"
@@ -209,29 +207,17 @@ cleanup() {
 
 	# 4. Restore NetworkManager
 	_nm_active=false
-	if [[ "$INIT_SYSTEM" == "systemd" ]]; then
-		systemctl is-active --quiet NetworkManager && _nm_active=true
-	else
-		rc-service NetworkManager status >/dev/null 2>&1 && _nm_active=true
-	fi
+	rc-service NetworkManager status >/dev/null 2>&1 && _nm_active=true
 
 	if [[ "${ORIGINAL_NM_STATE:-}" == "active" ]]; then
 		if ! $_nm_active; then
 			log_info "Restarting NetworkManager..."
-			if [[ "$INIT_SYSTEM" == "systemd" ]]; then
-				systemctl restart NetworkManager || log_warn "Failed to restart NetworkManager."
-			else
-				rc-service NetworkManager restart || log_warn "Failed to restart NetworkManager."
-			fi
+			rc-service NetworkManager restart || log_warn "Failed to restart NetworkManager."
 		fi
 	elif [[ -z "${ORIGINAL_NM_STATE:-}" ]]; then
 		if ! $_nm_active; then
 			log_info "Attempting to restart NetworkManager..."
-			if [[ "$INIT_SYSTEM" == "systemd" ]]; then
-				systemctl start NetworkManager 2>/dev/null || true
-			else
-				rc-service NetworkManager start 2>/dev/null || true
-			fi
+			rc-service NetworkManager start 2>/dev/null || true
 		fi
 	fi
 
@@ -251,11 +237,7 @@ trap cleanup EXIT INT TERM HUP QUIT
 # DEPENDENCY CHECK
 # -----------------------------------------------------------------------------
 check_deps() {
-	if [[ "$INIT_SYSTEM" == "systemd" ]]; then
-		systemctl is-active --quiet NetworkManager 2>/dev/null && ORIGINAL_NM_STATE="active" || ORIGINAL_NM_STATE="inactive"
-	else
-		rc-service NetworkManager status >/dev/null 2>&1 && ORIGINAL_NM_STATE="active" || ORIGINAL_NM_STATE="inactive"
-	fi
+	rc-service NetworkManager status >/dev/null 2>&1 && ORIGINAL_NM_STATE="active" || ORIGINAL_NM_STATE="inactive"
 
 	declare -A deps=(
 		["aircrack-ng"]="aircrack-ng"

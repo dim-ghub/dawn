@@ -807,41 +807,20 @@ main() {
 	fi
 
 	# ---------------------------------------------------------
-	# D. Reload Service
+	# D. Reload Service (OpenRC)
 	# ---------------------------------------------------------
-	local init_system="unknown"
-	if command -v systemctl >/dev/null 2>&1 && [[ -d /run/systemd/system ]]; then
-		init_system="systemd"
-	elif command -v rc-service >/dev/null 2>&1; then
-		init_system="openrc"
-	fi
+	log_info "Reloading TLP service..."
 
-	log_info "Reloading TLP service ($init_system)..."
-
-	if [[ "$init_system" == "systemd" ]]; then
-		if systemctl reload tlp; then
-			log_success "TLP reloaded successfully."
-		else
-			log_warn "Reload failed (service might be inactive). Attempting restart..."
-			if systemctl enable --now tlp; then
-				log_success "TLP enabled and started successfully."
-			else
-				log_error "Failed to start TLP."
-				exit 1
-			fi
-		fi
+	if rc-service tlp reload 2>/dev/null; then
+		log_success "TLP reloaded successfully."
 	else
-		if rc-service tlp reload 2>/dev/null; then
-			log_success "TLP reloaded successfully."
+		log_warn "Reload failed. Attempting restart..."
+		rc-update add tlp default 2>/dev/null || true
+		if rc-service tlp start; then
+			log_success "TLP enabled and started successfully."
 		else
-			log_warn "Reload failed. Attempting restart..."
-			rc-update add tlp default 2>/dev/null || true
-			if rc-service tlp start; then
-				log_success "TLP enabled and started successfully."
-			else
-				log_error "Failed to start TLP."
-				exit 1
-			fi
+			log_error "Failed to start TLP."
+			exit 1
 		fi
 	fi
 }

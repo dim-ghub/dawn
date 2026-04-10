@@ -103,11 +103,7 @@ execute() {
 		;;
 	suspend)
 		sleep "${ACTION_DELAY}"
-		if command -v loginctl >/dev/null 2>&1; then
-			exec loginctl suspend
-		else
-			exec systemctl suspend
-		fi
+		exec "$SESSION_SCRIPT" suspend
 		;;
 	reboot)
 		sleep "${ACTION_DELAY}"

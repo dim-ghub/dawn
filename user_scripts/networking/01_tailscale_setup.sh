@@ -12,9 +12,7 @@ shopt -s inherit_errexit
 
 # --- Detect Init System ---
 detect_init() {
-	if command -v systemctl >/dev/null 2>&1 && [[ -d /run/systemd/system ]]; then
-		echo "systemd"
-	elif command -v rc-service >/dev/null 2>&1; then
+	if command -v rc-service >/dev/null 2>&1; then
 		echo "openrc"
 	else
 		echo "unknown"
@@ -75,11 +73,7 @@ backup_file() {
 
 cmd_exists() { command -v "$1" &>/dev/null; }
 svc_active() {
-	if [[ "$INIT_SYSTEM" == "systemd" ]]; then
-		systemctl is-active --quiet "$1" 2>/dev/null
-	else
-		rc-service "$1" status >/dev/null 2>&1
-	fi
+	rc-service "$1" status >/dev/null 2>&1
 }
 pkg_installed() { pacman -Q "$1" &>/dev/null; }
 
@@ -144,14 +138,8 @@ fi
 log_step "Phase 0: System Foundation"
 
 log_info "Configuring systemd-resolved..."
-if [[ "$INIT_SYSTEM" == "systemd" ]]; then
-	svc_active systemd-resolved || systemctl enable --now systemd-resolved
-else
-	svc_active systemd-resolved || {
-		rc-update add systemd-resolved default 2>/dev/null
-		rc-service systemd-resolved start 2>/dev/null
-	}
-fi
+rc-update add systemd-resolved default 2>/dev/null || true
+rc-service systemd-resolved start 2>/dev/null || true
 
 timeout=10
 while [[ ! -f "$STUB_RESOLV" ]] && ((timeout > 0)); do
@@ -175,11 +163,7 @@ if cmd_exists NetworkManager; then
 unmanaged-devices=interface-name:tailscale0
 EOF
 	if svc_active NetworkManager; then
-		if [[ "$INIT_SYSTEM" == "systemd" ]]; then
-			systemctl reload NetworkManager || systemctl restart NetworkManager
-		else
-			rc-service NetworkManager restart
-		fi
+		rc-service NetworkManager restart
 	fi
 	log_succ "NetworkManager instructed to ignore tailscale0."
 fi
@@ -209,13 +193,8 @@ pkg_installed tailscale || {
 }
 
 log_info "Restarting Tailscale daemon..."
-if [[ "$INIT_SYSTEM" == "systemd" ]]; then
-	systemctl restart tailscaled
-	systemctl enable tailscaled
-else
-	rc-update add tailscaled default 2>/dev/null || true
-	rc-service tailscaled restart
-fi
+rc-update add tailscaled default 2>/dev/null || true
+rc-service tailscaled restart
 
 # Mitigate IPC socket race condition
 log_info "Awaiting tailscaled IPC socket readiness..."

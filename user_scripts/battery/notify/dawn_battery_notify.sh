@@ -15,11 +15,7 @@ shopt -s extglob
 # =============================================================================
 
 readonly CONFIG_FILE="${HOME}/user_scripts/battery/notify/battery_notify.sh"
-if command -v systemctl >/dev/null 2>&1; then
-	readonly SERVICE_NAME="battery_notify.service"
-else
-	readonly SERVICE_NAME="battery-notify"
-fi
+readonly SERVICE_NAME="battery-notify"
 readonly APP_TITLE="Dusky Battery Notif"
 readonly APP_VERSION="v1.2.0 (Optimized)"
 
@@ -61,11 +57,7 @@ register_items() {
 # Post-Write Hook: Restart the Service
 # -----------------------------------------------------------------------------
 post_write_action() {
-	if command -v systemctl >/dev/null 2>&1; then
-		if systemctl --user is-active --quiet "$SERVICE_NAME"; then
-			systemctl --user restart "$SERVICE_NAME"
-		fi
-	elif command -v rc-service >/dev/null 2>&1; then
+	if command -v rc-service >/dev/null 2>&1; then
 		if rc-service "$SERVICE_NAME" status >/dev/null 2>&1; then
 			rc-service "$SERVICE_NAME" restart
 		fi

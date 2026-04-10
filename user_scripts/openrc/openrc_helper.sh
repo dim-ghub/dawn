@@ -7,9 +7,7 @@
 
 # Detect init system once and export
 _openrc_helper_detect_init() {
-	if command -v systemctl >/dev/null 2>&1 && [[ -d /run/systemd/system ]]; then
-		echo "systemd"
-	elif command -v rc-service >/dev/null 2>&1; then
+	if command -v rc-service >/dev/null 2>&1; then
 		echo "openrc"
 	else
 		echo "unknown"
@@ -24,11 +22,9 @@ fi
 # Helper to run commands based on init system
 # Usage: run_as_init "systemd" "systemctl enable foo" "rc-update add foo default"
 run_as_init() {
-	local cmd_systemd="$1"
-	local cmd_openrc="$2"
+	local cmd_openrc="$1"
 
 	case "$INIT_SYSTEM" in
-	systemd) eval "$cmd_systemd" ;;
 	openrc) eval "$cmd_openrc" ;;
 	*)
 		echo "Unknown init system" >&2
@@ -42,7 +38,6 @@ run_as_init() {
 is_service_active() {
 	local svc="$1"
 	case "$INIT_SYSTEM" in
-	systemd) systemctl is-active "$svc" >/dev/null 2>&1 ;;
 	openrc) rc-service "$svc" status >/dev/null 2>&1 ;;
 	*) return 1 ;;
 	esac
@@ -53,7 +48,6 @@ is_service_active() {
 is_service_enabled() {
 	local svc="$1"
 	case "$INIT_SYSTEM" in
-	systemd) systemctl is-enabled "$svc" >/dev/null 2>&1 ;;
 	openrc) rc-update show default 2>/dev/null | grep -q "^[[:space:]]*$svc[[:space:]]" ;;
 	*) return 1 ;;
 	esac
@@ -64,7 +58,6 @@ is_service_enabled() {
 svc_start() {
 	local svc="$1"
 	case "$INIT_SYSTEM" in
-	systemd) systemctl start "$svc" ;;
 	openrc) rc-service "$svc" start ;;
 	*) return 1 ;;
 	esac
@@ -75,7 +68,6 @@ svc_start() {
 svc_stop() {
 	local svc="$1"
 	case "$INIT_SYSTEM" in
-	systemd) systemctl stop "$svc" ;;
 	openrc) rc-service "$svc" stop ;;
 	*) return 1 ;;
 	esac
@@ -86,10 +78,6 @@ svc_stop() {
 svc_enable_start() {
 	local svc="$1"
 	case "$INIT_SYSTEM" in
-	systemd)
-		systemctl enable "$svc"
-		systemctl start "$svc"
-		;;
 	openrc)
 		rc-update add "$svc" default
 		rc-service "$svc" start
@@ -102,10 +90,6 @@ svc_enable_start() {
 svc_disable_stop() {
 	local svc="$1"
 	case "$INIT_SYSTEM" in
-	systemd)
-		systemctl stop "$svc"
-		systemctl disable "$svc"
-		;;
 	openrc)
 		rc-service "$svc" stop 2>/dev/null || true
 		rc-update del "$svc" default 2>/dev/null || true
@@ -118,16 +102,14 @@ svc_disable_stop() {
 svc_restart() {
 	local svc="$1"
 	case "$INIT_SYSTEM" in
-	systemd) systemctl restart "$svc" ;;
 	openrc) rc-service "$svc" restart ;;
 	*) return 1 ;;
 	esac
 }
 
-# Reload daemon (systemd only)
+# Reload daemon (OpenRC no-op)
 svc_reload_daemon() {
 	case "$INIT_SYSTEM" in
-	systemd) systemctl daemon-reload ;;
 	openrc) ;; # No-op for OpenRC
 	esac
 }
@@ -137,7 +119,6 @@ svc_reload_daemon() {
 svc_status() {
 	local svc="$1"
 	case "$INIT_SYSTEM" in
-	systemd) systemctl status "$svc" ;;
 	openrc) rc-service "$svc" status ;;
 	esac
 }

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Zram Configuration
+# Zram Configuration for OpenRC
 # -----------------------------------------------------------------------------
-# Elite Arch Linux ZRAM Configurator
-# Context: Hyprland / UWSM Environment
+# Elite Artix Linux ZRAM Configurator
+# Context: Hyprland / OpenRC Environment
 # Logic: Dynamic configuration based on available RAM (<=8GB vs >8GB)
 # -----------------------------------------------------------------------------
 
@@ -23,12 +23,6 @@ if [[ $EUID -ne 0 ]]; then
 	exec sudo "$0" "$@"
 fi
 
-# --- 1b. OpenRC Detection ---
-if command -v rc-service >/dev/null 2>&1; then
-	printf "${YELLOW}[Info] OpenRC detected. Skipping systemd zram-generator config.${NC}\n"
-	exit 0
-fi
-
 # --- 2. Setup Variables ---
 CONFIG_FILE="/etc/systemd/zram-generator.conf"
 MOUNT_POINT="/mnt/zram1"
@@ -38,7 +32,6 @@ log_success() { printf "${GREEN}[SUCCESS]${NC} %s\n" "$1"; }
 log_err() { printf "${RED}[ERROR]${NC} %s\n" "$1" >&2; }
 
 # --- 3. Memory Calculation (Pure Bash) ---
-# Read MemTotal from /proc/meminfo to avoid forking 'free' or 'awk'
 while read -r key value unit; do
 	if [[ "$key" == "MemTotal:" ]]; then
 		TOTAL_MEM_KB=$value
@@ -46,13 +39,11 @@ while read -r key value unit; do
 	fi
 done </proc/meminfo
 
-# Convert kB to MB for comparison
 TOTAL_MEM_MB=$((TOTAL_MEM_KB / 1024))
 
 log_info "Detected System RAM: ${TOTAL_MEM_MB} MB"
 
 # --- 4. Logic Determination ---
-# Threshold: 8GB = 8192 MB
 if ((TOTAL_MEM_MB <= 8192)); then
 	ZRAM_SIZE_VAL="ram"
 	log_info "RAM is <= 8GB. Setting zram-size to full 'ram'."
@@ -63,13 +54,11 @@ fi
 
 # --- 5. Execution ---
 
-# Ensure the mount point exists for zram1
 if [[ ! -d "$MOUNT_POINT" ]]; then
 	mkdir -p "$MOUNT_POINT"
 	log_info "Created mount point: $MOUNT_POINT"
 fi
 
-# Write the configuration cleanly (Overwrites existing file, no backups created)
 cat >"$CONFIG_FILE" <<EOF
 [zram0]
 zram-size = ${ZRAM_SIZE_VAL}
@@ -85,9 +74,4 @@ EOF
 
 log_success "Configuration written to ${CONFIG_FILE}"
 
-# --- 6. Reload Systemd Generators ---
-# This ensures systemd recognizes the new generator config immediately
-log_info "Reloading systemd daemon..."
-systemctl daemon-reload
-
-log_success "ZRAM configuration complete. Changes apply on next reboot or service restart."
+log_info "ZRAM configuration complete. Changes apply on next reboot."

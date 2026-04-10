@@ -113,61 +113,42 @@ main() {
 	local stub_resolv="/run/systemd/resolve/stub-resolv.conf"
 	local etc_resolv="/etc/resolv.conf"
 
-	# Detect init system
-	local init_system="unknown"
-	if command -v systemctl >/dev/null 2>&1 && [[ -d /run/systemd/system ]]; then
-		init_system="systemd"
-	elif command -v rc-service >/dev/null 2>&1; then
-		init_system="openrc"
+	# OpenRC only
+	local init_system="openrc"
+
+	# 1. Handle DNS resolver for OpenRC
+	log_info "OpenRC detected. Checking for DNS resolver..."
+
+	if command -v systemd-resolved >/dev/null 2>&1; then
+		log_info "systemd-resolved found."
+	elif command -v resolvconf >/dev/null 2>&1; then
+		log_info "Using openresolv (resolvconf)..."
+		printf "nameserver 9.9.9.9\nnameserver 1.1.1.1\n" | resolvconf -a eth0
+		log_success "DNS configured via resolvconf."
+		return 0
+	else
+		log_warn "Neither systemd-resolved nor openresolv found. Writing to /etc/resolv.conf directly."
+		printf "nameserver 9.9.9.9\nnameserver 1.1.1.1\n" >/etc/resolv.conf
+		log_success "DNS written to /etc/resolv.conf."
+		return 0
 	fi
 
-	# 1. Handle systemd-resolved vs OpenRC
-	if [[ "$init_system" == "openrc" ]]; then
-		log_info "OpenRC detected. Checking for DNS resolver..."
-
-		if command -v systemd-resolved >/dev/null 2>&1; then
-			log_info "systemd-resolved found."
-		elif command -v resolvconf >/dev/null 2>&1; then
-			log_info "Using openresolv (resolvconf)..."
-			printf "nameserver 9.9.9.9\nnameserver 1.1.1.1\n" | resolvconf -a eth0
-			log_success "DNS configured via resolvconf."
-			return 0
-		else
-			log_warn "Neither systemd-resolved nor openresolv found. Writing to /etc/resolv.conf directly."
-			printf "nameserver 9.9.9.9\nnameserver 1.1.1.1\n" >/etc/resolv.conf
-			log_success "DNS written to /etc/resolv.conf."
-			return 0
-		fi
-	fi
-
-	# 2. Dependency Check
-	if [[ "$init_system" == "systemd" ]] && ! command -v systemctl &>/dev/null; then
-		log_error "systemd is required but not found."
-		exit 1
-	fi
-
-	# 3. Write Configuration
+	# 2. Write Configuration
 	log_info "Writing configuration to $target_conf..."
 	printf "%s\n" "$RESOLVED_CONFIG" >"$target_conf"
 	log_success "Configuration written."
 
-	# 4. Handle Symlink
+	# 3. Handle Symlink
 	log_info "Linking $etc_resolv -> $stub_resolv..."
 	ln -sf "$stub_resolv" "$etc_resolv"
 	log_success "Symlink updated."
 
-	# 5. Service Management
+	# 4. Service Management
 	log_info "Restarting systemd-resolved..."
+	rc-update add systemd-resolved default 2>/dev/null || true
+	rc-service systemd-resolved restart 2>/dev/null || true
 
-	if [[ "$init_system" == "systemd" ]]; then
-		systemctl enable systemd-resolved
-		systemctl restart systemd-resolved
-	else
-		rc-update add systemd-resolved default 2>/dev/null || true
-		rc-service systemd-resolved restart 2>/dev/null || true
-	fi
-
-	# 6. Wait for Stub File
+	# 5. Wait for Stub File
 	local timeout=50
 	local count=0
 	while [[ ! -f "$stub_resolv" ]]; do
@@ -179,22 +160,12 @@ main() {
 		sleep 0.1
 	done
 
-	# 7. Verification
-	if [[ "$init_system" == "systemd" ]]; then
-		if systemctl is-active --quiet systemd-resolved; then
-			log_success "Service is active."
-		else
-			log_error "Service failed to start."
-			systemctl status systemd-resolved --no-pager -n 5
-			exit 1
-		fi
+	# 6. Verification
+	if rc-service systemd-resolved status >/dev/null 2>&1; then
+		log_success "Service is active."
 	else
-		if rc-service systemd-resolved status >/dev/null 2>&1; then
-			log_success "Service is active."
-		else
-			log_error "Service failed to start."
-			exit 1
-		fi
+		log_error "Service failed to start."
+		exit 1
 	fi
 
 	printf "\n%s---[ DNS Status ]---%s\n" "$C_BLUE" "$C_RESET"

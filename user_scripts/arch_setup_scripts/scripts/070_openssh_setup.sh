@@ -157,11 +157,11 @@ success "sshd configuration is valid."
 SSH_UNIT="sshd.service"
 SSH_UNIT_TYPE="service"
 
-if systemctl is-active --quiet sshd.socket 2>/dev/null; then
+if rc-service sshd.socket status >/dev/null 2>&1; then
 	SSH_UNIT="sshd.socket"
 	SSH_UNIT_TYPE="socket"
 	info "Detected active sshd.socket (on-demand activation)."
-elif systemctl is-enabled --quiet sshd.socket 2>/dev/null; then
+elif rc-update show default | grep -q sshd.socket; then
 	SSH_UNIT="sshd.socket"
 	SSH_UNIT_TYPE="socket"
 	info "Detected enabled sshd.socket (on-demand activation)."
@@ -172,7 +172,11 @@ SSH_PORT=""
 
 # Socket-activated: port comes from the unit file, not sshd_config
 if [[ "$SSH_UNIT_TYPE" == "socket" ]]; then
-	socket_config=$(systemctl cat sshd.socket 2>/dev/null || true)
+	socket_config=$(if command -v rc-service >/dev/null 2>&1; then
+		cat /etc/init.d/sshd.socket 2>/dev/null || true
+	else
+		systemctl cat sshd.socket 2>/dev/null || true
+	fi)
 	if [[ -n "$socket_config" ]]; then
 		# ListenStream= can be: "22", "0.0.0.0:22", "[::]:22", or empty (reset)
 		# Take the last meaningful value (later directives override earlier)
@@ -372,7 +376,7 @@ configure_firewalls() {
 	fi
 
 	if command -v firewall-cmd &>/dev/null &&
-		systemctl is-active --quiet firewalld 2>/dev/null; then
+		rc-service firewalld status >/dev/null 2>&1; then
 		has_firewalld=true
 		((fw_count++)) || true
 	fi
@@ -518,13 +522,13 @@ configure_firewalls "$SSH_PORT"
 
 # Re-check for conflicts (state may have changed since section 10)
 if [[ "$SSH_UNIT" == "sshd.service" ]]; then
-	if systemctl is-active --quiet sshd.socket 2>/dev/null; then
+	if rc-service sshd.socket status >/dev/null 2>&1; then
 		info "sshd.socket became active. Switching to socket activation."
 		SSH_UNIT="sshd.socket"
 		SSH_UNIT_TYPE="socket"
 	fi
 elif [[ "$SSH_UNIT" == "sshd.socket" ]]; then
-	if systemctl is-active --quiet sshd.service 2>/dev/null; then
+	if rc-service sshd status >/dev/null 2>&1; then
 		info "sshd.service became active. Switching to service mode."
 		SSH_UNIT="sshd.service"
 		SSH_UNIT_TYPE="service"
@@ -578,8 +582,8 @@ else
 		success "$SSH_UNIT is active."
 	else
 		error "$SSH_UNIT failed to stay active."
-		systemctl status "$SSH_UNIT" --no-pager --lines=10 >&2 || true
-		die "Check 'journalctl -xeu $SSH_UNIT' for details."
+		rc-service sshd status >&2 || true
+		die "Check 'rc-status' for details."
 	fi
 fi
 
@@ -598,7 +602,7 @@ USE_TAILSCALE_IP=false
 TAILSCALE_IP=""
 
 if command -v tailscale &>/dev/null &&
-	systemctl is-active --quiet tailscaled 2>/dev/null; then
+	rc-service tailscaled status >/dev/null 2>&1; then
 	TAILSCALE_IP=$(tailscale ip -4 2>/dev/null || true)
 
 	if [[ -n "$TAILSCALE_IP" ]]; then
@@ -620,7 +624,7 @@ if command -v tailscale &>/dev/null &&
 			# Trust Tailscale interface in firewalld (if active)
 			# UFW/iptables already allow the SSH port on all interfaces — no extra step
 			if command -v firewall-cmd &>/dev/null &&
-				systemctl is-active --quiet firewalld 2>/dev/null; then
+				rc-service firewalld status >/dev/null 2>&1; then
 				ts_iface=$(ip -o link show 2>/dev/null |
 					awk -F': ' '/tailscale/ {
                         gsub(/^[[:space:]]+|[[:space:]]+$/, "", $2)

@@ -12,9 +12,7 @@ shopt -s inherit_errexit 2>/dev/null || true
 
 # --- Detect Init System ---
 detect_init() {
-	if command -v systemctl >/dev/null 2>&1 && [[ -d /run/systemd/system ]]; then
-		echo "systemd"
-	elif command -v rc-service >/dev/null 2>&1; then
+	if command -v rc-service >/dev/null 2>&1; then
 		echo "openrc"
 	else
 		echo "unknown"
@@ -104,11 +102,7 @@ esac
 log_step "Stopping Services"
 
 _svc_active=false
-if [[ "$INIT_SYSTEM" == "systemd" ]]; then
-	systemctl is-active --quiet tailscaled && _svc_active=true
-else
-	rc-service tailscaled status >/dev/null 2>&1 && _svc_active=true
-fi
+rc-service tailscaled status >/dev/null 2>&1 && _svc_active=true
 
 if $_svc_active; then
 	log_info "Bringing down tailscale interface..."
@@ -119,13 +113,8 @@ if $_svc_active; then
 	tailscale down --accept-risk=lose-ssh 2>/dev/null || true
 
 	log_info "Stopping tailscaled service..."
-	if [[ "$INIT_SYSTEM" == "systemd" ]]; then
-		systemctl stop tailscaled
-		systemctl disable tailscaled
-	else
-		rc-service tailscaled stop 2>/dev/null || true
-		rc-update del tailscaled default 2>/dev/null || true
-	fi
+	rc-service tailscaled stop 2>/dev/null || true
+	rc-update del tailscaled default 2>/dev/null || true
 	log_succ "Service stopped and disabled."
 else
 	log_info "Tailscale service is not running."
@@ -155,13 +144,8 @@ log_info "Cleaning network configs..."
 
 # Firewall
 _fw_active=false
-if [[ "$INIT_SYSTEM" == "systemd" ]]; then
-	cmd_exists firewall-cmd && systemctl is-active --quiet firewalld && _fw_active=true
-	cmd_exists ufw && systemctl is-active --quiet ufw && _fw_active=true
-else
-	cmd_exists firewall-cmd && rc-service firewalld status >/dev/null 2>&1 && _fw_active=true
-	cmd_exists ufw && rc-service ufw status >/dev/null 2>&1 && _fw_active=true
-fi
+cmd_exists firewall-cmd && rc-service firewalld status >/dev/null 2>&1 && _fw_active=true
+cmd_exists ufw && rc-service ufw status >/dev/null 2>&1 && _fw_active=true
 
 if cmd_exists firewall-cmd && $_fw_active; then
 	firewall-cmd --zone=trusted --remove-interface=tailscale0 --permanent >/dev/null 2>&1 || true
@@ -173,18 +157,10 @@ fi
 # NetworkManager
 rm -f "$NM_CONF"
 _nm_active=false
-if [[ "$INIT_SYSTEM" == "systemd" ]]; then
-	systemctl is-active --quiet NetworkManager && _nm_active=true
-else
-	rc-service NetworkManager status >/dev/null 2>&1 && _nm_active=true
-fi
+rc-service NetworkManager status >/dev/null 2>&1 && _nm_active=true
 
 if $_nm_active; then
-	if [[ "$INIT_SYSTEM" == "systemd" ]]; then
-		systemctl reload NetworkManager || systemctl restart NetworkManager
-	else
-		rc-service NetworkManager restart
-	fi
+	rc-service NetworkManager restart
 fi
 log_succ "Network configs cleared."
 

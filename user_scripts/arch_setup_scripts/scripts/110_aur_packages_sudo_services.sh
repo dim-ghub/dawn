@@ -72,32 +72,16 @@ main() {
 	local svc_name
 
 	for svc_name in "${TARGET_SERVICES[@]}"; do
-		case "$init_system" in
-		systemd)
-			if systemctl list-unit-files "${svc_name}.service" &>/dev/null 2>&1; then
-				if output=$(systemctl enable --now "${svc_name}.service" 2>&1); then
-					log_success "Enabled & Started: ${C_BOLD}${svc_name}${C_RESET}"
-				else
-					log_err "Could not enable ${svc_name}. Reason:"
-					printf "      %s\n" "$output"
-				fi
+		if rc-service -l 2>/dev/null | grep -q "^${svc_name}$"; then
+			if rc-update add "$svc_name" default 2>/dev/null; then
+				rc-service "$svc_name" start 2>/dev/null || true
+				log_success "Enabled & Started: ${C_BOLD}$svc_name${C_RESET}"
 			else
-				log_warn "Service not found: ${C_BOLD}${svc_name}${C_RESET}. Skipping..."
+				log_err "Could not enable $svc_name"
 			fi
-			;;
-		openrc)
-			if rc-service -l 2>/dev/null | grep -q "^${svc_name}$"; then
-				if rc-update add "$svc_name" default 2>/dev/null; then
-					rc-service "$svc_name" start 2>/dev/null || true
-					log_success "Enabled & Started: ${C_BOLD}$svc_name${C_RESET}"
-				else
-					log_err "Could not enable $svc_name"
-				fi
-			else
-				log_warn "Service not found: ${C_BOLD}$svc_name${C_RESET}. Skipping..."
-			fi
-			;;
-		esac
+		else
+			log_warn "Service not found: ${C_BOLD}$svc_name${C_RESET}. Skipping..."
+		fi
 	done
 
 	printf "${C_BOLD}-----------------------------------------${C_RESET}\n"

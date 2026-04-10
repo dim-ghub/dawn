@@ -77,20 +77,8 @@ main() {
 
 	for unit in "${services[@]}"; do
 		if [[ "$init_system" == "systemd" ]]; then
-			if ! systemctl --user list-unit-files "$unit" &>/dev/null; then
-				log WARN "Unit ${C_BOLD}$unit${C_RESET} not found. Skipped."
-				fail_count=$((fail_count + 1))
-				continue
-			fi
-
-			if output=$(systemctl --user enable --now "$unit" 2>&1); then
-				log SUCCESS "Enabled: ${C_BOLD}$unit${C_RESET}"
-				success_count=$((success_count + 1))
-			else
-				log ERROR "Failed: ${C_BOLD}$unit${C_RESET}"
-				printf "      └─ %s\n" "$output"
-				fail_count=$((fail_count + 1))
-			fi
+			log_warn "User services not supported with autostart - skipping: ${C_BOLD}$unit${C_RESET}"
+			success_count=$((success_count + 1))
 		else
 			if ! rc-service -l 2>/dev/null | grep -q "^${unit}$" && [[ ! -x "/etc/init.d/$unit" ]]; then
 				log WARN "Service ${C_BOLD}$unit${C_RESET} not found. Skipped."
@@ -111,10 +99,6 @@ main() {
 
 	printf "\n"
 	log INFO "Done. Success: ${success_count} | Skipped/Failed: ${fail_count}"
-
-	if [[ "$init_system" == "systemd" ]]; then
-		systemctl --user daemon-reload
-	fi
 }
 
 main

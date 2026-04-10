@@ -31,7 +31,7 @@ readonly SCRIPT_NAME="${0##*/}"
 readonly SIG_DIM="brightnessctl -s set"
 readonly SIG_LOCK="loginctl lock-session"
 readonly SIG_OFF="dispatch dpms off"
-readonly SIG_SUSPEND="systemctl suspend"
+readonly SIG_SUSPEND="loginctl suspend"
 
 # ANSI Colors (using ANSI-C quoting)
 readonly C_RED=$'\033[1;31m'
@@ -190,34 +190,13 @@ main() {
 	success "Configuration saved successfully."
 
 	# 4. Restart Service
-	if command -v systemctl >/dev/null 2>&1; then
-		if systemctl --user is-active --quiet hypridle 2>/dev/null; then
-			info "Restarting hypridle service..."
-			if systemctl --user restart hypridle; then
-				success "Hypridle restarted."
-			else
-				die "Failed to restart hypridle."
-			fi
-		else
-			warn "Hypridle service is not running."
-			read -rp "Start it now? [y/N] " -n 1 REPLY
-			echo
-			if [[ "${REPLY:-n}" =~ ^[Yy]$ ]]; then
-				systemctl --user start hypridle
-				success "Hypridle started."
-			fi
-		fi
-	elif command -v rc-service >/dev/null 2>&1; then
-		info "OpenRC detected. Restarting hypridle..."
-		if pgrep -x hypridle >/dev/null 2>&1; then
-			pkill -x hypridle
-			sleep 0.5
-		fi
-		hypridle &
-		success "Hypridle restarted."
-	else
-		warn "Could not detect init system. Please restart hypridle manually."
+	info "OpenRC detected. Restarting hypridle..."
+	if pgrep -x hypridle >/dev/null 2>&1; then
+		pkill -x hypridle
+		sleep 0.5
 	fi
+	hypridle &
+	success "Hypridle restarted."
 }
 
 main "$@"

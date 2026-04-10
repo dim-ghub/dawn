@@ -251,18 +251,13 @@ fi
 # If we just installed audio packages, PipeWire needs a restart to discover
 # the new ALSA SPA plugins and create audio device nodes.
 _pw_active=false
-if command -v systemctl >/dev/null 2>&1; then
-	systemctl --user is-active pipewire.service >/dev/null 2>&1 && _pw_active=true
-elif command -v rc-service >/dev/null 2>&1; then
+if command -v rc-service >/dev/null 2>&1; then
 	rc-service pipewire status >/dev/null 2>&1 && _pw_active=true
 fi
 
 if $AUDIO_PKGS_INSTALLED || ! $_pw_active; then
 	printf "%b[AUDIO]%b Activating PipeWire audio services...\n" "${C_BLUE}" "${C_RESET}"
-	if command -v systemctl >/dev/null 2>&1; then
-		systemctl --user enable pipewire.service pipewire-pulse.service wireplumber.service 2>/dev/null || true
-		systemctl --user restart pipewire.service pipewire-pulse.service wireplumber.service 2>/dev/null || true
-	elif command -v rc-service >/dev/null 2>&1; then
+	if command -v rc-service >/dev/null 2>&1; then
 		rc-update add pipewire default 2>/dev/null || true
 		rc-update add wireplumber default 2>/dev/null || true
 		rc-service pipewire restart 2>/dev/null || true

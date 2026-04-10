@@ -80,16 +80,7 @@ main() {
 
 		case "$init_system" in
 		systemd)
-			if systemctl --user list-unit-files "$svc_name" &>/dev/null; then
-				if output=$(systemctl --user enable --now "$svc_name" 2>&1); then
-					log_success "Enabled & Started: ${C_PURPLE}$svc_name${C_RESET}"
-				else
-					log_err "Could not enable $svc_name. Reason:"
-					printf "      %s\n" "$output"
-				fi
-			else
-				log_warn "Service not found: ${C_PURPLE}$svc_name${C_RESET}. Skipping..."
-			fi
+			log_warn "User services not supported with autostart - skipping: ${C_PURPLE}$svc_name${C_RESET}"
 			;;
 		openrc)
 			if rc-service -l 2>/dev/null | grep -q "^${svc}$" || [[ -x "/etc/init.d/$svc" ]]; then

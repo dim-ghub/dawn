@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# systemd drop-in to force SwayNC to iGPU for power saving
+# OpenRC drop-in to force SwayNC to iGPU for power saving
 # toggle-swaync-gpu
-# Purpose: Toggles systemd drop-in to force SwayNC to iGPU for power saving.
-# Context: Arch Linux / Hyprland / UWSM
+# Purpose: Toggles OpenRC drop-in to force SwayNC to iGPU for power saving.
+# Context: Artix Linux / Hyprland / OpenRC
 #
 # -----------------------------------------------------------------------------
 
@@ -10,21 +10,13 @@
 set -euo pipefail
 IFS=$'\n\t'
 
-# --- OpenRC Detection ---
-if ! command -v systemctl >/dev/null 2>&1; then
-	echo "systemd not available (OpenRC detected). Skipping."
-	exit 0
-fi
-
 # --- Configuration ---
-# The directory where systemd user overrides live
-CONFIG_DIR="${HOME}/.config/systemd/user/swaync.service.d"
-# The active configuration file (Systemd reads this)
+# The directory where swaync config lives
+CONFIG_DIR="${HOME}/.config/swaync"
+# The active configuration file
 ACTIVE_FILE="${CONFIG_DIR}/gpu-fix.conf"
-# The disabled configuration file (Systemd ignores this)
+# The disabled configuration file
 BACKUP_FILE="${CONFIG_DIR}/gpu-fix.conf.bak"
-# Service name
-SERVICE="swaync.service"
 
 # --- Styling ---
 BOLD=$'\e[1m'
@@ -75,7 +67,6 @@ fi
 
 # 3. User Interaction / Flag Handling
 if [[ "$AUTO_MODE" == "true" ]]; then
-	# In auto mode, we strictly want to DISABLE the fix.
 	if [[ "$CURRENT_STATE" == "DISABLED" ]]; then
 		log_success "Auto mode: Fix is already DISABLED. No changes made."
 		exit 0
@@ -107,35 +98,16 @@ fi
 
 # 4. Execution
 if [[ "$CURRENT_STATE" == "ACTIVE" ]]; then
-	# Disable: Rename .conf -> .conf.bak
 	mv --no-clobber "$ACTIVE_FILE" "$BACKUP_FILE"
 	log_success "Configuration renamed to .bak (Fix Disabled)"
 else
-	# Enable: Rename .conf.bak -> .conf
 	mv --no-clobber "$BACKUP_FILE" "$ACTIVE_FILE"
 	log_success "Configuration renamed to .conf (Fix Enabled)"
 fi
 
-# 5. Systemd Reload & Restart
-log_info "Reloading systemd user daemon..."
-systemctl --user daemon-reload
-
-log_info "Restarting $SERVICE..."
-systemctl --user restart "$SERVICE" || true
-
-# 6. Verification
-if systemctl --user is-active --quiet "$SERVICE"; then
-	log_success "$SERVICE is up and running."
-
-	if [[ "$TARGET_ACTION" == "ENABLE" ]]; then
-		PID=$(systemctl --user show --property MainPID --value "$SERVICE")
-		if [[ "$PID" -ne 0 ]]; then
-			printf "${BOLD}Applied Environment Check:${RESET}\n"
-			xargs -0 -L1 -a "/proc/$PID/environ" 2>/dev/null | grep -E "WLR_DRM_DEVICES|AQ_DRM_DEVICES|rec_gpu_id" || true
-		fi
-	fi
-else
-	log_err "$SERVICE failed to restart. Check 'journalctl --user -xeu $SERVICE'."
-	log_info "Continuing orchestration regardless of service state."
-	exit 0
-fi
+# 5. Restart SwayNC
+log_info "Restarting swaync..."
+pkill -x swaync 2>/dev/null || true
+sleep 0.5
+swaync &
+log_success "SwayNC restarted."

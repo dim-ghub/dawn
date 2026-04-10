@@ -79,10 +79,6 @@ if command -v rc-service >/dev/null 2>&1 && rc-service -l 2>/dev/null | grep -q 
 	rc-service swayosd restart 2>/dev/null || rc-service swayosd start 2>/dev/null || {
 		setsid "$SERVER_BIN" >/dev/null 2>&1 &
 	}
-
-elif command -v systemctl >/dev/null 2>&1; then
-	systemctl --user restart swayosd 2>/dev/null || setsid "$SERVER_BIN" >/dev/null 2>&1 &
-
 else
 	setsid "$SERVER_BIN" >/dev/null 2>&1 &
 fi

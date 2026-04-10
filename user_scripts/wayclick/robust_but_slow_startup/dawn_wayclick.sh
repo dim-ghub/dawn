@@ -27,22 +27,22 @@ shopt -s inherit_errexit
 # --- ARGUMENT PARSING (before trap so RUN_MODE is always set) ---
 RUN_MODE="run"
 case "${1:-}" in
-    --reset) RUN_MODE="reset" ;;
-    --setup) RUN_MODE="setup" ;;
-    --help|-h)
-        SCRIPT_NAME="$(basename -- "$0")"
-        printf "Usage: %s [--setup|--reset]\n\n" "$SCRIPT_NAME"
-        printf "  (no args)  Start or stop WayClick (toggle)\n"
-        printf "  --setup    Install dependencies and build the environment only\n"
-        printf "  --reset    Stop WayClick and delete the environment\n"
-        exit 0
-        ;;
-    "") ;;
-    *)
-        SCRIPT_NAME="$(basename -- "$0")"
-        printf "Unknown option: %s\nRun '%s --help' for usage.\n" "$1" "$SCRIPT_NAME"
-        exit 1
-        ;;
+--reset) RUN_MODE="reset" ;;
+--setup) RUN_MODE="setup" ;;
+--help | -h)
+	SCRIPT_NAME="$(basename -- "$0")"
+	printf "Usage: %s [--setup|--reset]\n\n" "$SCRIPT_NAME"
+	printf "  (no args)  Start or stop WayClick (toggle)\n"
+	printf "  --setup    Install dependencies and build the environment only\n"
+	printf "  --reset    Stop WayClick and delete the environment\n"
+	exit 0
+	;;
+"") ;;
+*)
+	SCRIPT_NAME="$(basename -- "$0")"
+	printf "Unknown option: %s\nRun '%s --help' for usage.\n" "$1" "$SCRIPT_NAME"
+	exit 1
+	;;
 esac
 
 # ╔════════════════════════════════════════════════════════════════════════════╗
@@ -127,388 +127,377 @@ INTERRUPT_SIGNAL=""
 # --- UTILITY FUNCTIONS ---
 
 update_state() {
-    local status="$1"
-    local dir tmp_file
+	local status="$1"
+	local dir tmp_file
 
-    dir="${STATE_FILE%/*}"
-    mkdir -p "$dir" 2>/dev/null || true
+	dir="${STATE_FILE%/*}"
+	mkdir -p "$dir" 2>/dev/null || true
 
-    tmp_file="$(mktemp "$dir/.wayclick.state.XXXXXX")"
-    printf '%s\n' "$status" > "$tmp_file"
-    mv -f "$tmp_file" "$STATE_FILE"
+	tmp_file="$(mktemp "$dir/.wayclick.state.XXXXXX")"
+	printf '%s\n' "$status" >"$tmp_file"
+	mv -f "$tmp_file" "$STATE_FILE"
 }
 
 write_pid_file() {
-    local pid="$1"
-    local starttime="$2"
-    local tmp_file
+	local pid="$1"
+	local starttime="$2"
+	local tmp_file
 
-    mkdir -p "$BASE_DIR" 2>/dev/null || true
-    tmp_file="$(mktemp "$BASE_DIR/.wayclick.pid.XXXXXX")"
-    printf '%s %s\n' "$pid" "$starttime" > "$tmp_file"
-    mv -f "$tmp_file" "$PID_FILE"
+	mkdir -p "$BASE_DIR" 2>/dev/null || true
+	tmp_file="$(mktemp "$BASE_DIR/.wayclick.pid.XXXXXX")"
+	printf '%s %s\n' "$pid" "$starttime" >"$tmp_file"
+	mv -f "$tmp_file" "$PID_FILE"
 }
 
 clear_ready_file() {
-    rm -f "$READY_FILE" 2>/dev/null || true
+	rm -f "$READY_FILE" 2>/dev/null || true
 }
 
 proc_starttime() {
-    local pid="$1"
-    local stat
+	local pid="$1"
+	local stat
 
-    [[ "$pid" =~ ^[0-9]+$ ]] || return 1
-    [[ -r "/proc/$pid/stat" ]] || return 1
+	[[ "$pid" =~ ^[0-9]+$ ]] || return 1
+	[[ -r "/proc/$pid/stat" ]] || return 1
 
-    IFS= read -r stat < "/proc/$pid/stat" || return 1
-    stat="${stat#*) }"
-    awk '{print $20}' <<< "$stat"
+	IFS= read -r stat <"/proc/$pid/stat" || return 1
+	stat="${stat#*) }"
+	awk '{print $20}' <<<"$stat"
 }
 
 wait_for_proc_starttime() {
-    local pid="$1"
-    local starttime=""
-    local i
+	local pid="$1"
+	local starttime=""
+	local i
 
-    for (( i = 0; i < 100; i++ )); do
-        if starttime="$(proc_starttime "$pid" 2>/dev/null)"; then
-            [[ "$starttime" =~ ^[0-9]+$ ]] && {
-                printf '%s\n' "$starttime"
-                return 0
-            }
-        fi
-        sleep 0.01
-    done
+	for ((i = 0; i < 100; i++)); do
+		if starttime="$(proc_starttime "$pid" 2>/dev/null)"; then
+			[[ "$starttime" =~ ^[0-9]+$ ]] && {
+				printf '%s\n' "$starttime"
+				return 0
+			}
+		fi
+		sleep 0.01
+	done
 
-    return 1
+	return 1
 }
 
 notify_user() {
-    if command -v notify-send >/dev/null 2>&1; then
-        notify-send -t 2000 --app-name="WayClick" "WayClick Elite" "$1" || true
-    fi
+	if command -v notify-send >/dev/null 2>&1; then
+		notify-send -t 2000 --app-name="WayClick" "WayClick Elite" "$1" || true
+	fi
 }
 
 try_acquire_lock() {
-    local timeout="${1:-0}"
-    local fd
+	local timeout="${1:-0}"
+	local fd
 
-    [[ "$LOCK_HELD" == true ]] && return 0
+	[[ "$LOCK_HELD" == true ]] && return 0
 
-    mkdir -p "$BASE_DIR" 2>/dev/null || true
+	mkdir -p "$BASE_DIR" 2>/dev/null || true
 
-    if ! exec {fd}> "$LOCK_FILE"; then
-        return 1
-    fi
+	if ! exec {fd}>"$LOCK_FILE"; then
+		return 1
+	fi
 
-    if ! flock -w "$timeout" "$fd"; then
-        exec {fd}>&- || true
-        return 1
-    fi
+	if ! flock -w "$timeout" "$fd"; then
+		exec {fd}>&- || true
+		return 1
+	fi
 
-    LOCK_FD="$fd"
-    LOCK_HELD=true
+	LOCK_FD="$fd"
+	LOCK_HELD=true
 }
 
 acquire_lock() {
-    if ! try_acquire_lock 30; then
-        printf "%b[ERROR]%b Could not acquire lock within 30 seconds.\n" \
-            "${C_RED}" "${C_RESET}"
-        exit 1
-    fi
+	if ! try_acquire_lock 30; then
+		printf "%b[ERROR]%b Could not acquire lock within 30 seconds.\n" \
+			"${C_RED}" "${C_RESET}"
+		exit 1
+	fi
 }
 
 release_lock() {
-    [[ "$LOCK_HELD" == true ]] || return 0
-    [[ -n "${LOCK_FD:-}" ]] || return 0
+	[[ "$LOCK_HELD" == true ]] || return 0
+	[[ -n "${LOCK_FD:-}" ]] || return 0
 
-    flock -u "$LOCK_FD" 2>/dev/null || true
-    exec {LOCK_FD}>&- || true
-    LOCK_FD=""
-    LOCK_HELD=false
+	flock -u "$LOCK_FD" 2>/dev/null || true
+	exec {LOCK_FD}>&- || true
+	LOCK_FD=""
+	LOCK_HELD=false
 }
 
 pid_owned_by_current_user() {
-    local pid="$1"
-    local uid
+	local pid="$1"
+	local uid
 
-    [[ "$pid" =~ ^[0-9]+$ ]] || return 1
-    [[ -r "/proc/$pid/status" ]] || return 1
+	[[ "$pid" =~ ^[0-9]+$ ]] || return 1
+	[[ -r "/proc/$pid/status" ]] || return 1
 
-    uid="$(awk '/^Uid:/ {print $2}' "/proc/$pid/status" 2>/dev/null || true)"
-    [[ "$uid" == "$EUID" ]]
+	uid="$(awk '/^Uid:/ {print $2}' "/proc/$pid/status" 2>/dev/null || true)"
+	[[ "$uid" == "$EUID" ]]
 }
 
 pid_argv_contains_exact_arg() {
-    local pid="$1"
-    local wanted="$2"
-    local arg
+	local pid="$1"
+	local wanted="$2"
+	local arg
 
-    [[ -r "/proc/$pid/cmdline" ]] || return 1
+	[[ -r "/proc/$pid/cmdline" ]] || return 1
 
-    while IFS= read -r -d '' arg; do
-        [[ "$arg" == "$wanted" ]] && return 0
-    done < "/proc/$pid/cmdline"
+	while IFS= read -r -d '' arg; do
+		[[ "$arg" == "$wanted" ]] && return 0
+	done <"/proc/$pid/cmdline"
 
-    return 1
+	return 1
 }
 
 pid_is_wayclick_runner() {
-    local pid="$1"
-    local expected_starttime="${2:-}"
-    local actual_starttime
+	local pid="$1"
+	local expected_starttime="${2:-}"
+	local actual_starttime
 
-    pid_owned_by_current_user "$pid" &&
-        pid_argv_contains_exact_arg "$pid" "$RUNNER_SCRIPT" &&
-        pid_argv_contains_exact_arg "$pid" "$PYTHON_BIN" || return 1
+	pid_owned_by_current_user "$pid" &&
+		pid_argv_contains_exact_arg "$pid" "$RUNNER_SCRIPT" &&
+		pid_argv_contains_exact_arg "$pid" "$PYTHON_BIN" || return 1
 
-    if [[ -n "$expected_starttime" ]]; then
-        actual_starttime="$(proc_starttime "$pid" 2>/dev/null)" || return 1
-        [[ "$actual_starttime" == "$expected_starttime" ]] || return 1
-    fi
+	if [[ -n "$expected_starttime" ]]; then
+		actual_starttime="$(proc_starttime "$pid" 2>/dev/null)" || return 1
+		[[ "$actual_starttime" == "$expected_starttime" ]] || return 1
+	fi
 
-    return 0
+	return 0
 }
 
 runner_record_alive() {
-    local pid="$1"
-    local starttime="$2"
+	local pid="$1"
+	local starttime="$2"
 
-    [[ "$pid" =~ ^[0-9]+$ ]] || return 1
-    [[ "$starttime" =~ ^[0-9]+$ ]] || return 1
-    pid_is_wayclick_runner "$pid" "$starttime"
+	[[ "$pid" =~ ^[0-9]+$ ]] || return 1
+	[[ "$starttime" =~ ^[0-9]+$ ]] || return 1
+	pid_is_wayclick_runner "$pid" "$starttime"
 }
 
 find_runner_records() {
-    local pid starttime proc pid_num actual_starttime
-    declare -A start_by_pid=()
+	local pid starttime proc pid_num actual_starttime
+	declare -A start_by_pid=()
 
-    if [[ -r "$PID_FILE" ]]; then
-        if read -r pid starttime < "$PID_FILE" \
-            && [[ "$pid" =~ ^[0-9]+$ ]] \
-            && [[ "$starttime" =~ ^[0-9]+$ ]] \
-            && pid_is_wayclick_runner "$pid" "$starttime"; then
-            start_by_pid["$pid"]="$starttime"
-        else
-            rm -f "$PID_FILE" 2>/dev/null || true
-        fi
-    fi
+	if [[ -r "$PID_FILE" ]]; then
+		if read -r pid starttime <"$PID_FILE" &&
+			[[ "$pid" =~ ^[0-9]+$ ]] &&
+			[[ "$starttime" =~ ^[0-9]+$ ]] &&
+			pid_is_wayclick_runner "$pid" "$starttime"; then
+			start_by_pid["$pid"]="$starttime"
+		else
+			rm -f "$PID_FILE" 2>/dev/null || true
+		fi
+	fi
 
-    shopt -s nullglob
-    for proc in /proc/[0-9]*/cmdline; do
-        pid_num="${proc#/proc/}"
-        pid_num="${pid_num%/cmdline}"
-        [[ -n "${start_by_pid[$pid_num]+x}" ]] && continue
-        pid_is_wayclick_runner "$pid_num" || continue
-        actual_starttime="$(proc_starttime "$pid_num" 2>/dev/null)" || continue
-        [[ "$actual_starttime" =~ ^[0-9]+$ ]] || continue
-        start_by_pid["$pid_num"]="$actual_starttime"
-    done
-    shopt -u nullglob
+	shopt -s nullglob
+	for proc in /proc/[0-9]*/cmdline; do
+		pid_num="${proc#/proc/}"
+		pid_num="${pid_num%/cmdline}"
+		[[ -n "${start_by_pid[$pid_num]+x}" ]] && continue
+		pid_is_wayclick_runner "$pid_num" || continue
+		actual_starttime="$(proc_starttime "$pid_num" 2>/dev/null)" || continue
+		[[ "$actual_starttime" =~ ^[0-9]+$ ]] || continue
+		start_by_pid["$pid_num"]="$actual_starttime"
+	done
+	shopt -u nullglob
 
-    ((${#start_by_pid[@]} > 0)) || return 1
+	((${#start_by_pid[@]} > 0)) || return 1
 
-    for pid in "${!start_by_pid[@]}"; do
-        printf '%s %s\n' "$pid" "${start_by_pid[$pid]}"
-    done | sort -n -k1,1
+	for pid in "${!start_by_pid[@]}"; do
+		printf '%s %s\n' "$pid" "${start_by_pid[$pid]}"
+	done | sort -n -k1,1
 }
 
 clear_pid_file_if_owned_by_child() {
-    local pid starttime
+	local pid starttime
 
-    [[ -n "${RUNNER_CHILD_PID:-}" ]] || return 0
-    [[ -n "${RUNNER_CHILD_STARTTIME:-}" ]] || return 0
-    [[ -r "$PID_FILE" ]] || return 0
+	[[ -n "${RUNNER_CHILD_PID:-}" ]] || return 0
+	[[ -n "${RUNNER_CHILD_STARTTIME:-}" ]] || return 0
+	[[ -r "$PID_FILE" ]] || return 0
 
-    if read -r pid starttime < "$PID_FILE" \
-        && [[ "$pid" == "$RUNNER_CHILD_PID" ]] \
-        && [[ "$starttime" == "$RUNNER_CHILD_STARTTIME" ]]; then
-        rm -f "$PID_FILE" 2>/dev/null || true
-    fi
+	if read -r pid starttime <"$PID_FILE" &&
+		[[ "$pid" == "$RUNNER_CHILD_PID" ]] &&
+		[[ "$starttime" == "$RUNNER_CHILD_STARTTIME" ]]; then
+		rm -f "$PID_FILE" 2>/dev/null || true
+	fi
 }
 
 stop_runner_records() {
-    local -a records=("$@")
-    local wait_count=0
-    local any_alive
-    local record pid starttime
+	local -a records=("$@")
+	local wait_count=0
+	local any_alive
+	local record pid starttime
 
-    ((${#records[@]} > 0)) || return 0
+	((${#records[@]} > 0)) || return 0
 
-    for record in "${records[@]}"; do
-        read -r pid starttime <<< "$record"
-        runner_record_alive "$pid" "$starttime" || continue
-        kill -TERM "$pid" 2>/dev/null || true
-    done
+	for record in "${records[@]}"; do
+		read -r pid starttime <<<"$record"
+		runner_record_alive "$pid" "$starttime" || continue
+		kill -TERM "$pid" 2>/dev/null || true
+	done
 
-    while (( wait_count++ < 30 )); do
-        any_alive=false
-        for record in "${records[@]}"; do
-            read -r pid starttime <<< "$record"
-            if runner_record_alive "$pid" "$starttime"; then
-                any_alive=true
-                break
-            fi
-        done
-        $any_alive || break
-        sleep 0.1
-    done
+	while ((wait_count++ < 30)); do
+		any_alive=false
+		for record in "${records[@]}"; do
+			read -r pid starttime <<<"$record"
+			if runner_record_alive "$pid" "$starttime"; then
+				any_alive=true
+				break
+			fi
+		done
+		$any_alive || break
+		sleep 0.1
+	done
 
-    for record in "${records[@]}"; do
-        read -r pid starttime <<< "$record"
-        runner_record_alive "$pid" "$starttime" || continue
-        kill -KILL "$pid" 2>/dev/null || true
-    done
+	for record in "${records[@]}"; do
+		read -r pid starttime <<<"$record"
+		runner_record_alive "$pid" "$starttime" || continue
+		kill -KILL "$pid" 2>/dev/null || true
+	done
 
-    rm -f "$PID_FILE" 2>/dev/null || true
-    update_state "False"
+	rm -f "$PID_FILE" 2>/dev/null || true
+	update_state "False"
 }
 
 wait_for_runner_ready() {
-    local i
+	local i
 
-    for (( i = 0; i < 300; i++ )); do
-        [[ -f "$READY_FILE" ]] && return 0
-        if [[ -n "${RUNNER_CHILD_PID:-}" ]] && [[ -n "${RUNNER_CHILD_STARTTIME:-}" ]]; then
-            runner_record_alive "$RUNNER_CHILD_PID" "$RUNNER_CHILD_STARTTIME" || return 1
-        fi
-        sleep 0.05
-    done
+	for ((i = 0; i < 300; i++)); do
+		[[ -f "$READY_FILE" ]] && return 0
+		if [[ -n "${RUNNER_CHILD_PID:-}" ]] && [[ -n "${RUNNER_CHILD_STARTTIME:-}" ]]; then
+			runner_record_alive "$RUNNER_CHILD_PID" "$RUNNER_CHILD_STARTTIME" || return 1
+		fi
+		sleep 0.05
+	done
 
-    return 2
+	return 2
 }
 
 wait_for_runner_exit() {
-    local rc
-    RUNNER_EXIT_STATUS=""
+	local rc
+	RUNNER_EXIT_STATUS=""
 
-    while true; do
-        set +e
-        wait "$RUNNER_CHILD_PID"
-        rc=$?
-        set -e
+	while true; do
+		set +e
+		wait "$RUNNER_CHILD_PID"
+		rc=$?
+		set -e
 
-        if (( rc > 128 )) \
-            && [[ -n "${RUNNER_CHILD_PID:-}" ]] \
-            && [[ -n "${RUNNER_CHILD_STARTTIME:-}" ]] \
-            && runner_record_alive "$RUNNER_CHILD_PID" "$RUNNER_CHILD_STARTTIME"; then
-            continue
-        fi
+		if ((rc > 128)) &&
+			[[ -n "${RUNNER_CHILD_PID:-}" ]] &&
+			[[ -n "${RUNNER_CHILD_STARTTIME:-}" ]] &&
+			runner_record_alive "$RUNNER_CHILD_PID" "$RUNNER_CHILD_STARTTIME"; then
+			continue
+		fi
 
-        RUNNER_EXIT_STATUS="$rc"
-        return 0
-    done
+		RUNNER_EXIT_STATUS="$rc"
+		return 0
+	done
 }
 
 pipewire_services_active() {
-    local svc
-    for svc in pipewire.service pipewire-pulse.service wireplumber.service; do
-        systemctl --user --quiet is-active "$svc" >/dev/null 2>&1 || return 1
-    done
+	local svc
+	for svc in pipewire pipewire-pulse wireplumber; do
+		pgrep -x "$svc" >/dev/null 2>&1 || return 1
+	done
 }
 
 activate_pipewire_services() {
-    local action="start"
-    local -a services=("pipewire.service" "pipewire-pulse.service" "wireplumber.service")
+	if $AUDIO_PKGS_CHANGED; then
+		pkill -x pipewire
+		pkill -x wireplumber
+		sleep 0.5
+	fi
 
-    if $AUDIO_PKGS_CHANGED; then
-        action="restart"
-    fi
+	printf "%b[AUDIO]%b Ensuring PipeWire audio services are active...\n" "${C_BLUE}" "${C_RESET}"
 
-    printf "%b[AUDIO]%b Ensuring PipeWire audio services are active...\n" "${C_BLUE}" "${C_RESET}"
+	pipewire &>/dev/null || wireplumber &>/dev/null || true
 
-    systemctl --user daemon-reload >/dev/null 2>&1 || true
-
-    if ! systemctl --user enable "${services[@]}" >/dev/null; then
-        printf "%b[WARN]%b Could not enable one or more PipeWire user services.\n" \
-            "${C_YELLOW}" "${C_RESET}"
-    fi
-
-    if ! systemctl --user "$action" "${services[@]}" >/dev/null; then
-        printf "%b[WARN]%b Could not fully %s PipeWire services. Audio may fail until the session is restarted.\n" \
-            "${C_YELLOW}" "${C_RESET}" "$action"
-    fi
-
-    sleep 1
+	sleep 1
 }
 
 python_runtime_ready() {
-    [[ -x "$PYTHON_BIN" ]] || return 1
-    PYGAME_HIDE_SUPPORT_PROMPT=1 "$PYTHON_BIN" - <<'PY' >/dev/null 2>&1
+	[[ -x "$PYTHON_BIN" ]] || return 1
+	PYGAME_HIDE_SUPPORT_PROMPT=1 "$PYTHON_BIN" - <<'PY' >/dev/null 2>&1
 import evdev
 import pygame
 PY
 }
 
 current_session_has_input_access() {
-    local node
+	local node
 
-    if id -nG | grep -qw -- input; then
-        return 0
-    fi
+	if id -nG | grep -qw -- input; then
+		return 0
+	fi
 
-    shopt -s nullglob
-    for node in /dev/input/event*; do
-        if [[ -r "$node" ]]; then
-            shopt -u nullglob
-            return 0
-        fi
-    done
-    shopt -u nullglob
+	shopt -s nullglob
+	for node in /dev/input/event*; do
+		if [[ -r "$node" ]]; then
+			shopt -u nullglob
+			return 0
+		fi
+	done
+	shopt -u nullglob
 
-    return 1
+	return 1
 }
 
 forward_signal_to_child() {
-    local sig="$1"
+	local sig="$1"
 
-    [[ -n "${RUNNER_CHILD_PID:-}" ]] || return 0
+	[[ -n "${RUNNER_CHILD_PID:-}" ]] || return 0
 
-    if [[ -n "${RUNNER_CHILD_STARTTIME:-}" ]]; then
-        runner_record_alive "$RUNNER_CHILD_PID" "$RUNNER_CHILD_STARTTIME" || return 0
-    fi
+	if [[ -n "${RUNNER_CHILD_STARTTIME:-}" ]]; then
+		runner_record_alive "$RUNNER_CHILD_PID" "$RUNNER_CHILD_STARTTIME" || return 0
+	fi
 
-    kill "-$sig" "$RUNNER_CHILD_PID" 2>/dev/null || true
+	kill "-$sig" "$RUNNER_CHILD_PID" 2>/dev/null || true
 }
 
 on_int() {
-    INTERRUPT_SIGNAL="INT"
-    forward_signal_to_child INT
+	INTERRUPT_SIGNAL="INT"
+	forward_signal_to_child INT
 }
 
 on_term() {
-    INTERRUPT_SIGNAL="TERM"
-    forward_signal_to_child TERM
+	INTERRUPT_SIGNAL="TERM"
+	forward_signal_to_child TERM
 }
 
 cleanup() {
-    tput cnorm 2>/dev/null || true
-    clear_ready_file
+	tput cnorm 2>/dev/null || true
+	clear_ready_file
 
-    if [[ -n "${RUNNER_CHILD_PID:-}" ]]; then
-        if [[ -n "${RUNNER_CHILD_STARTTIME:-}" ]]; then
-            if runner_record_alive "$RUNNER_CHILD_PID" "$RUNNER_CHILD_STARTTIME"; then
-                kill -TERM "$RUNNER_CHILD_PID" 2>/dev/null || true
-            fi
-        else
-            kill -TERM "$RUNNER_CHILD_PID" 2>/dev/null || true
-        fi
-    fi
+	if [[ -n "${RUNNER_CHILD_PID:-}" ]]; then
+		if [[ -n "${RUNNER_CHILD_STARTTIME:-}" ]]; then
+			if runner_record_alive "$RUNNER_CHILD_PID" "$RUNNER_CHILD_STARTTIME"; then
+				kill -TERM "$RUNNER_CHILD_PID" 2>/dev/null || true
+			fi
+		else
+			kill -TERM "$RUNNER_CHILD_PID" 2>/dev/null || true
+		fi
+	fi
 
-    if [[ "${RUN_MODE:-run}" != "setup" ]] && [[ -n "${STATE_FILE:-}" ]]; then
-        if [[ "$LOCK_HELD" != true ]]; then
-            try_acquire_lock 5 || true
-        fi
+	if [[ "${RUN_MODE:-run}" != "setup" ]] && [[ -n "${STATE_FILE:-}" ]]; then
+		if [[ "$LOCK_HELD" != true ]]; then
+			try_acquire_lock 5 || true
+		fi
 
-        if [[ "$LOCK_HELD" == true ]]; then
-            clear_pid_file_if_owned_by_child
-            if ! find_runner_records >/dev/null 2>&1; then
-                update_state "False"
-            fi
-        fi
-    fi
+		if [[ "$LOCK_HELD" == true ]]; then
+			clear_pid_file_if_owned_by_child
+			if ! find_runner_records >/dev/null 2>&1; then
+				update_state "False"
+			fi
+		fi
+	fi
 
-    release_lock
+	release_lock
 }
 
 trap cleanup EXIT
@@ -516,16 +505,16 @@ trap on_int INT
 trap on_term TERM
 
 # --- 0. ROOT CHECK ---
-if (( EUID == 0 )); then
-    printf "%b[CRITICAL]%b Do not run this script as root.\n" "${C_RED}" "${C_RESET}"
-    exit 1
+if ((EUID == 0)); then
+	printf "%b[CRITICAL]%b Do not run this script as root.\n" "${C_RED}" "${C_RESET}"
+	exit 1
 fi
 
 # --- 1. INTERACTIVE DETECTION ---
 if [[ -t 0 && -t 1 ]]; then
-    INTERACTIVE=true
+	INTERACTIVE=true
 else
-    INTERACTIVE=false
+	INTERACTIVE=false
 fi
 
 # --- 2. LOCK ---
@@ -533,62 +522,62 @@ acquire_lock
 
 # --- 3. RESET MODE ---
 if [[ "$RUN_MODE" == "reset" ]]; then
-    declare -a runner_records=()
-    mapfile -t runner_records < <(find_runner_records || true)
+	declare -a runner_records=()
+	mapfile -t runner_records < <(find_runner_records || true)
 
-    if (( ${#runner_records[@]} > 0 )); then
-        printf "%b[RESET]%b Stopping running instance...\n" "${C_YELLOW}" "${C_RESET}"
-        notify_user "Disabled"
-        stop_runner_records "${runner_records[@]}"
-    fi
+	if ((${#runner_records[@]} > 0)); then
+		printf "%b[RESET]%b Stopping running instance...\n" "${C_YELLOW}" "${C_RESET}"
+		notify_user "Disabled"
+		stop_runner_records "${runner_records[@]}"
+	fi
 
-    cleaned_any=false
+	cleaned_any=false
 
-    if [[ -d "$VENV_DIR" ]]; then
-        rm -rf "$VENV_DIR"
-        cleaned_any=true
-    fi
+	if [[ -d "$VENV_DIR" ]]; then
+		rm -rf "$VENV_DIR"
+		cleaned_any=true
+	fi
 
-    if compgen -G "$BASE_DIR/.build_marker_*" >/dev/null; then
-        rm -f "$BASE_DIR"/.build_marker_*
-        cleaned_any=true
-    fi
+	if compgen -G "$BASE_DIR/.build_marker_*" >/dev/null; then
+		rm -f "$BASE_DIR"/.build_marker_*
+		cleaned_any=true
+	fi
 
-    if [[ -f "$RUNNER_SCRIPT" ]]; then
-        rm -f "$RUNNER_SCRIPT"
-        cleaned_any=true
-    fi
+	if [[ -f "$RUNNER_SCRIPT" ]]; then
+		rm -f "$RUNNER_SCRIPT"
+		cleaned_any=true
+	fi
 
-    if [[ -f "$PID_FILE" ]]; then
-        rm -f "$PID_FILE"
-        cleaned_any=true
-    fi
+	if [[ -f "$PID_FILE" ]]; then
+		rm -f "$PID_FILE"
+		cleaned_any=true
+	fi
 
-    if compgen -G "$BASE_DIR/$APP_NAME.ready.*" >/dev/null; then
-        rm -f "$BASE_DIR"/"$APP_NAME".ready.*
-        cleaned_any=true
-    fi
+	if compgen -G "$BASE_DIR/$APP_NAME.ready.*" >/dev/null; then
+		rm -f "$BASE_DIR"/"$APP_NAME".ready.*
+		cleaned_any=true
+	fi
 
-    if $cleaned_any; then
-        printf "%b[RESET]%b Environment deleted successfully.\n" "${C_GREEN}" "${C_RESET}"
-    else
-        printf "%b[RESET]%b Nothing to clean (environment not found).\n" "${C_BLUE}" "${C_RESET}"
-    fi
+	if $cleaned_any; then
+		printf "%b[RESET]%b Environment deleted successfully.\n" "${C_GREEN}" "${C_RESET}"
+	else
+		printf "%b[RESET]%b Nothing to clean (environment not found).\n" "${C_BLUE}" "${C_RESET}"
+	fi
 
-    exit 0
+	exit 0
 fi
 
 # --- 4. TOGGLE STOP (run mode only) ---
 if [[ "$RUN_MODE" == "run" ]]; then
-    declare -a runner_records=()
-    mapfile -t runner_records < <(find_runner_records || true)
+	declare -a runner_records=()
+	mapfile -t runner_records < <(find_runner_records || true)
 
-    if (( ${#runner_records[@]} > 0 )); then
-        printf "%b[TOGGLE]%b Stopping active instance...\n" "${C_YELLOW}" "${C_RESET}"
-        notify_user "Disabled"
-        stop_runner_records "${runner_records[@]}"
-        exit 0
-    fi
+	if ((${#runner_records[@]} > 0)); then
+		printf "%b[TOGGLE]%b Stopping active instance...\n" "${C_YELLOW}" "${C_RESET}"
+		notify_user "Disabled"
+		stop_runner_records "${runner_records[@]}"
+		exit 0
+	fi
 fi
 
 # --- 5. DEPENDENCY CHECK ---
@@ -597,174 +586,174 @@ declare -A _dep_seen=()
 AUDIO_PKGS_CHANGED=false
 
 append_dep() {
-    local dep="$1"
-    if [[ -z "${_dep_seen[$dep]+x}" ]]; then
-        NEEDED_DEPS+=("$dep")
-        _dep_seen["$dep"]=1
-    fi
+	local dep="$1"
+	if [[ -z "${_dep_seen[$dep]+x}" ]]; then
+		NEEDED_DEPS+=("$dep")
+		_dep_seen["$dep"]=1
+	fi
 }
 
-command -v uv >/dev/null 2>&1          || append_dep "uv"
+command -v uv >/dev/null 2>&1 || append_dep "uv"
 command -v notify-send >/dev/null 2>&1 || append_dep "libnotify"
 
 audio_deps=("pipewire" "pipewire-audio" "pipewire-pulse" "wireplumber")
 for dep in "${audio_deps[@]}"; do
-    if ! pacman -Qq "$dep" >/dev/null 2>&1; then
-        append_dep "$dep"
-        AUDIO_PKGS_CHANGED=true
-    fi
+	if ! pacman -Qq "$dep" >/dev/null 2>&1; then
+		append_dep "$dep"
+		AUDIO_PKGS_CHANGED=true
+	fi
 done
 
 command -v gcc >/dev/null 2>&1 || append_dep "gcc"
 
 build_deps=("sdl2" "sdl2_mixer" "sdl2_image" "sdl2_ttf" "portmidi" "freetype2" "pkgconf" "libuv")
 for dep in "${build_deps[@]}"; do
-    pacman -Qq "$dep" >/dev/null 2>&1 || append_dep "$dep"
+	pacman -Qq "$dep" >/dev/null 2>&1 || append_dep "$dep"
 done
 
-if (( ${#NEEDED_DEPS[@]} > 0 )); then
-    if $INTERACTIVE; then
-        clear
-        printf "%b
+if ((${#NEEDED_DEPS[@]} > 0)); then
+	if $INTERACTIVE; then
+		clear
+		printf "%b
 ╔════════════════════════════════════════════════════════════════╗
 ║  %bWAYCLICK ELITE%b                                                ║
 ║  %bHotplug • User Mode • Native CPU • Contained%b                  ║
 ╚════════════════════════════════════════════════════════════════╝
 %b" "${C_CYAN}" "${C_GREEN}" "${C_CYAN}" "${C_DIM}" "${C_CYAN}" "${C_RESET}"
 
-        printf "%b[SETUP]%b Missing system dependencies:%b %s%b\n" \
-            "${C_YELLOW}" "${C_RESET}" "${C_CYAN}" "${NEEDED_DEPS[*]}" "${C_RESET}"
-        printf "       Requesting sudo to install via pacman...\n"
+		printf "%b[SETUP]%b Missing system dependencies:%b %s%b\n" \
+			"${C_YELLOW}" "${C_RESET}" "${C_CYAN}" "${NEEDED_DEPS[*]}" "${C_RESET}"
+		printf "       Requesting sudo to install via pacman...\n"
 
-        if sudo pacman -S --needed --noconfirm "${NEEDED_DEPS[@]}"; then
-            printf "%b[SUCCESS]%b Dependencies installed.\n" "${C_GREEN}" "${C_RESET}"
-        else
-            printf "%b[ERROR]%b Installation failed.\n" "${C_RED}" "${C_RESET}"
-            exit 1
-        fi
-    else
-        notify_user "Missing dependencies (${NEEDED_DEPS[*]}). Run in terminal first."
-        exit 1
-    fi
+		if sudo pacman -S --needed --noconfirm "${NEEDED_DEPS[@]}"; then
+			printf "%b[SUCCESS]%b Dependencies installed.\n" "${C_GREEN}" "${C_RESET}"
+		else
+			printf "%b[ERROR]%b Installation failed.\n" "${C_RED}" "${C_RESET}"
+			exit 1
+		fi
+	else
+		notify_user "Missing dependencies (${NEEDED_DEPS[*]}). Run in terminal first."
+		exit 1
+	fi
 fi
 
 # --- 6. PIPEWIRE SERVICE ACTIVATION ---
 if $AUDIO_PKGS_CHANGED || ! pipewire_services_active; then
-    activate_pipewire_services
+	activate_pipewire_services
 fi
 
 # --- 7. RUNTIME CONFIG CHECKS (run mode only) ---
 if [[ "$RUN_MODE" == "run" ]]; then
-    if [[ ! -f "${CONFIG_DIR}/config.json" ]]; then
-        if $INTERACTIVE; then
-            mkdir -p "$CONFIG_DIR" 2>/dev/null || true
-            while [[ ! -f "${CONFIG_DIR}/config.json" ]]; do
-                printf "\n%b[ACTION REQUIRED]%b Missing config.json in: %s\n" \
-                    "${C_YELLOW}" "${C_RESET}" "${CONFIG_DIR}"
-                printf "       Please ensure 'config.json' exists in this folder.\n"
-                printf "       %bPress Enter to re-scan...%b" "${C_DIM}" "${C_RESET}"
-                read -r
-            done
-            printf "%b[CHECK]%b Configuration found.\n" "${C_GREEN}" "${C_RESET}"
-        else
-            notify_user "Missing config.json in ~/.config/wayclick. Run in terminal."
-            exit 1
-        fi
-    fi
+	if [[ ! -f "${CONFIG_DIR}/config.json" ]]; then
+		if $INTERACTIVE; then
+			mkdir -p "$CONFIG_DIR" 2>/dev/null || true
+			while [[ ! -f "${CONFIG_DIR}/config.json" ]]; do
+				printf "\n%b[ACTION REQUIRED]%b Missing config.json in: %s\n" \
+					"${C_YELLOW}" "${C_RESET}" "${CONFIG_DIR}"
+				printf "       Please ensure 'config.json' exists in this folder.\n"
+				printf "       %bPress Enter to re-scan...%b" "${C_DIM}" "${C_RESET}"
+				read -r
+			done
+			printf "%b[CHECK]%b Configuration found.\n" "${C_GREEN}" "${C_RESET}"
+		else
+			notify_user "Missing config.json in ~/.config/wayclick. Run in terminal."
+			exit 1
+		fi
+	fi
 
-    if [[ ! -d "${CONFIG_DIR}/${AUDIO_PACK}" ]]; then
-        if $INTERACTIVE; then
-            printf "\n%b[ERROR]%b Audio pack '%b%s%b' not found in: %s\n" \
-                "${C_RED}" "${C_RESET}" "${C_CYAN}" "$AUDIO_PACK" "${C_RESET}" "${CONFIG_DIR}"
+	if [[ ! -d "${CONFIG_DIR}/${AUDIO_PACK}" ]]; then
+		if $INTERACTIVE; then
+			printf "\n%b[ERROR]%b Audio pack '%b%s%b' not found in: %s\n" \
+				"${C_RED}" "${C_RESET}" "${C_CYAN}" "$AUDIO_PACK" "${C_RESET}" "${CONFIG_DIR}"
 
-            mapfile -t available < <(
-                find "$CONFIG_DIR" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null | sort
-            )
+			mapfile -t available < <(
+				find "$CONFIG_DIR" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null | sort
+			)
 
-            if (( ${#available[@]} > 0 )); then
-                printf "       Available packs:\n"
-                for pack in "${available[@]}"; do
-                    printf "         %b→%b %s\n" "${C_CYAN}" "${C_RESET}" "$pack"
-                done
-                printf "\n       Update %bAUDIO_PACK%b at the top of this script to one of the above.\n" \
-                    "${C_GREEN}" "${C_RESET}"
-            else
-                printf "       No audio packs found. Create a subdirectory with .wav files:\n"
-                printf "         %bmkdir -p %s/my_sounds && cp *.wav %s/my_sounds/%b\n" \
-                    "${C_DIM}" "${CONFIG_DIR}" "${CONFIG_DIR}" "${C_RESET}"
-            fi
-            exit 1
-        else
-            notify_user "Audio pack '$AUDIO_PACK' not found. Run in terminal."
-            exit 1
-        fi
-    fi
+			if ((${#available[@]} > 0)); then
+				printf "       Available packs:\n"
+				for pack in "${available[@]}"; do
+					printf "         %b→%b %s\n" "${C_CYAN}" "${C_RESET}" "$pack"
+				done
+				printf "\n       Update %bAUDIO_PACK%b at the top of this script to one of the above.\n" \
+					"${C_GREEN}" "${C_RESET}"
+			else
+				printf "       No audio packs found. Create a subdirectory with .wav files:\n"
+				printf "         %bmkdir -p %s/my_sounds && cp *.wav %s/my_sounds/%b\n" \
+					"${C_DIM}" "${CONFIG_DIR}" "${CONFIG_DIR}" "${C_RESET}"
+			fi
+			exit 1
+		else
+			notify_user "Audio pack '$AUDIO_PACK' not found. Run in terminal."
+			exit 1
+		fi
+	fi
 fi
 
 # --- 8. ENVIRONMENT SETUP ---
 mkdir -p "$BASE_DIR" 2>/dev/null || true
 
 if [[ ! -x "$PYTHON_BIN" ]]; then
-    rm -rf "$VENV_DIR" 2>/dev/null || true
+	rm -rf "$VENV_DIR" 2>/dev/null || true
 
-    if ! $INTERACTIVE; then
-        notify_user "Environment not built. Run in terminal once to initialize."
-        exit 1
-    fi
+	if ! $INTERACTIVE; then
+		notify_user "Environment not built. Run in terminal once to initialize."
+		exit 1
+	fi
 
-    printf "%b[BUILD]%b Initializing UV environment...\n" "${C_BLUE}" "${C_RESET}"
-    uv venv "$VENV_DIR" --python 3.14 --quiet
+	printf "%b[BUILD]%b Initializing UV environment...\n" "${C_BLUE}" "${C_RESET}"
+	uv venv "$VENV_DIR" --python 3.14 --quiet
 fi
 
 if [[ -f "$MARKER_FILE" ]] && ! python_runtime_ready; then
-    rm -f "$MARKER_FILE"
+	rm -f "$MARKER_FILE"
 fi
 
 if [[ ! -f "$MARKER_FILE" ]]; then
-    if ! $INTERACTIVE; then
-        notify_user "First run setup required. Run in terminal to build native extensions."
-        exit 1
-    fi
+	if ! $INTERACTIVE; then
+		notify_user "First run setup required. Run in terminal to build native extensions."
+		exit 1
+	fi
 
-    printf "%b[BUILD]%b Compiling dependencies with native CPU flags...\n" \
-        "${C_YELLOW}" "${C_RESET}"
+	printf "%b[BUILD]%b Compiling dependencies with native CPU flags...\n" \
+		"${C_YELLOW}" "${C_RESET}"
 
-    export CFLAGS="-march=native -mtune=native -O3 -pipe -fno-plt -fno-semantic-interposition -fno-math-errno -fno-trapping-math -flto=auto -ffat-lto-objects -ffp-contract=fast -DNDEBUG"
-    export CXXFLAGS="$CFLAGS"
-    export LDFLAGS="-Wl,-O2,--sort-common,--as-needed,-z,now,--relax -flto=auto"
+	export CFLAGS="-march=native -mtune=native -O3 -pipe -fno-plt -fno-semantic-interposition -fno-math-errno -fno-trapping-math -flto=auto -ffat-lto-objects -ffp-contract=fast -DNDEBUG"
+	export CXXFLAGS="$CFLAGS"
+	export LDFLAGS="-Wl,-O2,--sort-common,--as-needed,-z,now,--relax -flto=auto"
 
-    uv pip install --python "$PYTHON_BIN" \
-        --upgrade \
-        --no-binary evdev \
-        --no-binary pygame-ce \
-        --no-cache \
-        --compile-bytecode \
-        evdev pygame-ce
+	uv pip install --python "$PYTHON_BIN" \
+		--upgrade \
+		--no-binary evdev \
+		--no-binary pygame-ce \
+		--no-cache \
+		--compile-bytecode \
+		evdev pygame-ce
 
-    printf "%b[BUILD]%b Attempting uvloop (optional)...\n" "${C_BLUE}" "${C_RESET}"
-    if uv pip install --python "$PYTHON_BIN" \
-        --upgrade \
-        --no-binary uvloop \
-        --no-cache \
-        --compile-bytecode \
-        uvloop; then
-        printf "%b[SUCCESS]%b uvloop installed.\n" "${C_GREEN}" "${C_RESET}"
-    else
-        printf "%b[INFO]%b uvloop skipped. Standard asyncio will be used.\n" "${C_YELLOW}" "${C_RESET}"
-    fi
+	printf "%b[BUILD]%b Attempting uvloop (optional)...\n" "${C_BLUE}" "${C_RESET}"
+	if uv pip install --python "$PYTHON_BIN" \
+		--upgrade \
+		--no-binary uvloop \
+		--no-cache \
+		--compile-bytecode \
+		uvloop; then
+		printf "%b[SUCCESS]%b uvloop installed.\n" "${C_GREEN}" "${C_RESET}"
+	else
+		printf "%b[INFO]%b uvloop skipped. Standard asyncio will be used.\n" "${C_YELLOW}" "${C_RESET}"
+	fi
 
-    if ! python_runtime_ready; then
-        printf "%b[ERROR]%b Python runtime validation failed after build.\n" "${C_RED}" "${C_RESET}"
-        exit 1
-    fi
+	if ! python_runtime_ready; then
+		printf "%b[ERROR]%b Python runtime validation failed after build.\n" "${C_RED}" "${C_RESET}"
+		exit 1
+	fi
 
-    touch "$MARKER_FILE"
-    printf "%b[SUCCESS]%b Native build complete.\n" "${C_GREEN}" "${C_RESET}"
+	touch "$MARKER_FILE"
+	printf "%b[SUCCESS]%b Native build complete.\n" "${C_GREEN}" "${C_RESET}"
 fi
 
 # --- 9. PYTHON RUNNER GENERATION ---
 runner_tmp="$(mktemp "$BASE_DIR/.runner.XXXXXX")"
-cat > "$runner_tmp" << 'PYTHON_EOF'
+cat >"$runner_tmp" <<'PYTHON_EOF'
 from __future__ import annotations
 
 import asyncio
@@ -1202,81 +1191,84 @@ mv -f "$runner_tmp" "$RUNNER_SCRIPT"
 
 # --- 10. SETUP MODE EXIT ---
 if [[ "$RUN_MODE" == "setup" ]]; then
-    printf "\n%b[SETUP]%b Setup complete! Run '%b%s%b' to start WayClick.\n" \
-        "${C_GREEN}" "${C_RESET}" "${C_CYAN}" "$SCRIPT_NAME" "${C_RESET}"
+	printf "\n%b[SETUP]%b Setup complete! Run '%b%s%b' to start WayClick.\n" \
+		"${C_GREEN}" "${C_RESET}" "${C_CYAN}" "$SCRIPT_NAME" "${C_RESET}"
 
-    if ! current_session_has_input_access; then
-        printf "%b[NOTE]%b  Current session does not have direct access to /dev/input/event*.\n" \
-            "${C_YELLOW}" "${C_RESET}"
-        printf "        Common fix: %bsudo usermod -aG input %s%b (then logout/login)\n" \
-            "${C_CYAN}" "$USER" "${C_RESET}"
-    fi
+	if ! current_session_has_input_access; then
+		printf "%b[NOTE]%b  Current session does not have direct access to /dev/input/event*.\n" \
+			"${C_YELLOW}" "${C_RESET}"
+		printf "        Common fix: %bsudo usermod -aG input %s%b (then logout/login)\n" \
+			"${C_CYAN}" "$USER" "${C_RESET}"
+	fi
 
-    exit 0
+	exit 0
 fi
 
 # --- 11. INPUT ACCESS CHECK (run mode only) ---
 if ! current_session_has_input_access; then
-    if $INTERACTIVE; then
-        printf "%b[PERM]%b Current session cannot read /dev/input/event*.\n" \
-            "${C_RED}" "${C_RESET}"
-        read -rp "Run 'sudo usermod -aG input $USER'? [Y/n] " -n 1
-        echo
-        if [[ ${REPLY:-Y} =~ ^[Yy]$ ]]; then
-            sudo usermod -aG input "$USER"
-            printf "%b[INFO]%b Group added. %bLOGOUT REQUIRED%b for changes to apply.\n" \
-                "${C_GREEN}" "${C_RESET}" "${C_RED}" "${C_RESET}"
-            exit 0
-        fi
-        exit 1
-    else
-        notify_user "Permission error: current session cannot read /dev/input/event*. Run in terminal."
-        exit 1
-    fi
+	if $INTERACTIVE; then
+		printf "%b[PERM]%b Current session cannot read /dev/input/event*.\n" \
+			"${C_RED}" "${C_RESET}"
+		read -rp "Run 'sudo usermod -aG input $USER'? [Y/n] " -n 1
+		echo
+		if [[ ${REPLY:-Y} =~ ^[Yy]$ ]]; then
+			sudo usermod -aG input "$USER"
+			printf "%b[INFO]%b Group added. %bLOGOUT REQUIRED%b for changes to apply.\n" \
+				"${C_GREEN}" "${C_RESET}" "${C_RED}" "${C_RESET}"
+			exit 0
+		fi
+		exit 1
+	else
+		notify_user "Permission error: current session cannot read /dev/input/event*. Run in terminal."
+		exit 1
+	fi
 fi
 
 # --- 12. EXECUTION ---
 printf "%b[RUN]%b Starting engine (pack: %b%s%b | buffer: %s samples)...\n" \
-    "${C_BLUE}" "${C_RESET}" "${C_CYAN}" "$AUDIO_PACK" "${C_RESET}" "$AUDIO_BUFFER_SIZE"
+	"${C_BLUE}" "${C_RESET}" "${C_CYAN}" "$AUDIO_PACK" "${C_RESET}" "$AUDIO_BUFFER_SIZE"
 
-EXCLUDED_KW_STR="$(IFS=,; printf '%s' "${EXCLUDED_KEYWORDS[*]}")"
+EXCLUDED_KW_STR="$(
+	IFS=,
+	printf '%s' "${EXCLUDED_KEYWORDS[*]}"
+)"
 clear_ready_file
 
 ENABLE_TRACKPADS="$ENABLE_TRACKPAD_SOUNDS" \
-WC_AUTO_DETECT="$AUTO_DETECT_TRACKPADS" \
-WC_EXCLUDED_KEYWORDS="$EXCLUDED_KW_STR" \
-WC_AUDIO_BUFFER="$AUDIO_BUFFER_SIZE" \
-WC_AUDIO_RATE="$AUDIO_SAMPLE_RATE" \
-WC_MIX_CHANNELS="$AUDIO_MIX_CHANNELS" \
-WC_POLL_INTERVAL="$HOTPLUG_POLL_SECONDS" \
-WC_DEBUG="$DEBUG_MODE" \
-WC_READY_FILE="$READY_FILE" \
-PIPEWIRE_LATENCY="${AUDIO_BUFFER_SIZE}/${AUDIO_SAMPLE_RATE}" \
-"$PYTHON_BIN" -OO -B "$RUNNER_SCRIPT" "$CONFIG_DIR" "$AUDIO_PACK" &
+	WC_AUTO_DETECT="$AUTO_DETECT_TRACKPADS" \
+	WC_EXCLUDED_KEYWORDS="$EXCLUDED_KW_STR" \
+	WC_AUDIO_BUFFER="$AUDIO_BUFFER_SIZE" \
+	WC_AUDIO_RATE="$AUDIO_SAMPLE_RATE" \
+	WC_MIX_CHANNELS="$AUDIO_MIX_CHANNELS" \
+	WC_POLL_INTERVAL="$HOTPLUG_POLL_SECONDS" \
+	WC_DEBUG="$DEBUG_MODE" \
+	WC_READY_FILE="$READY_FILE" \
+	PIPEWIRE_LATENCY="${AUDIO_BUFFER_SIZE}/${AUDIO_SAMPLE_RATE}" \
+	"$PYTHON_BIN" -OO -B "$RUNNER_SCRIPT" "$CONFIG_DIR" "$AUDIO_PACK" &
 RUNNER_CHILD_PID="$!"
 
 RUNNER_CHILD_STARTTIME="$(wait_for_proc_starttime "$RUNNER_CHILD_PID")" || {
-    printf "%b[ERROR]%b Failed to determine runner process start time.\n" "${C_RED}" "${C_RESET}"
-    kill -TERM "$RUNNER_CHILD_PID" 2>/dev/null || true
-    exit 1
+	printf "%b[ERROR]%b Failed to determine runner process start time.\n" "${C_RED}" "${C_RESET}"
+	kill -TERM "$RUNNER_CHILD_PID" 2>/dev/null || true
+	exit 1
 }
 
 write_pid_file "$RUNNER_CHILD_PID" "$RUNNER_CHILD_STARTTIME"
 
 if ! wait_for_runner_ready; then
-    clear_ready_file
+	clear_ready_file
 
-    if runner_record_alive "$RUNNER_CHILD_PID" "$RUNNER_CHILD_STARTTIME"; then
-        printf "%b[ERROR]%b Runner startup timed out before readiness confirmation.\n" \
-            "${C_RED}" "${C_RESET}"
-        kill -TERM "$RUNNER_CHILD_PID" 2>/dev/null || true
-    fi
+	if runner_record_alive "$RUNNER_CHILD_PID" "$RUNNER_CHILD_STARTTIME"; then
+		printf "%b[ERROR]%b Runner startup timed out before readiness confirmation.\n" \
+			"${C_RED}" "${C_RESET}"
+		kill -TERM "$RUNNER_CHILD_PID" 2>/dev/null || true
+	fi
 
-    release_lock
-    wait_for_runner_exit
-    runner_status="$RUNNER_EXIT_STATUS"
-    clear_pid_file_if_owned_by_child
-    exit "$runner_status"
+	release_lock
+	wait_for_runner_exit
+	runner_status="$RUNNER_EXIT_STATUS"
+	clear_pid_file_if_owned_by_child
+	exit "$runner_status"
 fi
 
 update_state "True"
@@ -1284,31 +1276,31 @@ clear_ready_file
 release_lock
 
 if ! $INTERACTIVE; then
-    sleep 0.2
-    if runner_record_alive "$RUNNER_CHILD_PID" "$RUNNER_CHILD_STARTTIME"; then
-        notify_user "Enabled (${AUDIO_PACK})"
-    fi
+	sleep 0.2
+	if runner_record_alive "$RUNNER_CHILD_PID" "$RUNNER_CHILD_STARTTIME"; then
+		notify_user "Enabled (${AUDIO_PACK})"
+	fi
 fi
 
 wait_for_runner_exit
 runner_status="$RUNNER_EXIT_STATUS"
 clear_pid_file_if_owned_by_child
 
-if (( runner_status == 0 )); then
-    if [[ "$INTERRUPT_SIGNAL" == "INT" ]]; then
-        printf "\n%b[INFO]%b WayClick interrupted by user.\n" "${C_BLUE}" "${C_RESET}"
-    elif [[ "$INTERRUPT_SIGNAL" == "TERM" ]]; then
-        printf "\n%b[INFO]%b WayClick terminated.\n" "${C_BLUE}" "${C_RESET}"
-    else
-        printf "\n%b[INFO]%b WayClick stopped.\n" "${C_BLUE}" "${C_RESET}"
-    fi
-elif (( runner_status == 130 )); then
-    printf "\n%b[INFO]%b WayClick interrupted by SIGINT (status 130).\n" "${C_BLUE}" "${C_RESET}"
-elif (( runner_status == 143 )); then
-    printf "\n%b[INFO]%b WayClick terminated by SIGTERM (status 143).\n" "${C_BLUE}" "${C_RESET}"
+if ((runner_status == 0)); then
+	if [[ "$INTERRUPT_SIGNAL" == "INT" ]]; then
+		printf "\n%b[INFO]%b WayClick interrupted by user.\n" "${C_BLUE}" "${C_RESET}"
+	elif [[ "$INTERRUPT_SIGNAL" == "TERM" ]]; then
+		printf "\n%b[INFO]%b WayClick terminated.\n" "${C_BLUE}" "${C_RESET}"
+	else
+		printf "\n%b[INFO]%b WayClick stopped.\n" "${C_BLUE}" "${C_RESET}"
+	fi
+elif ((runner_status == 130)); then
+	printf "\n%b[INFO]%b WayClick interrupted by SIGINT (status 130).\n" "${C_BLUE}" "${C_RESET}"
+elif ((runner_status == 143)); then
+	printf "\n%b[INFO]%b WayClick terminated by SIGTERM (status 143).\n" "${C_BLUE}" "${C_RESET}"
 else
-    printf "\n%b[ERROR]%b WayClick exited with status %d.\n" \
-        "${C_RED}" "${C_RESET}" "$runner_status"
+	printf "\n%b[ERROR]%b WayClick exited with status %d.\n" \
+		"${C_RED}" "${C_RESET}" "$runner_status"
 fi
 
 exit "$runner_status"
