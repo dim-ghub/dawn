@@ -104,7 +104,6 @@ declare -ar PACKAGES=(
 	"papirus-icon-theme-git"
 	"papirus-folders-git"
 	"zen-browser-bin"
-	"artix-pipewire-launcher"
 	# "fluent-icon-theme-git"
 )
 
