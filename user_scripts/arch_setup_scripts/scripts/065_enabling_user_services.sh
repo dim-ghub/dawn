@@ -36,6 +36,7 @@ USER_INIT_DIR="${USER_RC_DIR}/init.d"
 SYSTEM_SERVICES=(
 	"pipewire"
 	"wireplumber"
+	"swayosd"
 )
 
 # ─── User Services (no root needed) ──────────────────────────────────────────

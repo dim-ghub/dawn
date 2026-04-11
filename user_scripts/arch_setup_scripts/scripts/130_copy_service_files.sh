@@ -56,6 +56,7 @@ readonly OPENRC_SERVICES_CONFIG=(
 	"$HOME/user_scripts/openrc/init.d/pipewire | enable"
 	"$HOME/user_scripts/openrc/init.d/wireplumber | enable"
 	"$HOME/user_scripts/openrc/init.d/swww | disable"
+	"$HOME/user_scripts/openrc/init.d/swayosd | enable"
 )
 
 # OpenRC user service scripts (user-level, no root needed)

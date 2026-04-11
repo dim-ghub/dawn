@@ -46,7 +46,7 @@ INSTALL_SEQUENCE=(
 	"S | 055_pacman_reflector.sh"
 	"S | 060_package_installation.sh"
 	"U | 065_enabling_user_services.sh"
-	"S | 070_openssh_setup.sh --auto"
+	#    "S | 070_openssh_setup.sh --auto"
 	"U | 075_changing_shell_zsh.sh"
 	"S | 080_aur_paru_fallback_yay.sh --paru"
 	#    "S | 085_warp.sh"
@@ -171,7 +171,7 @@ declare -ar DEPENDENCY_PACKAGES=(
 	# Filesystem & Archives
 	btrfs-progs compsize zram-generator udisks2 udiskie dosfstools ntfs-3g
 	xdg-user-dirs usbutils gnome-disk-utility unzip zip unrar 7zip cpio file-roller
-	rsync nemo nemo-fileroller gvfs gvfs-smb gvfs-mtp gvfs-gphoto2 gvfs-google
+	rsync nemo nemo-fileroller gvfs gvfs-smb gvfs-mtp gvfs-gphoto2
 	gvfs-nfs gvfs-afc gvfs-dnssd ffmpegthumbnailer webp-pixbuf-loader poppler-glib
 	libgsf gnome-epub-thumbnailer resvg nemo-terminal nemo-python nemo-compare meld
 	nemo-media-columns nemo-audio-tab nemo-image-converter nemo-emblems nemo-repairer

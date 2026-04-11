@@ -80,6 +80,7 @@ declare -A SYSTEM_SERVICES=(
 	["bluetooth"]="true"
 	["cronie"]="true"
 	["elogind"]="true"
+	["swayosd"]="true"
 )
 
 # ─── User Services (no root needed, use --user flag) ─────────────────────────
