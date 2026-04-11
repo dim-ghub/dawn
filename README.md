@@ -4,8 +4,6 @@
 
 **A meticulously crafted Hyprland dotfiles framework for Artix Linux (OpenRC)**
 
-[![](https://img.shields.io/badge/Artix%20Installer-a167e0?style=for-the-badge&logo=github&logoColor=white&labelColor=1a1a2e)](https://github.com/dim-ghub/artix-installer)
-[![](https://img.shields.io/badge/Join%20Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white&labelColor=1a1a2e)](https://discord.gg/a85YB9wuau)
 [![](https://img.shields.io/badge/View%20Wallpapers-a167e0?style=for-the-badge&logo=github&logoColor=white&labelColor=1a1a2e)](https://github.com/dusklinux/images)
 
 </div>
@@ -64,18 +62,6 @@ The setup scripts auto-detect your hardware and set the appropriate environment 
 >
 > 1. Open `~/.config/hypr/edit_here/source/environment_variables.conf`
 > 2. Add Intel/Nvidia/AMD-specific variables for your hardware.
-
-### Dual Booting
-
-- Compatible with Windows or other Linux distros.
-- **Bootloader:** Uses `Limine` — a modern, lightweight UEFI bootloader.
-
-### Init System
-
-- **OpenRC only** — Dawn fully supports Artix Linux with the OpenRC init system.
-- **Systemd is no longer supported.** All user services are managed directly via autostart or OpenRC init scripts.
-
----
 
 ## 💿 Installation
 
@@ -248,21 +234,6 @@ Dynamically rendered to respect your fractional scaling settings.
 
 ---
 
-## 🔄 Key Changes from Previous Releases
-
-| Change | Details |
-|--------|---------|
-| **Dusky → Dawn** | Complete project rename |
-| **systemd → OpenRC** | systemd support has been dropped; Artix Linux / OpenRC is the primary target |
-| **UWSM Removed** | No longer depends on UWSM; apps launch directly in Hyprland |
-| **swww → awww** | Wallpaper engine switched from swww to awww |
-| **NetworkManager → connman** | Network management now uses connman + connman-gtk |
-| **wifitui removed** | Replaced with connman-gtk for WiFi management |
-| **CachyOS dropped** | CachyOS support removed; Artix Linux support added |
-| **Discord Webhooks** | Script failures can now notify you via Discord webhook |
-
----
-
 <div align="center">
 
 **Enjoy the experience!**
@@ -280,3 +251,15 @@ Thank you to all the Contributors!
 SDDM theme is a modified version of the **SilentSDDM** project by [@uiriansan](https://github.com/uiriansan) — a great project, kindly star it on GitHub!
 
 [![](https://img.shields.io/badge/SilentSDDM-⭐%20on%20GitHub-a167e0?style=for-the-badge&logo=github&labelColor=1a1a2e)](https://github.com/uiriansan/SilentSDDM/)
+
+</div>
+
+---
+
+<a href="https://star-history.com/#dim-ghub/dawn&Date">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=dim-ghub/dawn&type=Date&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=dim-ghub/dawn&type=Date&theme=light" />
+   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=dim-ghub/dawn&type=Date&theme=dark" />
+ </picture>
+</a>
