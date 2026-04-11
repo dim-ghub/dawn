@@ -4,10 +4,9 @@
 
 **A meticulously crafted Hyprland dotfiles framework for Artix Linux (OpenRC)**
 
-[![Stars](https://img.shields.io/github/stars/dim-ghub/dawn?style=for-the-badge&logo=starship&color=a167e0&labelColor=1a1a2e)](https://github.com/dim-ghub/dawn/stargazers)
-[![License: MIT](https://img.shields.io/github/license/dim-ghub/dawn?style=for-the-badge&color=a167e0&labelColor=1a1a2e)](https://github.com/dim-ghub/dawn/blob/main/LICENSE)
-[![Discord](https://img.shields.io/discord/1372743714785177600?style=for-the-badge&logo=discord&color=5865F2&labelColor=1a1a2e&label=DISCORD)](https://discord.gg/a85YB9wuau)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome!-style=for-the-badge&color=a167e0&labelColor=1a1a2e)](https://github.com/dim-ghub/dawn/pulls)
+[![](https://img.shields.io/badge/Artix%20Installer-a167e0?style=for-the-badge&logo=github&logoColor=white&labelColor=1a1a2e)](https://github.com/dim-ghub/artix-installer)
+[![](https://img.shields.io/badge/Join%20Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white&labelColor=1a1a2e)](https://discord.gg/a85YB9wuau)
+[![](https://img.shields.io/badge/View%20Wallpapers-a167e0?style=for-the-badge&logo=github&logoColor=white&labelColor=1a1a2e)](https://github.com/dusklinux/images)
 
 </div>
 
