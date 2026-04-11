@@ -9,18 +9,6 @@
 [![Discord](https://img.shields.io/discord/1372743714785177600?style=for-the-badge&logo=discord&color=5865F2&labelColor=1a1a2e&label=DISCORD)](https://discord.gg/a85YB9wuau)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome!-style=for-the-badge&color=a167e0&labelColor=1a1a2e)](https://github.com/dim-ghub/dawn/pulls)
 
-[![](https://img.shields.io/badge/Artix%20Installer-a167e0?style=for-the-badge&logo=github&logoColor=white&labelColor=1a1a2e)](https://github.com/dim-ghub/artix-installer)
-[![](https://img.shields.io/badge/Join%20Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white&labelColor=1a1a2e)](https://discord.gg/a85YB9wuau)
-[![](https://img.shields.io/badge/View%20Wallpapers-a167e0?style=for-the-badge&logo=github&logoColor=white&labelColor=1a1a2e)](https://github.com/dusklinux/images)
-
-<a href="https://star-history.com/#dim-ghub/dawn&Date">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=dim-ghub/dawn&type=Date&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=dim-ghub/dawn&type=Date&theme=light" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=dim-ghub/dawn&type=Date&theme=dark" />
- </picture>
-</a>
-
 </div>
 
 ---
