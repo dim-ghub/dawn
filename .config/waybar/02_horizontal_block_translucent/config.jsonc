@@ -118,7 +118,7 @@
     "format-window-separator": " ",
     "window-rewrite-default": "",
     "window-rewrite": {
-      "class<zen-browser>": "",
+      "class<zen>": "",
       "class<kitty>": "",
       "class<discord>": "",
       "class<vlc>": "󰕼",
@@ -143,7 +143,7 @@
       "default": "󰎆",
       "mpv": "󰎇",
       "spotify": "󰓇",
-      "zen-browser": "󰈹"
+      "firefox": "󰈹"
     },
     "status-icons": {
       "paused": "󰏤"

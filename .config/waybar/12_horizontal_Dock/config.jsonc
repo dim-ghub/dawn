@@ -40,7 +40,7 @@
             "format-stopped": "",
             "player-icons": {
                 "default": "",
-                "zen-browser": "󰈹",
+                "firefox": "󰈹",
                 "mpv": "",
                 "spotify": ""
             },

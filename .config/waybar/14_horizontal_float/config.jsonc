@@ -50,7 +50,7 @@
         "default": "󰎆",
         "mpv": "󰎇",
         "spotify": "󰓇",
-        "zen-browser": "󰈹"
+        "firefox": "󰈹"
       },
       "status-icons": {
         "paused": "󰏤"
