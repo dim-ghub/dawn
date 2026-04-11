@@ -133,6 +133,22 @@ If a script fails (which can happen on a rolling release distro):
 3. **Run Manually.** Try running that specific subscript individually.
 4. **AI Help.** Copy the script content and error message into ChatGPT/Gemini. It can usually pinpoint the exact issue.
 
+### 📡 Connecting to WiFi with connmanctl
+
+Dawn uses ConnMan instead of NetworkManager. To connect to WiFi from a terminal:
+
+```bash
+connmanctl
+connmanctl> agent on
+connmanctl> scan wifi
+connmanctl> enable wifi
+connmanctl> services
+connmanctl> connect wifi_xxxxxxxxxxxx_xxxxxxxxxxxx
+connmanctl> quit
+```
+
+You can also use the GUI: `connman-gtk`
+
 ---
 
 ## 📋 Overview
