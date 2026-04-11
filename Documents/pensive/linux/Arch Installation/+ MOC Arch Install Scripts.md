@@ -79,7 +79,7 @@ boot into the os . login> and run
 
 then run , and follow the on screen instructions. it's just yes or no questions. 
 ```bash
-./user_scripts/arch_setup_scripts/ORCHESTRA.sh
+./user_scripts/arch_setup_scripts/Conductor.sh
 ```
 
 after booting. 
@@ -94,9 +94,9 @@ then. deploy git repo, open the terminal with super Q
 ./deploy_dotfiles.sh
 ```
 
-then run the setup orchestra script
+then run the setup conductor script
 ```bash
-./user_scripts/arch_setup_scripts/ORCHESTRA.sh
+./user_scripts/arch_setup_scripts/Conductor.sh
 ```
 
 

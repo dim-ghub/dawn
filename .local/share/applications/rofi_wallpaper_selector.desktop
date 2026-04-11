@@ -1,9 +1,9 @@
 [Desktop Entry]
 Type=Application
-Name=Rofi Wallaper
+Name=Rofi Wallpaper
 GenericName=Wallpaper Selector
 Comment=Switch/Change Wallpapers
-Exec=/home/dusk/user_scripts/rofi/rofi_wallpaper_selctor.sh
+Exec=/home/dusk/user_scripts/rofi/rofi_wallpaper_selector.sh
 Terminal=false
 Categories=Settings;Theme;
 Keywords=wallpaper;theme;picture;color;

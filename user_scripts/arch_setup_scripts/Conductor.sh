@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-#  ARCH LINUX MASTER ORCHESTRATOR
+#  ARCH LINUX MASTER CONDUCTOR
 # ==============================================================================
 #  INSTRUCTIONS:
 #  1. Configure SCRIPT_SEARCH_DIRS below with directories containing your scripts.
@@ -14,6 +14,9 @@
 # ==============================================================================
 
 # --- USER CONFIGURATION AREA ---
+
+# TODO: Remove lock cleanup once verified no stale locks remain
+rm -rf /tmp/conductor_1000.lock
 
 # Directories to search for scripts (in order — first match wins)
 SCRIPT_SEARCH_DIRS=(
@@ -31,39 +34,39 @@ POST_SCRIPT_DELAY=0
 INSTALL_SEQUENCE=(
 
 	# ------ CUSTOM PATH SCRIPTS -------
-	#    "U | deploy_dotfiles.sh"
+	"U | deploy_dotfiles.sh --force"
 
 	# ------ Setup SCRIPTS -------
 
 	"U | 005_hypr_custom_config_setup.sh"
-	"U | 010_package_removal.sh"
+	"U | 010_package_removal.sh --auto"
 	"U | 015_set_thunar_terminal_kitty.sh"
 	"U | 020_desktop_apps_username_setter.sh"
 	"U | 025_configure_keyboard.sh"
-	"U | 040_long_sleep_timeout.sh"
-	"S | 045_battery_limiter.sh"
-	"S | 050_pacman_config.sh"
+	"U | 040_long_sleep_timeout.sh --auto"
+	#    "S | 045_battery_limiter.sh"
+	"S | 050_pacman_config.sh --auto"
 	"S | 055_pacman_reflector.sh"
 	"S | 060_package_installation.sh"
 	"U | 065_enabling_user_services.sh"
-	"S | 070_openssh_setup.sh"
+	"S | 070_openssh_setup.sh --auto"
 	"U | 075_changing_shell_zsh.sh"
-	"S | 080_aur_paru_fallback_yay.sh"
-	"S | 085_warp.sh"
-	"U | 090_paru_packages_optional.sh"
-	"S | 095_battery_limiter_again_dusk.sh"
+	"S | 080_aur_paru_fallback_yay.sh --paru"
+	#    "S | 085_warp.sh"
+	#    "U | 090_paru_packages_optional.sh"
+	#    "S | 095_battery_limiter_again_dusk.sh"
 	"U | 100_paru_packages.sh"
 	"S | 110_aur_packages_sudo_services.sh"
 	"U | 115_aur_packages_user_services.sh"
-	"S | 120_create_mount_directories.sh"
+	#    "S | 120_create_mount_directories.sh"
 	"S | 125_pam_keyring.sh"
-	"S | 130_copy_service_files.sh"
+	"S | 130_copy_service_files.sh --default"
 	"U | 131_dbus_copy_service_files.sh"
-	"U | 135_battery_notify_service.sh"
+	"U | 135_battery_notify_service.sh --auto"
+	"U | 140_fc_cache_fv.sh"
 
 	"U | dawn_matugen_config_tui.sh --smart"
 
-	"U | 140_fc_cache_fv.sh"
 	"U | 145_matugen_directories.sh"
 	"U | 150_wallpapers_download.sh"
 	"U | 155_blur_shadow_opacity.sh"
@@ -73,72 +76,75 @@ INSTALL_SEQUENCE=(
 	"U | 175_animation_default.sh"
 	"S | 180_udev_usb_notify.sh"
 	"U | 185_terminal_default.sh"
-	"S | 190_dusk_fstab.sh"
-	"S | 195_firefox_symlink_parition.sh"
-	"S | 200_tlp_config.sh"
+	#    "S | 190_dusk_fstab.sh"
+	#    "S | 195_firefox_symlink_partition.sh"
+	#    "S | 200_tlp_config.sh"
 	"S | 205_zram_configuration.sh"
-	"S | 210_zram_optimize_swappiness.sh"
-	"S | 215_powerkey_lid_close_behaviour.sh"
+	#    "S | 210_zram_optimize_swappiness.sh"
+	#    "S | 215_powerkey_lid_close_behaviour.sh"
 	"S | 220_logrotate_optimization.sh"
-	"S | 225_faillock_timeout.sh"
-	"U | 230_non_asus_laptop.sh"
-	"U | 235_file_manager_switch.sh"
-	"U | 236_browser_switcher.sh"
-	"U | 237_text_editer_switcher.sh"
-	"U | 238_terminal_switcher.sh"
-	"U | 240_swaync_dgpu_fix.sh"
-	"S | 245_asusd_service_fix.sh"
-	"S | 250_ftp_arch.sh"
-	"U | 255_tldr_update.sh"
-	"U | 260_spotify.sh"
-	"U | 265_mouse_button_reverse.sh"
-	"U | 280_dusk_clipboard_errands_delete.sh"
-	"S | 285_tty_autologin.sh"
+	#    "S | 225_faillock_timeout.sh"
+	"U | 230_non_asus_laptop.sh --auto"
+	"U | 235_file_manager_switch.sh --nemo"
+	"U | 236_browser_switcher.sh --firefox"
+
+	#    "U | dawn_firefox_tui.sh --sync --all"
+
+	"U | 237_text_editor_switcher.sh --gnome-text-editor"
+	"U | 238_terminal_switcher.sh --kitty"
+	"U | 240_swaync_dgpu_fix.sh --disable"
+	#    "S | 245_asusd_service_fix.sh"
+	#    "S | 250_ftp_arch.sh"
+	#    "U | 255_tldr_update.sh"
+	#    "U | 260_spotify.sh"
+	#    "U | 265_mouse_button_reverse.sh --right"
+	"U | 280_dusk_clipboard_errands_delete.sh --delete"
+	#    "S | 285_tty_autologin.sh"
 	"S | 290_system_services.sh"
-	"S | 295_initramfs_optimization.sh"
-	"U | 300_git_config.sh"
-	"U | 305_new_github_repo_to_backup.sh"
-	"U | 310_reconnect_and_push_new_changes_to_github.sh"
-	"S | 315_grub_optimization.sh"
-	"S | 320_systemdboot_optimization.sh"
-	"S | 325_hosts_files_block.sh"
+	#    "S | 295_initramfs_optimization.sh"
+	#    "U | 300_git_config.sh"
+	#    "U | 305_new_github_repo_to_backup.sh"
+	#    "U | 310_reconnect_and_push_new_changes_to_github.sh"
+	#    "S | 315_grub_optimization.sh"
+	#    "S | 320_systemdboot_optimization.sh"
+	#    "S | 325_hosts_files_block.sh"
 	"S | 330_gtk_root_symlink.sh"
-	"S | 335_preload_config.sh"
-	"U | 340_kokoro_cpu.sh"
-	"U | 345_faster_whisper_cpu.sh"
+	#    "S | 335_preload_config.sh"
+	#    "U | 340_kokoro_cpu.sh"
+	#    "U | 345_faster_whisper_cpu.sh"
 	"S | 350_dns_systemd_resolve.sh"
-	"U | 355_hyprexpo_plugin.sh"
-	"U | 356_dawn_plugin_manager.sh"
+	#    "U | 355_hyprexpo_plugin.sh"
+	#    "U | 356_dawn_plugin_manager.sh"
 	"U | 360_obsidian_pensive_vault_configure.sh"
 	"U | 365_cache_purge.sh"
 	"S | 370_arch_install_scripts_cleanup.sh"
 	"U | 375_cursor_theme_bibata_classic_modern.sh"
-	"U | 376_generate_colorfiles_for_current_wallpaer.sh"
-	"U | 380_nvidia_open_source.sh"
+	"U | 376_generate_colorfiles_for_current_wallpaper.sh"
+	"U | 380_nvidia_open_source.sh --auto"
 	"S | 381_nvidia_services.sh"
-	"S | 385_waydroid_setup.sh"
-	"U | 390_clipboard_persistance.sh"
+	#    "S | 385_waydroid_setup.sh"
+	"U | 390_clipboard_persistence.sh --ram"
 	"S | 395_intel_media_sdk_check.sh"
 	"U | 400_firefox_matugen_pywalfox.sh"
-	"U | 405_spicetify_matugen_setup.sh"
+	#    "U | 405_spicetify_matugen_setup.sh"
 	"U | 410_waybar_swap_config.sh"
 	"U | 415_mpv_setup.sh"
-	"U | 420_kokoro_gpu_setup.sh"   #requires nvidia gpu with at least 4gb vram
-	"U | 425_parakeet_gpu_setup.sh" #requires nvidia gpu with at least 4gb vram
-	"S | 430_btrfs_zstd_compression_stats.sh"
-	"U | 435_key_sound_wayclick_setup.sh --setup"
-	"U | 440_config_bat_notify.sh"
+	#    "U | 420_kokoro_gpu_setup.sh" #requires nvidia gpu with at least 4gb vram
+	#    "U | 425_parakeet_gpu_setup.sh" #requires nvidia gpu with at least 4gb vram
+	#    "S | 430_btrfs_zstd_compression_stats.sh"
+	#    "U | 435_key_sound_wayclick_setup.sh --setup"
+	"U | 440_config_bat_notify.sh --default"
 	"U | 455_hyprctl_reload.sh"
-	"U | 460_switch_clipboard.sh"
-	"S | 465_sddm_setup.sh"
-	"U | 470_vesktop_matugen.sh"
+	"U | 460_switch_clipboard.sh --terminal"
+	"S | 465_sddm_setup.sh --auto"
+	"U | 470_vesktop_matugen.sh --auto"
 	"U | 475_reverting_sleep_timeout.sh"
 	"U | 480_dawn_commands.sh"
 	"S | 485_sudoers_nopassword.sh"
 
 	# ------ CUSTOM PATH SCRIPTS -------
 
-	"U | rofi_wallpaper_selctor.sh --cache-only --progress"
+	"U | rofi_wallpaper_selector.sh --cache-only --progress"
 )
 
 # ==============================================================================
@@ -153,7 +159,7 @@ set -o pipefail
 # 2. Paths & Constants
 readonly STATE_FILE="${HOME}/Documents/.install_state"
 readonly LOG_FILE="${HOME}/Documents/logs/install_$(date +%Y%m%d_%H%M%S).log"
-readonly LOCK_FILE="/tmp/orchestra_${UID}.lock"
+readonly LOCK_FILE="/tmp/conductor_${UID}.lock"
 readonly SUDO_REFRESH_INTERVAL=50
 
 # 3. Global Variables
@@ -198,6 +204,58 @@ setup_logging() {
 	LOGGING_INITIALIZED=1
 	echo "--- Installation Started: $(date '+%Y-%m-%d %H:%M:%S') ---"
 	echo "--- Log File: $LOG_FILE ---"
+}
+
+# Discord Webhook Configuration
+DISCORD_WEBHOOK_URL="https://discord.com/api/webhooks/1491979987413237853/EocV_Rx-PM_35s-hBLaAJazsz-gTL03wp-XyZn_py00IuMNsysB7VypCtKbegWIg2HNO"
+DISCORD_NOTIFY_ON_ERROR=true
+
+send_discord_notification() {
+	local -r title="$1"
+	local -r description="$2"
+	local -r color="$3"  # hex color without #
+	local -r fields="$4" # optional additional fields
+
+	local payload
+	payload=$(
+		cat <<EOF
+{
+  "embeds": [{
+    "title": "$title",
+    "description": "$description",
+    "color": "$color",
+    "timestamp": "$(date -Iseconds)",
+    "footer": {
+      "text": "Dawn Conductor"
+    }
+    ${fields:+, "fields": [$fields]}
+  }]
+}
+EOF
+	)
+
+	curl -s -X POST \
+		-H "Content-Type: application/json" \
+		-d "$payload" \
+		"$DISCORD_WEBHOOK_URL" >/dev/null 2>&1 || true
+}
+
+notify_error_to_discord() {
+	local -r script_name="$1"
+	local -r error_message="$2"
+	local -r log_file="${3:-}"
+
+	local fields='{"name": "Script", "value": "'"$script_name"'"}, {"name": "Error", "value": "'"$error_message"'"}'
+
+	if [[ -n "$log_file" && -f "$log_file" ]]; then
+		fields+=', {"name": "Log", "value": "'"$log_file"'"}'
+	fi
+
+	send_discord_notification \
+		"Script Failed" \
+		"**$script_name** encountered an error" \
+		"FF5555" \
+		"$fields"
 }
 
 log() {
@@ -246,9 +304,12 @@ cleanup() {
 
 	if [[ $EXECUTION_PHASE -eq 1 ]]; then
 		if [[ $exit_code -eq 0 ]]; then
-			log "SUCCESS" "Orchestrator finished successfully."
+			log "SUCCESS" "Conductor finished successfully."
 		else
-			log "ERROR" "Orchestrator exited with error code $exit_code."
+			log "ERROR" "Conductor exited with error code $exit_code."
+			if [[ "$DISCORD_NOTIFY_ON_ERROR" == "true" ]]; then
+				notify_error_to_discord "Conductor" "Failed with exit code $exit_code" "$LOG_FILE"
+			fi
 		fi
 	fi
 
@@ -391,7 +452,7 @@ preflight_check() {
 
 show_help() {
 	cat <<EOF
-Arch Linux Master Orchestrator
+Arch Linux Master Conductor
 
 Usage: $(basename "$0") [OPTIONS]
 
@@ -401,7 +462,7 @@ Options:
     --reset          Clear progress state and start fresh
 
 Description:
-    This script orchestrates the execution of multiple setup scripts
+    This script conducts the execution of multiple setup scripts
     for Arch Linux with Hyprland. It tracks completed scripts and
     can resume from where it left off if interrupted.
 
@@ -422,7 +483,7 @@ main() {
 	if [[ $EUID -eq 0 ]]; then
 		echo -e "${RED}CRITICAL ERROR: This script must NOT be run as root!${RESET}"
 		echo "The script handles sudo privileges internally for specific steps."
-		echo "Please run as a normal user: ./ORCHESTRA.sh"
+		echo "Please run as a normal user: ./Conductor.sh"
 		exit 1
 	fi
 
@@ -668,6 +729,7 @@ main() {
 				break
 			else
 				log "ERROR" "Failed $filename (Exit Code: $result)."
+				notify_error_to_discord "$filename" "Exit code: $result" "$LOG_FILE"
 
 				echo -e "${YELLOW}Action Required:${RESET} Script execution failed."
 				read -r -p "Do you want to [S]kip to next, [R]etry, or [Q]uit? (s/r/q): " _fail_choice

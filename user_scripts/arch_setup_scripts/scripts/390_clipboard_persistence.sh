@@ -47,7 +47,7 @@ declare -r CONFIG_DIR="${HOME}/.config/dawn"
 declare -r CONFIG_FILE="${CONFIG_DIR}/clipboard_persistence.conf"
 declare -r ENV_FILE="${HOME}/.config/hypr/edit_here/source/environment_variables.conf"
 declare -r STATE_DIR="${HOME}/.config/dawn/settings"
-declare -r STATE_FILE="${STATE_DIR}/clipboard_persistance"
+declare -r STATE_FILE="${STATE_DIR}/clipboard_persistence"
 
 # Default config values
 declare -r PERSISTENT_VALUE='true' # true = disk, false = RAM

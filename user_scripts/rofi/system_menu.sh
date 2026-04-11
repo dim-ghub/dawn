@@ -375,7 +375,7 @@ show_utils_menu() {
 			exit 0
 			;;
 		'󰅇  Clipboard Persistence')
-			run_term_hold "clipboard_persistance.sh" "$SCRIPTS_DIR/desktop_apps/clipboard_persistance.sh"
+			run_term_hold "clipboard_persistence.sh" "$SCRIPTS_DIR/desktop_apps/clipboard_persistence.sh"
 			;;
 		'󰉋  File Manager Switch')
 			run_term_hold "file_manager_switch.sh" "$SCRIPTS_DIR/desktop_apps/file_manager_switch.sh"
@@ -410,7 +410,7 @@ show_visuals_menu() {
 			run_app waypaper
 			;;
 		'󰸉  Rofi Wallpaper')
-			run_app "$SCRIPTS_DIR/rofi/rofi_wallpaper_selctor.sh"
+			run_app "$SCRIPTS_DIR/rofi/rofi_wallpaper_selector.sh"
 			;;
 		'󱐋  Animations')
 			run_rofi_mode "animations" "$SCRIPTS_DIR/rofi/hypr_anim.sh"

@@ -88,8 +88,8 @@ readonly FSTAB_CONTENT
 
 # 2. Internal Constants
 readonly TARGET_FILE="/etc/fstab"
-readonly MARKER_START="# === ARCH ORCHESTRA: DUSK PERSONAL MOUNTS [START] ==="
-readonly MARKER_END="# === ARCH ORCHESTRA: DUSK PERSONAL MOUNTS [END] ==="
+readonly MARKER_START="# === ARCH CONDUCTOR: DUSK PERSONAL MOUNTS [START] ==="
+readonly MARKER_END="# === ARCH CONDUCTOR: DUSK PERSONAL MOUNTS [END] ==="
 
 # 3. Aesthetics
 readonly C_RESET=$'\033[0m'
@@ -99,114 +99,114 @@ readonly C_YELLOW=$'\033[1;33m'
 readonly C_RED=$'\033[1;31m'
 readonly C_BOLD=$'\033[1m'
 
-log_info()    { printf "%s[INFO]%s %s\n" "$C_BLUE" "$C_RESET" "$1"; }
+log_info() { printf "%s[INFO]%s %s\n" "$C_BLUE" "$C_RESET" "$1"; }
 log_success() { printf "%s[OK]%s %s\n" "$C_GREEN" "$C_RESET" "$1"; }
-log_warn()    { printf "%s[WARN]%s %s\n" "$C_YELLOW" "$C_RESET" "$1" >&2; }
-log_error()   { printf "%s[ERROR]%s %s\n" "$C_RED" "$C_RESET" "$1" >&2; }
+log_warn() { printf "%s[WARN]%s %s\n" "$C_YELLOW" "$C_RESET" "$1" >&2; }
+log_error() { printf "%s[ERROR]%s %s\n" "$C_RED" "$C_RESET" "$1" >&2; }
 
 # 4. Root Privilege Check
 if [[ $EUID -ne 0 ]]; then
-    log_info "Root privileges required. Elevating..."
-    script_path=$(readlink -f "$0")
-    exec sudo "$script_path" "$@"
+	log_info "Root privileges required. Elevating..."
+	script_path=$(readlink -f "$0")
+	exec sudo "$script_path" "$@"
 fi
 
 # 5. User Identity Confirmation
 confirm_target_machine() {
-    local sys_vendor="Unknown"
-    local sys_product="Unknown"
+	local sys_vendor="Unknown"
+	local sys_product="Unknown"
 
-    # Informational Hardware Check (Does not enforce logic)
-    [[ -r /sys/class/dmi/id/sys_vendor ]] && sys_vendor=$(< /sys/class/dmi/id/sys_vendor)
-    [[ -r /sys/class/dmi/id/product_name ]] && sys_product=$(< /sys/class/dmi/id/product_name)
+	# Informational Hardware Check (Does not enforce logic)
+	[[ -r /sys/class/dmi/id/sys_vendor ]] && sys_vendor=$(</sys/class/dmi/id/sys_vendor)
+	[[ -r /sys/class/dmi/id/product_name ]] && sys_product=$(</sys/class/dmi/id/product_name)
 
-    # Cleanup whitespace
-    sys_vendor="${sys_vendor//[[:space:]]/}"
-    sys_product="${sys_product//[[:space:]]/}"
+	# Cleanup whitespace
+	sys_vendor="${sys_vendor//[[:space:]]/}"
+	sys_product="${sys_product//[[:space:]]/}"
 
-    printf "\n"
-    log_info "System identifies as: ${C_BOLD}${sys_vendor} ${sys_product}${C_RESET}"
-    
-    # Explicit User Question
-    printf "\n"
-    log_warn "This script is configured for: ${C_BOLD}Dusk's Personal ASUS Laptop${C_RESET}"
-    log_warn "It will modify /etc/fstab."
-    
-    # Force read from TTY to handle piping
-    local response
-    if ! read -r -p "Is this the correct target machine? [y/N] " response < /dev/tty; then
-         log_error "Could not read user input."
-         exit 1
-    fi
+	printf "\n"
+	log_info "System identifies as: ${C_BOLD}${sys_vendor} ${sys_product}${C_RESET}"
 
-    if [[ ! "$response" =~ ^[yY]$ ]]; then
-        log_info "User selected NO. Exiting cleanly."
-        exit 0
-    fi
+	# Explicit User Question
+	printf "\n"
+	log_warn "This script is configured for: ${C_BOLD}Dusk's Personal ASUS Laptop${C_RESET}"
+	log_warn "It will modify /etc/fstab."
+
+	# Force read from TTY to handle piping
+	local response
+	if ! read -r -p "Is this the correct target machine? [y/N] " response </dev/tty; then
+		log_error "Could not read user input."
+		exit 1
+	fi
+
+	if [[ ! "$response" =~ ^[yY]$ ]]; then
+		log_info "User selected NO. Exiting cleanly."
+		exit 0
+	fi
 }
 
 # 6. Main Logic
 main() {
-    confirm_target_machine
+	confirm_target_machine
 
-    # A. Pre-flight Checks
-    if [[ ! -f "$TARGET_FILE" ]]; then
-        log_error "Critical: $TARGET_FILE not found."
-        exit 1
-    fi
+	# A. Pre-flight Checks
+	if [[ ! -f "$TARGET_FILE" ]]; then
+		log_error "Critical: $TARGET_FILE not found."
+		exit 1
+	fi
 
-    if [[ -z "${FSTAB_CONTENT//[[:space:]]/}" ]]; then
-        log_warn "No content provided in script configuration. Nothing to append."
-        exit 0
-    fi
+	if [[ -z "${FSTAB_CONTENT//[[:space:]]/}" ]]; then
+		log_warn "No content provided in script configuration. Nothing to append."
+		exit 0
+	fi
 
-    # Idempotency: Check if markers exist
-    if grep -Fq "$MARKER_START" "$TARGET_FILE"; then
-        log_success "Custom mounts already present in fstab. Skipping."
-        exit 0
-    fi
+	# Idempotency: Check if markers exist
+	if grep -Fq "$MARKER_START" "$TARGET_FILE"; then
+		log_success "Custom mounts already present in fstab. Skipping."
+		exit 0
+	fi
 
-    # B. Ephemeral Backup Strategy
-    local temp_backup
-    temp_backup=$(mktemp)
-    cp "$TARGET_FILE" "$temp_backup"
-    
-    log_info "Applying changes..."
+	# B. Ephemeral Backup Strategy
+	local temp_backup
+	temp_backup=$(mktemp)
+	cp "$TARGET_FILE" "$temp_backup"
 
-    # Ensure newline at end of file
-    if [[ -s "$TARGET_FILE" && -n "$(tail -c1 "$TARGET_FILE")" ]]; then
-        printf "\n" >> "$TARGET_FILE"
-    fi
+	log_info "Applying changes..."
 
-    # Append Content
-    {
-        printf "%s\n" "$MARKER_START"
-        printf "%s\n" "$FSTAB_CONTENT"
-        printf "%s\n" "$MARKER_END"
-    } >> "$TARGET_FILE"
+	# Ensure newline at end of file
+	if [[ -s "$TARGET_FILE" && -n "$(tail -c1 "$TARGET_FILE")" ]]; then
+		printf "\n" >>"$TARGET_FILE"
+	fi
 
-    # C. Verification & Rollback
-    log_info "Verifying syntax..."
-    
-    if mount --fake --all --verbose >/dev/null 2>&1; then
-        log_success "Syntax check passed."
-        
-        # SUCCESS: Remove the temp backup (Clean execution)
-        rm -f "$temp_backup"
-        
-        log_info "Reloading systemd..."
-        systemctl daemon-reload
-        log_success "Done."
-    else
-        log_error "SYNTAX CHECK FAILED. Rolling back changes..."
-        
-        # FAILURE: Restore from temp backup
-        cat "$temp_backup" > "$TARGET_FILE"
-        rm -f "$temp_backup"
-        
-        log_error "Changes reverted. /etc/fstab is untouched."
-        exit 1
-    fi
+	# Append Content
+	{
+		printf "%s\n" "$MARKER_START"
+		printf "%s\n" "$FSTAB_CONTENT"
+		printf "%s\n" "$MARKER_END"
+	} >>"$TARGET_FILE"
+
+	# C. Verification & Rollback
+	log_info "Verifying syntax..."
+
+	if mount --fake --all --verbose >/dev/null 2>&1; then
+		log_success "Syntax check passed."
+
+		# SUCCESS: Remove the temp backup (Clean execution)
+		rm -f "$temp_backup"
+
+		log_info "Reloading systemd..."
+		systemctl daemon-reload
+		log_success "Done."
+	else
+		log_error "SYNTAX CHECK FAILED. Rolling back changes..."
+
+		# FAILURE: Restore from temp backup
+		cat "$temp_backup" >"$TARGET_FILE"
+		rm -f "$temp_backup"
+
+		log_error "Changes reverted. /etc/fstab is untouched."
+		exit 1
+	fi
 }
 
 main

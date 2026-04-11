@@ -96,17 +96,17 @@ git --git-dir=$HOME/dawn/ --work-tree=$HOME checkout -f
 > [!Note]
 > This will list a few errors at the top — that's expected! They'll resolve on their own once `matugen` generates colors and cycles through a wallpaper.
 
-### Step 2: Run the Orchestra
+### Step 2: Run the Conductor
 
 Run the master script to install dependencies, themes, and services. This will take a while since it sets up everything. You'll be prompted with yes/no questions during setup, so don't leave it running unattended.
 
 ```bash
-~/user_scripts/arch_setup_scripts/ORCHESTRA.sh
+~/user_scripts/arch_setup_scripts/Conductor.sh
 ```
 
-## 🎼 The Orchestra Script
+## 🎼 The Conductor Script
 
-The `ORCHESTRA.sh` is a conductor that manages ~80 subscripts.
+The `Conductor.sh` is a conductor that manages ~80 subscripts.
 
 - **Smart:** Detects installed packages and skips them.
 - **Safe:** Re-run as many times as you like without breaking things.

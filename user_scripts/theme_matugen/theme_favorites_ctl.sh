@@ -258,4 +258,4 @@ esac
 #
 # bindd = $mainMod SHIFT, D, Remove Favorite, exec, $user_scripts/theme_matugen/theme_favorites_ctl.sh remove
 #
-# bind = SUPER SHIFT, W, exec, $user_scripts/rofi/rofi_wallpaper_selctor.sh fav
+# bind = SUPER SHIFT, W, exec, $user_scripts/rofi/rofi_wallpaper_selector.sh fav

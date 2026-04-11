@@ -222,14 +222,14 @@ pages:
         terminal: false
     - type: button
       properties:
-        title: 'Step 2: Orchestra'
+        title: 'Step 2: Conductor'
         description: Full system re-setup (Takes 5-10 mins)
         icon: preferences-system-symbolic
         style: destructive
         button_text: "Step 2"
       on_press:
         type: exec
-        command: kitty --class ORCHESTRA.sh --hold sh -c $HOME/user_scripts/arch_setup_scripts/ORCHESTRA.sh
+        command: kitty --class Conductor.sh --hold sh -c $HOME/user_scripts/arch_setup_scripts/Conductor.sh
         terminal: false
 
 
@@ -1123,7 +1123,7 @@ pages:
                 button_text: "Select"
               on_press:
                 type: exec
-                command: $HOME/user_scripts/rofi/rofi_wallpaper_selctor.sh
+                command: $HOME/user_scripts/rofi/rofi_wallpaper_selector.sh
                 terminal: false
 
     - type: navigation
@@ -1200,7 +1200,7 @@ pages:
         title: Clipboard Persistence
         description: Configure clipboard history storage
         icon: edit-paste-symbolic
-        key: clipboard_persistance
+        key: clipboard_persistence
         options:
         - RAM
         - Disk
@@ -1210,11 +1210,11 @@ pages:
       on_change:
         RAM:
           type: exec
-          command: kitty --class 390_clipboard_persistance.sh --hold sh -c "$HOME/user_scripts/arch_setup_scripts/scripts/390_clipboard_persistance.sh --ram"
+          command: kitty --class 390_clipboard_persistence.sh --hold sh -c "$HOME/user_scripts/arch_setup_scripts/scripts/390_clipboard_persistence.sh --ram"
           terminal: false
         Disk:
           type: exec
-          command: kitty --class 390_clipboard_persistance.sh --hold sh -c "$HOME/user_scripts/arch_setup_scripts/scripts/390_clipboard_persistance.sh --disk"
+          command: kitty --class 390_clipboard_persistence.sh --hold sh -c "$HOME/user_scripts/arch_setup_scripts/scripts/390_clipboard_persistence.sh --disk"
           terminal: false
           
     - type: selection
@@ -1423,7 +1423,7 @@ pages:
                 button_text: "Switch"
               on_press:
                 type: exec
-                command: kitty --class 237_text_editer_switcher.sh --hold sh -c "$HOME/user_scripts/arch_setup_scripts/scripts/237_text_editer_switcher.sh"
+                command: kitty --class 237_text_editor_switcher.sh --hold sh -c "$HOME/user_scripts/arch_setup_scripts/scripts/237_text_editor_switcher.sh"
                 terminal: false
             - type: button
               properties:

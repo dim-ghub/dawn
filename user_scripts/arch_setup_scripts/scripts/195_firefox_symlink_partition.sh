@@ -10,13 +10,13 @@
 # ------------------------------------------------------------------------------
 
 if [ "$EUID" -ne 0 ]; then
-  echo "Error: Please run this script with sudo."
-  exit 1
+	echo "Error: Please run this script with sudo."
+	exit 1
 fi
 
 if [ -z "$SUDO_USER" ]; then
-    echo "Error: Could not detect the actual user. Do not run as root directly."
-    exit 1
+	echo "Error: Could not detect the actual user. Do not run as root directly."
+	exit 1
 fi
 
 REAL_USER="$SUDO_USER"
@@ -63,39 +63,39 @@ echo -e "   This works for BTRFS, NTFS, or EXT4 and handles all mounting logic.\
 # FORCE read from /dev/tty to bypass Orchestra logging pipes
 # Defaults to No (N) if user presses Enter
 
-read -p "Do you have a dedicated partition for browser files mounted at /mnt/browser? (y/N): " partition_confirm < /dev/tty
+read -p "Do you have a dedicated partition for browser files mounted at /mnt/browser? (y/N): " partition_confirm </dev/tty
 partition_confirm=${partition_confirm:-N} # Set default to N
 
 if [[ ! "$partition_confirm" =~ ^[Yy]$ ]]; then
-    echo -e "${YELLOW}:: User declined (Default: No). SKIPPING Firefox migration.${NC}"
-    # Exit 0 ensures ORCHESTRA continues to script #032
-    exit 0
+	echo -e "${YELLOW}:: User declined (Default: No). SKIPPING Firefox migration.${NC}"
+	# Exit 0 ensures Conductor continues to script #032
+	exit 0
 fi
 
 # Check for directory existence
 if [ ! -d "/mnt/browser" ]; then
-    echo -e "${RED}Error: /mnt/browser directory not found.${NC}"
-    echo -e "${YELLOW}:: SKIPPING Firefox migration to prevent errors.${NC}"
-    exit 0
+	echo -e "${RED}Error: /mnt/browser directory not found.${NC}"
+	echo -e "${YELLOW}:: SKIPPING Firefox migration to prevent errors.${NC}"
+	exit 0
 fi
 
 # Check if it is actually a mountpoint
 if ! mountpoint -q /mnt/browser; then
-    echo -e "${RED}Error: /mnt/browser exists but is NOT a mounted partition.${NC}"
-    echo -e "${YELLOW}:: Please mount your encrypted partition first. SKIPPING migration.${NC}"
-    exit 0
+	echo -e "${RED}Error: /mnt/browser exists but is NOT a mounted partition.${NC}"
+	echo -e "${YELLOW}:: Please mount your encrypted partition first. SKIPPING migration.${NC}"
+	exit 0
 fi
 
 # Automatically check for existing data
 echo -e "${YELLOW}:: Checking for existing data in /mnt/browser...${NC}"
 if [ -d "/mnt/browser/.mozilla" ]; then
-    echo -e "${GREEN}:: Found existing .mozilla directory. Linking to existing data.${NC}"
+	echo -e "${GREEN}:: Found existing .mozilla directory. Linking to existing data.${NC}"
 else
-    echo -e "${GREEN}:: No data found. Will create new directory structure.${NC}"
+	echo -e "${GREEN}:: No data found. Will create new directory structure.${NC}"
 fi
 
 echo -e "${RED}WARNING: Starting destructive operations on $REAL_HOME/.mozilla...${NC}"
-read -p "Press [Enter] to execute or Ctrl+C to cancel." < /dev/tty
+read -p "Press [Enter] to execute or Ctrl+C to cancel." </dev/tty
 
 # ------------------------------------------------------------------------------
 # STEP 2: Execution

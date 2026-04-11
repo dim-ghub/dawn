@@ -117,5 +117,5 @@ arch-chroot /mnt
 
 the main setup script.
 ```bash
-~/user_scripts/arch_setup_scripts/ORCHESTRA.sh
+~/user_scripts/arch_setup_scripts/Conductor.sh
 ```
