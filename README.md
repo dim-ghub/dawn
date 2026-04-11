@@ -252,7 +252,7 @@ SDDM theme is a modified version of the **SilentSDDM** project by [@uiriansan](h
 
 [![](https://img.shields.io/badge/SilentSDDM-⭐%20on%20GitHub-a167e0?style=for-the-badge&logo=github&labelColor=1a1a2e)](https://github.com/uiriansan/SilentSDDM/)
 
-</div>
+</div align="center">
 
 ---
 
