@@ -33,9 +33,6 @@ POST_SCRIPT_DELAY=0
 
 INSTALL_SEQUENCE=(
 
-	# ------ CUSTOM PATH SCRIPTS -------
-	"U | deploy_dotfiles.sh --force"
-
 	# ------ Setup SCRIPTS -------
 
 	"U | 005_hypr_custom_config_setup.sh"
@@ -207,7 +204,7 @@ setup_logging() {
 }
 
 # Discord Webhook Configuration
-DISCORD_WEBHOOK_URL="https://discord.com/api/webhooks/1491979987413237853/EocV_Rx-PM_35s-hBLaAJazsz-gTL03wp-XyZn_py00IuMNsysB7VypCtKbegWIg2HNO"
+DISCORD_WEBHOOK_URL="https://discord.com/api/webhooks/1492363011136946257/tO4hhxCGf_ZXcZqVO-h4mHs35kGt8gtGrHDcmIH5ohXlxsG2ENWJ9XiqVMG8drEYTObq"
 DISCORD_NOTIFY_ON_ERROR=true
 
 send_discord_notification() {
