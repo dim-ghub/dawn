@@ -47,7 +47,7 @@ trap '_cleanup' EXIT
 # --- RESOURCE CONFIGURATION ---
 
 declare -ra DEFAULT_PROCESSES=("hyprsunset" "swww-daemon" "waybar" "blueman-manager")
-declare -ra OPTIONAL_PROCESSES=("inotifywait" "wl-paste" "wl-copy" "zen-browser" "discord")
+declare -ra OPTIONAL_PROCESSES=("inotifywait" "wl-paste" "wl-copy" "zen-bin" "discord")
 
 declare -ra DEFAULT_SYSTEM_SERVICES=("firewalld" "vsftpd" "waydroid-container" "logrotate.timer" "sshd")
 declare -ra OPTIONAL_SYSTEM_SERVICES=("udisks2" "swayosd-libinput-backend" "warp-svc" "NetworkManager")
