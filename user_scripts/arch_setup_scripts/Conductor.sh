@@ -134,7 +134,7 @@ INSTALL_SEQUENCE=(
 	"U | 455_hyprctl_reload.sh"
 	"U | 460_switch_clipboard.sh --terminal"
 	"S | 465_sddm_setup.sh --auto"
-	"U | 470_vesktop_matugen.sh --auto"
+	"U | 470_equibop_matugen.sh --auto"
 	"U | 475_reverting_sleep_timeout.sh"
 	"U | 480_dawn_commands.sh"
 	"S | 485_sudoers_nopassword.sh"
@@ -204,6 +204,8 @@ declare -ar DEPENDENCY_PACKAGES=(
 	rofi-connman xdg-terminal-exec papirus-icon-theme-git papirus-folders-git
 	# AUR Helpers (from 080_aur_paru_fallback_yay.sh)
 	paru yay
+	# AUR Discord Client (from 470_equibop_matugen.sh)
+	equibop-bin
 )
 
 # ==============================================================================

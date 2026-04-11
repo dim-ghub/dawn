@@ -2356,13 +2356,13 @@ pages:
     items:
     - type: button
       properties:
-        title: Vesktop Setup
+        title: Equibop Setup
         description: Superior Discord client with theming
         icon: applications-internet-symbolic
         button_text: "Setup"
       on_press:
         type: exec
-        command: kitty --class 470_vesktop_matugen.sh --hold sh -c "$HOME/user_scripts/arch_setup_scripts/scripts/470_vesktop_matugen.sh"
+        command: kitty --class 470_equibop_matugen.sh --hold sh -c "$HOME/user_scripts/arch_setup_scripts/scripts/470_equibop_matugen.sh"
         terminal: false
 
   - type: section

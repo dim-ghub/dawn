@@ -46,7 +46,7 @@ audio/wav=mpv.desktop
 application/pdf=org.pwmt.zathura.desktop
 inode/directory=yazi.desktop
 application/x-zerosize=nvim.desktop
-x-scheme-handler/discord=vesktop.desktop
+x-scheme-handler/discord=equibop.desktop
 
 [Added Associations]
 video/mp4=mpv.desktop;vlc.desktop;fr.handbrake.ghb.desktop;
