@@ -71,9 +71,7 @@ readonly OPENRC_USER_SERVICES_CONFIG=(
 	"$REAL_HOME/user_scripts/openrc/user/init.d/hyprsunset | disable"
 	"$REAL_HOME/user_scripts/openrc/user/init.d/swayosd | enable"
 	"$REAL_HOME/user_scripts/openrc/user/init.d/network-meter | enable"
-	"$REAL_HOME/user_scripts/openrc/user/init.d/pipewire | enable"
-	"$REAL_HOME/user_scripts/openrc/user/init.d/wireplumber | enable"
-	"$REAL_HOME/user_scripts/openrc/user/init.d/pipewire-pulse | enable"
+	# pipewire/wireplumber/pipewire-pulse: installed by -openrc packages to /etc/user/init.d/
 	"$REAL_HOME/user_scripts/openrc/user/init.d/battery-notify | enable"
 	"$REAL_HOME/user_scripts/openrc/user/init.d/dawn-control-center | disable"
 	"$REAL_HOME/user_scripts/openrc/user/init.d/dawn-sliders | disable"
