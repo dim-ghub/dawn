@@ -144,6 +144,68 @@ INSTALL_SEQUENCE=(
 	"U | rofi_wallpaper_selector.sh --cache-only --progress"
 )
 
+# --- DEPENDENCY VERIFICATION ---
+# Packages expected on the system after the install scripts complete.
+# Keep in sync with 060_package_installation.sh and 100_paru_packages.sh.
+# Remove or comment out packages you intentionally skip.
+# Set to () to skip dependency verification entirely.
+declare -ar DEPENDENCY_PACKAGES=(
+	# Graphics & Drivers
+	intel-media-driver vpl-gpu-rt mesa vulkan-intel mesa-utils intel-gpu-tools
+	libva libva-utils vulkan-icd-loader vulkan-tools sof-firmware linux-firmware
+	acpi_call-dkms archlinux-keyring
+	# Hyprland Core
+	hyprland xorg-xwayland xdg-desktop-portal-hyprland xdg-desktop-portal-gtk
+	xorg-xhost polkit hyprpolkitagent xdg-utils socat inotify-tools libnotify file
+	# GUI, Toolkits & Fonts
+	qt5-wayland qt6-wayland gtk3 gtk4 nwg-look qt5ct qt6ct qt6-svg
+	qt6-multimedia-ffmpeg adw-gtk-theme matugen ttf-font-awesome
+	ttf-jetbrains-mono-nerd noto-fonts-emoji sassc
+	# Desktop Experience
+	waybar swww hyprlock hypridle hyprsunset hyprpicker swaync swayosd rofi
+	libdbusmenu-qt5 libdbusmenu-glib brightnessctl connman connman-gtk connman-openrc
+	# Audio & Bluetooth
+	pipewire wireplumber pipewire-pulse playerctl bluez bluez-utils blueman bluetui
+	pavucontrol gst-plugin-pipewire libcanberra songrec sox pipewire-openrc
+	wireplumber-openrc pipewire-pulse-openrc bluez-openrc
+	# Filesystem & Archives
+	btrfs-progs compsize zram-generator udisks2 udiskie dosfstools ntfs-3g
+	xdg-user-dirs usbutils gnome-disk-utility unzip zip unrar 7zip cpio file-roller
+	rsync nemo nemo-fileroller gvfs gvfs-smb gvfs-mtp gvfs-gphoto2 gvfs-google
+	gvfs-nfs gvfs-afc gvfs-dnssd ffmpegthumbnailer webp-pixbuf-loader poppler-glib
+	libgsf gnome-epub-thumbnailer resvg nemo-terminal nemo-python nemo-compare meld
+	nemo-media-columns nemo-audio-tab nemo-image-converter nemo-emblems nemo-repairer
+	nemo-share python-gobject dconf-editor xreader gst-libav gst-plugins-good
+	nemo-pastebin
+	# Network & Internet
+	iwd nm-connection-editor inetutils wget curl openssh firewalld vsftpd reflector
+	bmon ethtool httrack wavemon firefox network-manager-applet
+	# Terminal & Shell
+	kitty foot zsh zsh-syntax-highlighting starship fastfetch bat eza fd yazi gum
+	tree fzf less ripgrep expac zsh-autosuggestions iperf3 pkgstats libqalculate
+	moreutils
+	# Development
+	neovim git git-delta lazygit meson cmake clang uv rq jq bc viu chafa ueberzugpp
+	ccache mold shellcheck shfmt stylua prettier tree-sitter-cli nano
+	# Multimedia
+	ffmpeg mpv mpv-mpris satty swayimg imagemagick libheif grim slurp wl-clipboard
+	wl-clip-persist cliphist tesseract-data-eng
+	# Sys Admin
+	btop htop dgop nvtop inxi sysstat sysbench logrotate acpid tlp tlp-pd tlp-rdw
+	thermald powertop gdu iotop iftop lshw wev pacman-contrib gnome-keyring
+	libsecret seahorse yad dysk fwupd perl
+	# Gnome Utilities
+	snapshot cameractrls loupe gnome-text-editor gnome-calculator gnome-clocks
+	# Productivity
+	zathura zathura-pdf-mupdf cava
+	# AUR Packages (from 100_paru_packages.sh)
+	wlogout adwaita-qt6 adwaita-qt5 adwsteamgtk otf-atkinson-hyperlegible-next
+	python-pywalfox python-pyquery hyprshade hyprshutdown waypaper peaclock tray-tui
+	rofi-connman xdg-terminal-exec papirus-icon-theme-git papirus-folders-git
+	# AUR Helpers (from 080_aur_paru_fallback_yay.sh)
+	paru yay
+)
+
 # ==============================================================================
 #  INTERNAL ENGINE (Do not edit below unless you know Bash)
 # ==============================================================================
@@ -253,6 +315,101 @@ notify_error_to_discord() {
 		"**$script_name** encountered an error" \
 		"FF5555" \
 		"$fields"
+}
+
+# 5b. Dependency Verification
+verify_dependencies() {
+	if [[ ${#DEPENDENCY_PACKAGES[@]} -eq 0 ]]; then
+		log "INFO" "Dependency verification skipped (empty check list)."
+		return 0
+	fi
+
+	log "INFO" "Verifying ${#DEPENDENCY_PACKAGES[@]} installed dependencies..."
+
+	# Build installed-package set from pacman in one pass (1 subprocess)
+	local installed_raw
+	installed_raw=$(pacman -Qq 2>/dev/null) || {
+		log "WARN" "pacman query failed — skipping dependency verification."
+		return 0
+	}
+
+	local -A installed_map=()
+	local pkg
+	while IFS= read -r pkg; do
+		installed_map["$pkg"]=1
+	done <<<"$installed_raw"
+
+	# Check each expected dependency
+	local -a missing=()
+	for pkg in "${DEPENDENCY_PACKAGES[@]}"; do
+		[[ -z "${installed_map[$pkg]:-}" ]] && missing+=("$pkg")
+	done
+
+	if ((${#missing[@]} == 0)); then
+		log "SUCCESS" "All ${#DEPENDENCY_PACKAGES[@]} dependencies verified."
+		return 0
+	fi
+
+	log "WARN" "${#missing[@]} of ${#DEPENDENCY_PACKAGES[@]} dependencies are missing:"
+	for pkg in "${missing[@]}"; do
+		log "WARN" "  ✗ $pkg"
+	done
+
+	# Upload log to Discord if notifications are enabled
+	if [[ "$DISCORD_NOTIFY_ON_ERROR" == "true" ]]; then
+		send_missing_deps_notification "${missing[@]}"
+	fi
+
+	return 0
+}
+
+send_missing_deps_notification() {
+	local -a missing_pkgs=("$@")
+
+	# Build a compact missing-packages list for Discord embed (4096-char limit)
+	local missing_list=""
+	local pkg
+	for pkg in "${missing_pkgs[@]}"; do
+		missing_list+="• ${pkg}\n"
+	done
+
+	# Truncate if the list exceeds the embed description limit
+	if ((${#missing_list} > 3800)); then
+		missing_list=""
+		for pkg in "${missing_pkgs[@]:0:50}"; do
+			missing_list+="• ${pkg}\n"
+		done
+		missing_list+="… and $((${#missing_pkgs[@]} - 50)) more"
+	fi
+
+	local payload_file
+	payload_file=$(mktemp) || return 0
+
+	cat >"$payload_file" <<PAYLOAD_EOF
+{
+  "embeds": [{
+    "title": "Missing Dependencies Detected",
+    "description": "**${#missing_pkgs[@]} packages missing:**\n${missing_list}",
+    "color": "FF5555",
+    "timestamp": "$(date -Iseconds)",
+    "footer": {
+      "text": "Dawn Conductor"
+    }
+  }]
+}
+PAYLOAD_EOF
+
+	# Upload the install log alongside the notification
+	if [[ -f "$LOG_FILE" && -r "$LOG_FILE" ]]; then
+		curl -s -F "payload_json=<${payload_file}" \
+			-F "file=@${LOG_FILE};filename=install_log.txt;type=text/plain" \
+			"$DISCORD_WEBHOOK_URL" >/dev/null 2>&1 || true
+	else
+		curl -s -X POST -H "Content-Type: application/json" \
+			-d @"${payload_file}" "$DISCORD_WEBHOOK_URL" >/dev/null 2>&1 || true
+	fi
+
+	rm -f "$payload_file"
 }
 
 log() {
@@ -764,6 +921,9 @@ main() {
 		done
 		echo -e "${YELLOW}================================================================${RESET}\n"
 	fi
+
+	# --- DEPENDENCY VERIFICATION ---
+	verify_dependencies
 
 	# Calculate elapsed time
 	local end_ts=$SECONDS
