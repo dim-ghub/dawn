@@ -367,6 +367,16 @@ install_group() {
 
 	print_warn "Batch transaction failed. Retrying individually..."
 
+	# Refresh package databases before individual retries — stale mirrors
+	# often return 404 for packages the local DB thinks exist but haven't
+	# synced yet. A forced refresh gives the mirrors another chance.
+	print_info "Refreshing package databases (pacman -Syy)..."
+	if run_pacman --sync --refresh --refresh; then
+		print_ok "Database refresh successful."
+	else
+		print_warn "Database refresh had issues — continuing with retries anyway."
+	fi
+
 	for pkg in "${pkgs[@]}"; do
 		if pacman -Qq -- "$pkg" >/dev/null 2>&1; then
 			printf '  %s[=] Already installed:%s %s\n' "$CYAN" "$RESET" "$pkg"
