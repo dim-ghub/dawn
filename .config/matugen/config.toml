@@ -255,16 +255,14 @@ fi
 input_path  = '/dev/null'
 output_path = '/dev/null'
 post_hook   = '''
-  systemctl --user reset-failed dawn.service || :
-  systemctl --user restart dawn.service || :
+  rc-service --user restart dawn || :
 '''
 
 [templates.dawn_sliders]
 input_path  = '/dev/null'
 output_path = '/dev/null'
 post_hook   = '''
-  systemctl --user reset-failed dawn_sliders.service || :
-  systemctl --user restart dawn_sliders.service || :
+  rc-service --user restart dawn_sliders || :
 '''
 
 
@@ -272,8 +270,7 @@ post_hook   = '''
 input_path  = '/dev/null'
 output_path = '/dev/null'
 post_hook   = '''
-  systemctl --user reset-failed hyprpolkitagent || :
-  systemctl --user restart hyprpolkitagent || :
+  rc-service --user restart hyprpolkitagent || :
 '''
 
 

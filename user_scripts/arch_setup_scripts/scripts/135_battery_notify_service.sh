@@ -23,8 +23,10 @@ log_error() { printf '%s[ERROR]%s %s\n' "${RED}" "${NC}" "$1" >&2; }
 # --- Configuration ---
 readonly SERVICE_NAME="battery-notify"
 readonly DOTFILES_INITD_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../openrc/user/init.d"
-readonly USER_RC_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/rc"
-readonly USER_INIT_DIR="${USER_RC_DIR}/init.d"
+# Ensure XDG_CONFIG_HOME is set, fall back to ~/.config
+USER_RC_DIR="${XDG_CONFIG_HOME:-${HOME}/.config}/rc"
+USER_INIT_DIR="${USER_RC_DIR}/init.d"
+USER="${USER:-$(whoami)}"
 
 # --- Root Guard ---
 if [[ "${EUID}" -eq 0 ]]; then
@@ -65,7 +67,18 @@ fi
 # --- Install ---
 log_info "Installing battery-notify as OpenRC user service..."
 
-mkdir -p "${USER_INIT_DIR}"
+# Ensure directory exists and is owned by user (not root)
+if [[ ! -d "${USER_INIT_DIR}" ]]; then
+	mkdir -p "${USER_INIT_DIR}"
+fi
+
+# If directory is owned by root, fix it
+if [[ "$(stat -c '%U' "${USER_INIT_DIR}")" == "root" ]]; then
+	chown -R "${USER}:${USER}" "${USER_INIT_DIR}" 2>/dev/null || {
+		# If we can't fix ownership, try removing and recreating
+		rm -rf "${USER_INIT_DIR}"
+		mkdir -p "${USER_INIT_DIR}"
+	}
 
 # Install from dotfiles user init.d if available
 if [[ -x "${DOTFILES_INITD_DIR}/${SERVICE_NAME}" ]]; then
