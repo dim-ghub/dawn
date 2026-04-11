@@ -74,7 +74,7 @@ INSTALL_SEQUENCE=(
 	"S | 180_udev_usb_notify.sh"
 	"U | 185_terminal_default.sh"
 	#    "S | 190_dusk_fstab.sh"
-	#    "S | 195_firefox_symlink_partition.sh"
+	#    "S | 195_zen_symlink_partition.sh"
 	#    "S | 200_tlp_config.sh"
 	"S | 205_zram_configuration.sh"
 	#    "S | 210_zram_optimize_swappiness.sh"
@@ -83,9 +83,9 @@ INSTALL_SEQUENCE=(
 	#    "S | 225_faillock_timeout.sh"
 	"U | 230_non_asus_laptop.sh --auto"
 	"U | 235_file_manager_switch.sh --nemo"
-	"U | 236_browser_switcher.sh --firefox"
+	"U | 236_browser_switcher.sh --zen-browser"
 
-	#    "U | dawn_firefox_tui.sh --sync --all"
+	#    "U | dawn_zen_tui.sh --sync --all"
 
 	"U | 237_text_editor_switcher.sh --gnome-text-editor"
 	"U | 238_terminal_switcher.sh --kitty"
@@ -122,7 +122,7 @@ INSTALL_SEQUENCE=(
 	#    "S | 385_waydroid_setup.sh"
 	"U | 390_clipboard_persistence.sh --ram"
 	"S | 395_intel_media_sdk_check.sh"
-	"U | 400_firefox_matugen_pywalfox.sh"
+	"U | 400_zen_matugen_pywalfox.sh"
 	#    "U | 405_spicetify_matugen_setup.sh"
 	"U | 410_waybar_swap_config.sh"
 	"U | 415_mpv_setup.sh"
@@ -179,7 +179,7 @@ declare -ar DEPENDENCY_PACKAGES=(
 	nemo-pastebin
 	# Network & Internet
 	iwd nm-connection-editor inetutils wget curl openssh firewalld vsftpd reflector
-	bmon ethtool httrack wavemon firefox network-manager-applet
+	bmon ethtool httrack wavemon network-manager-applet
 	# Terminal & Shell
 	kitty foot zsh zsh-syntax-highlighting starship fastfetch bat eza fd yazi gum
 	tree fzf less ripgrep expac zsh-autosuggestions iperf3 pkgstats libqalculate
@@ -202,6 +202,8 @@ declare -ar DEPENDENCY_PACKAGES=(
 	wlogout adwaita-qt6 adwaita-qt5 adwsteamgtk otf-atkinson-hyperlegible-next
 	python-pywalfox python-pyquery hyprshade hyprshutdown waypaper peaclock tray-tui
 	rofi-connman xdg-terminal-exec papirus-icon-theme-git papirus-folders-git
+	# AUR Browser (from 400_zen_matugen_pywalfox.sh)
+	zen-browser-bin
 	# AUR Helpers (from 080_aur_paru_fallback_yay.sh)
 	paru yay
 	# AUR Discord Client (from 470_equibop_matugen.sh)

@@ -96,7 +96,7 @@ register_items() {
 	register_template 3 "Dump All Matugen Colors" "master_dump" "false" ""
 	register_template 3 "Btop" "btop" "true" ""
 	register_template 3 "Pywalfox" "pywalfox" "true" "pywalfox"
-	register_template 3 "Firefox Web Matugen" "firefox_websites" "false" ""
+	register_template 3 "Zen Web Matugen" "zen_websites" "false" ""
 	register_template 3 "Icon Colors" "papirus_icon_theme" "false" ""
 }
 

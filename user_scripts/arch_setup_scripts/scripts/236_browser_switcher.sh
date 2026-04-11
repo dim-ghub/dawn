@@ -14,7 +14,7 @@
 #
 #    - KEY: The string that will be written to $browser in your config.
 #    - TYPE: '0' for GUI (Direct exec) | '1' for Terminal (Wrapped in terminal).
-#    - DESKTOP_FILE: The filename (e.g., firefox.desktop) for MIME association.
+#    - DESKTOP_FILE: The filename (e.g., zen.desktop) for MIME association.
 #    - DISPLAY_NAME: The friendly name shown in the TUI menu.
 # =============================================================================
 
@@ -234,7 +234,7 @@ switch_browser() {
 
 	# 5. Update State Files
 	local legacy_state="false"
-	[[ "$target" == "firefox" ]] && legacy_state="true"
+	[[ "$target" == "zen-browser" ]] && legacy_state="true"
 	atomic_write "$STATE_FILE" "$legacy_state"
 	atomic_write "${STATE_FILE}.smart" "$target"
 
@@ -620,7 +620,7 @@ main() {
 				switch_browser "$(<"${STATE_FILE}.smart")"
 			elif [[ -f "$STATE_FILE" ]]; then
 				if grep -q "true" "$STATE_FILE"; then
-					switch_browser "firefox"
+					switch_browser "zen-browser"
 				else
 					switch_browser "chromium"
 				fi

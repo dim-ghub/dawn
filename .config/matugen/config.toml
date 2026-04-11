@@ -291,9 +291,10 @@ post_hook   = '''
 # "$HOME/user_scripts/gtk/papirus_folder_colors.sh" || :
 # '''
 
-[templates.firefox_websites]
-input_path = '~/.config/matugen/templates/firefox_websites.css'
-output_path = '~/.config/matugen/generated/firefox_websites.css'
+[templates.zen_websites]
+input_path = '~/.config/matugen/templates/zen_websites.css'
+output_path = '~/.config/matugen/generated/zen_websites.css'
 post_hook = '''
-    ln -nfs "/home/dusk/.config/matugen/generated/firefox_websites.css" "/home/dusk/.mozilla/firefox/dd7ma16i.default-release/chrome/colors.css"
+    mkdir -p "$HOME/.config/zen"
+    ln -nfs "$HOME/.config/matugen/generated/zen_websites.css" "$HOME/.config/zen/colors.css"
 '''

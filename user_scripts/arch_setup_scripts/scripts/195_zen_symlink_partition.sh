@@ -1,8 +1,8 @@
 #!/bin/bash
-# Firefox Data Migration Utility for browser directory, so data is encrypted
+# Zen Browser Data Migration Utility — encrypts browser data on a separate partition
 #
 # ==============================================================================
-# Firefox Data Migration Utility
+# Zen Browser Data Migration Utility
 # ==============================================================================
 
 # ------------------------------------------------------------------------------
@@ -30,7 +30,7 @@ YELLOW=$'\033[1;33m'
 BLUE=$'\033[0;34m'
 NC=$'\033[0m'
 
-echo -e "${YELLOW}:: Firefox Data Migration Tool initialized.${NC}"
+echo -e "${YELLOW}:: Zen Browser Data Migration Tool initialized.${NC}"
 echo -e "Target User: ${GREEN}$REAL_USER${NC}"
 echo -e "Target Home: ${GREEN}$REAL_HOME${NC}"
 
@@ -38,7 +38,7 @@ echo -e "Target Home: ${GREEN}$REAL_HOME${NC}"
 # DESCRIPTION & CONTEXT
 # ------------------------------------------------------------------------------
 echo -e "\n${BLUE}=== PURPOSE ===${NC}"
-echo -e "This utility migrates your Firefox data to a separate dedicated partition."
+echo -e "This utility migrates your Zen Browser data to a separate dedicated partition."
 echo -e "Recommended Setup: A ~1GB partition mounted at /mnt/browser."
 echo -e "${YELLOW}Security Benefit:${NC} This partition should be encrypted (LUKS) to protect"
 echo -e "cookies and passwords even if the computer is stolen or logged in."
@@ -57,25 +57,25 @@ echo -e "   ${GREEN}unlock browser${NC}"
 echo -e "   This works for BTRFS, NTFS, or EXT4 and handles all mounting logic.\n"
 
 # ------------------------------------------------------------------------------
-# STEP 1: Interactive Prompts (Fixed for Orchestra Integration)
+# STEP 1: Interactive Prompts
 # ------------------------------------------------------------------------------
 
-# FORCE read from /dev/tty to bypass Orchestra logging pipes
+# FORCE read from /dev/tty to bypass Conductor logging pipes
 # Defaults to No (N) if user presses Enter
 
 read -p "Do you have a dedicated partition for browser files mounted at /mnt/browser? (y/N): " partition_confirm </dev/tty
 partition_confirm=${partition_confirm:-N} # Set default to N
 
 if [[ ! "$partition_confirm" =~ ^[Yy]$ ]]; then
-	echo -e "${YELLOW}:: User declined (Default: No). SKIPPING Firefox migration.${NC}"
-	# Exit 0 ensures Conductor continues to script #032
+	echo -e "${YELLOW}:: User declined (Default: No). SKIPPING Zen Browser migration.${NC}"
+	# Exit 0 ensures Conductor continues to next script
 	exit 0
 fi
 
 # Check for directory existence
 if [ ! -d "/mnt/browser" ]; then
 	echo -e "${RED}Error: /mnt/browser directory not found.${NC}"
-	echo -e "${YELLOW}:: SKIPPING Firefox migration to prevent errors.${NC}"
+	echo -e "${YELLOW}:: SKIPPING Zen Browser migration to prevent errors.${NC}"
 	exit 0
 fi
 
@@ -88,13 +88,13 @@ fi
 
 # Automatically check for existing data
 echo -e "${YELLOW}:: Checking for existing data in /mnt/browser...${NC}"
-if [ -d "/mnt/browser/.mozilla" ]; then
-	echo -e "${GREEN}:: Found existing .mozilla directory. Linking to existing data.${NC}"
+if [ -d "/mnt/browser/zen" ]; then
+	echo -e "${GREEN}:: Found existing zen directory. Linking to existing data.${NC}"
 else
 	echo -e "${GREEN}:: No data found. Will create new directory structure.${NC}"
 fi
 
-echo -e "${RED}WARNING: Starting destructive operations on $REAL_HOME/.mozilla...${NC}"
+echo -e "${RED}WARNING: Starting destructive operations on $REAL_HOME/.zen...${NC}"
 read -p "Press [Enter] to execute or Ctrl+C to cancel." </dev/tty
 
 # ------------------------------------------------------------------------------
@@ -102,25 +102,25 @@ read -p "Press [Enter] to execute or Ctrl+C to cancel." </dev/tty
 # ------------------------------------------------------------------------------
 
 # 1. Wipe local data
-echo -e "${YELLOW}:: Wiping local Firefox data...${NC}"
-rm -rf "$REAL_HOME/.mozilla" "$REAL_HOME/.cache/mozilla"
+echo -e "${YELLOW}:: Wiping local Zen Browser data...${NC}"
+rm -rf "$REAL_HOME/.zen" "$REAL_HOME/.cache/zen"
 
 # 2. Create/Ensure target directory on mount
 echo -e "${YELLOW}:: Ensuring target directory exists on mount...${NC}"
-mkdir -p /mnt/browser/.mozilla
+mkdir -p /mnt/browser/zen
 
 # 3. Fix Ownership (Recursive)
-echo -e "${YELLOW}:: Setting ownership permissions on /mnt/browser/.mozilla...${NC}"
-chown -R "$REAL_USER":"$REAL_GROUP" /mnt/browser/.mozilla
+echo -e "${YELLOW}:: Setting ownership permissions on /mnt/browser/zen...${NC}"
+chown -R "$REAL_USER":"$REAL_GROUP" /mnt/browser/zen
 
 # 4. Create the symbolic link
-echo -e "${YELLOW}:: Linking /mnt/browser/.mozilla to $REAL_HOME/.mozilla...${NC}"
-ln -nfs /mnt/browser/.mozilla "$REAL_HOME/.mozilla"
+echo -e "${YELLOW}:: Linking /mnt/browser/zen to $REAL_HOME/.zen...${NC}"
+ln -nfs /mnt/browser/zen "$REAL_HOME/.zen"
 
 # 5. Fix Symlink Ownership
-chown -h "$REAL_USER":"$REAL_GROUP" "$REAL_HOME/.mozilla"
+chown -h "$REAL_USER":"$REAL_GROUP" "$REAL_HOME/.zen"
 
 # ------------------------------------------------------------------------------
 # Completion
 # ------------------------------------------------------------------------------
-echo -e "${GREEN}:: Firefox migration complete.${NC}"
+echo -e "${GREEN}:: Zen Browser migration complete.${NC}"

@@ -19,7 +19,7 @@
       //                                         //
       /////////////////////////////////////////////
 
-      "modules-left": ["custom/launcher", "custom/firefox", "custom/terminal", "custom/code", "custom/files", "group/mpris-drawer", "cava"],
+      "modules-left": ["custom/launcher", "custom/browser", "custom/terminal", "custom/code", "custom/files", "group/mpris-drawer", "cava"],
       "modules-center": ["wlr/taskbar"],
       "modules-right": ["group/group-tools", "group/pulseaudio", "group/laptop", "tray", "clock", "custom/notifs", "group/group-power"],
 
@@ -264,7 +264,7 @@
               "transition-left-to-right": true
           },
           "modules": [
-              "custom/firefox",
+              "custom/browser",
               "custom/terminal",
               "custom/mpris-trigger",
               "custom/files"
@@ -279,12 +279,12 @@
           "on-click": "gdbus call --session --dest com.github.dawn.controlcenter --object-path /com/github/dawn/controlcenter --method org.freedesktop.Application.Activate '{}'"
       },
 
-      "custom/firefox":
+"custom/browser":
       {
-          "format": "",
+          "format": "󰈹",
           "tooltip": true,
           "tooltip-format": "Browser",
-          "on-click": "firefox"
+          "on-click": "zen-browser"
       },
 
       "custom/terminal":

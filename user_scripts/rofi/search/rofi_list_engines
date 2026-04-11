@@ -11,8 +11,8 @@ for cmd in "${REQUIRED[@]}"; do
 done
 
 # Browser setup
-if command -v firefox >/dev/null 2>&1; then
-    export BROWSER=${BROWSER:-firefox}
+if command -v zen-browser >/dev/null 2>&1; then
+    export BROWSER=${BROWSER:-zen-browser}
 else
     export BROWSER=xdg-open
 fi

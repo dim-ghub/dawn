@@ -108,7 +108,7 @@
         "icon": true,
         "icon-size": 16,
         "rewrite": {
-            "(.*) — Mozilla Firefox": "󰈹",
+            "(.*) — Zen Browser": "󰈹",
             "(.*) - Visual Studio Code": "󰨞",
             "(.*) - Discord": "󰙯",
             "(.*) - Obsidian(.*)": "󱓧",

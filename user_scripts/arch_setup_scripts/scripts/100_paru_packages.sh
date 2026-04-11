@@ -103,6 +103,7 @@ declare -ar PACKAGES=(
 	"xdg-terminal-exec"
 	"papirus-icon-theme-git"
 	"papirus-folders-git"
+	"zen-browser-bin"
 	# "fluent-icon-theme-git"
 )
 

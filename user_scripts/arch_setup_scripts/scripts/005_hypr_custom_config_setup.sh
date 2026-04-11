@@ -75,7 +75,7 @@ get_file_content() {
 $terminal    = kitty
 $fileManager = nemo
 $menu        = rofi -show drun
-$browser     = firefox
+$browser     = zen-browser
 $textEditor  = nvim
 EOF
 		;;

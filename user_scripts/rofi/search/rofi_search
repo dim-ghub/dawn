@@ -9,10 +9,10 @@ for cmd in "${REQUIRED[@]}"; do
     fi
 done
 
-if ! command -v firefox >/dev/null 2>&1; then
+if ! command -v zen-browser >/dev/null 2>&1; then
     export BROWSER=xdg-open
 else
-    export BROWSER=${BROWSER:-firefox}
+    export BROWSER=${BROWSER:-zen-browser}
 fi
 
 export SEARCH_CONFIG="$HOME/.config/surfraw/custom_searches.conf"

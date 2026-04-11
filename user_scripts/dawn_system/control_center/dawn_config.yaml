@@ -2537,13 +2537,13 @@ pages:
         terminal: false
     - type: button
       properties:
-        title: Fix Firefox Theme
-        description: Apply Matugen/Pywalfox theme
+        title: Fix Browser Theme
+        description: Apply Matugen/PywalZen/Zen theme
         icon: web-browser-symbolic
         button_text: "Fix"
       on_press:
         type: exec
-        command: kitty --class 400_firefox_matugen_pywalfox.sh --hold sh -c "$HOME/user_scripts/arch_setup_scripts/scripts/400_firefox_matugen_pywalfox.sh"
+        command: kitty --class 400_zen_matugen_pywalfox.sh --hold sh -c "$HOME/user_scripts/arch_setup_scripts/scripts/400_zen_matugen_pywalfox.sh"
         terminal: false
     - type: button
       properties:
