@@ -1,12 +1,22 @@
 #!/usr/bin/env bash
-# Installs multiple systemd user services and manages their state.
-# Supports both systemd and OpenRC.
+# Installs OpenRC system and user service scripts and manages their state.
+# ==============================================================================
+# SERVICE INSTALLER (OpenRC System + User)
+# ==============================================================================
+# Description: Installs and manages both system-level and user-level OpenRC
+#              service init scripts. System services require root; user services
+#              do not. Correctly resolves $REAL_HOME when run via sudo.
+# Standards:   Bash 5+, set -euo pipefail, Auto-Sudo for system services
+# ==============================================================================
 
-# --- Strict Error Handling ---
-# -e: Exit immediately if a command exits with a non-zero status.
-# -u: Treat unset variables as an error.
-# -o pipefail: pipeline return status is the value of the last (failed) command.
 set -euo pipefail
+
+# --- Resolve real user home directory (handles sudo) ---
+REAL_HOME="${SUDO_USER_HOME:-}"
+if [[ -z "${REAL_HOME}" ]] && [[ -n "${SUDO_USER:-}" ]]; then
+	REAL_HOME="$(getent passwd "${SUDO_USER}" | cut -d: -f6)"
+fi
+REAL_HOME="${REAL_HOME:-$HOME}"
 
 # --- Color Support ---
 # Only use colors if connected to a terminal (prevents log pollution)
@@ -28,49 +38,49 @@ fi
 #   'disable' -> Default to Stop & Disable (Enter = No)
 readonly SERVICES_CONFIG=(
 	# Example 0: Bluetooth Monitor (Default: Disable)
-	# "$HOME/user_scripts/waybar/bluetooth/bt_monitor.service | disable"
+	# "$REAL_HOME/user_scripts/waybar/bluetooth/bt_monitor.service | disable"
 
 	# Add your own paths below...
 
 	# Example 1: Network Meter (Default: Enable)
-	"$HOME/user_scripts/waybar/network/network_meter.service | enable"
+	"$REAL_HOME/user_scripts/waybar/network/network_meter.service | enable"
 
 	# Dusky Control Center Daemon (Default: Disable)
-	"$HOME/user_scripts/dawn_system/control_center/service/dawn.service | disable"
+	"$REAL_HOME/user_scripts/dawn_system/control_center/service/dawn.service | disable"
 
 	# dawn update checker
-	"$HOME/user_scripts/update_dawn/update_checker/service/update_checker.service | disable"
-	"$HOME/user_scripts/update_dawn/update_checker/service/update_checker.timer | enable"
+	"$REAL_HOME/user_scripts/update_dawn/update_checker/service/update_checker.service | disable"
+	"$REAL_HOME/user_scripts/update_dawn/update_checker/service/update_checker.timer | enable"
 
 	# dawn sliders
-	"$HOME/user_scripts/sliders/service/dawn_sliders.service | disable"
+	"$REAL_HOME/user_scripts/sliders/service/dawn_sliders.service | disable"
 )
 
 # OpenRC init scripts (system-level, for Artix Linux)
 readonly OPENRC_SERVICES_CONFIG=(
-	"$HOME/user_scripts/openrc/init.d/network-meter | enable"
-	"$HOME/user_scripts/openrc/init.d/dawn-sliders | disable"
-	"$HOME/user_scripts/openrc/init.d/update-checker | disable"
-	"$HOME/user_scripts/openrc/init.d/waybar | enable"
-	"$HOME/user_scripts/openrc/init.d/hypridle | disable"
-	"$HOME/user_scripts/openrc/init.d/pipewire | enable"
-	"$HOME/user_scripts/openrc/init.d/wireplumber | enable"
-	"$HOME/user_scripts/openrc/init.d/swww | disable"
-	"$HOME/user_scripts/openrc/init.d/swayosd | enable"
+	"$REAL_HOME/user_scripts/openrc/init.d/network-meter | enable"
+	"$REAL_HOME/user_scripts/openrc/init.d/dawn-sliders | disable"
+	"$REAL_HOME/user_scripts/openrc/init.d/update-checker | disable"
+	"$REAL_HOME/user_scripts/openrc/init.d/waybar | enable"
+	"$REAL_HOME/user_scripts/openrc/init.d/hypridle | disable"
+	"$REAL_HOME/user_scripts/openrc/init.d/pipewire | enable"
+	"$REAL_HOME/user_scripts/openrc/init.d/wireplumber | enable"
+	"$REAL_HOME/user_scripts/openrc/init.d/swww | disable"
+	"$REAL_HOME/user_scripts/openrc/init.d/swayosd | enable"
 )
 
 # OpenRC user service scripts (user-level, no root needed)
 readonly OPENRC_USER_SERVICES_CONFIG=(
-	"$HOME/user_scripts/openrc/user/init.d/hypridle | disable"
-	"$HOME/user_scripts/openrc/user/init.d/hyprsunset | disable"
-	"$HOME/user_scripts/openrc/user/init.d/network-meter | enable"
-	"$HOME/user_scripts/openrc/user/init.d/dawn-control-center | disable"
-	"$HOME/user_scripts/openrc/user/init.d/dawn-sliders | disable"
-	"$HOME/user_scripts/openrc/user/init.d/update-checker | disable"
+	"$REAL_HOME/user_scripts/openrc/user/init.d/hypridle | disable"
+	"$REAL_HOME/user_scripts/openrc/user/init.d/hyprsunset | disable"
+	"$REAL_HOME/user_scripts/openrc/user/init.d/network-meter | enable"
+	"$REAL_HOME/user_scripts/openrc/user/init.d/dawn-control-center | disable"
+	"$REAL_HOME/user_scripts/openrc/user/init.d/dawn-sliders | disable"
+	"$REAL_HOME/user_scripts/openrc/user/init.d/update-checker | disable"
 )
 
 # XDG Standard: ~/.config/systemd/user
-readonly SYSTEMD_USER_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
+readonly SYSTEMD_USER_DIR="${XDG_CONFIG_HOME:-$REAL_HOME/.config}/systemd/user"
 
 # Detect init system
 readonly INIT_SYSTEM="openrc"
@@ -199,7 +209,7 @@ install_and_manage_user() {
 	local default_action="$2"
 	local service_name
 	local target_file
-	local user_init_dir="${XDG_CONFIG_HOME:-$HOME/.config}/rc/init.d"
+	local user_init_dir="${XDG_CONFIG_HOME:-$REAL_HOME/.config}/rc/init.d"
 	local prompt_msg
 	local user_input
 	local user_choice
