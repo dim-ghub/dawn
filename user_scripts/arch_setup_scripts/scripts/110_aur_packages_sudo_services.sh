@@ -1,19 +1,15 @@
 #!/usr/bin/env bash
-# Enables Root services for Aur packages
+# Enables Root services for AUR packages
 # ==============================================================================
-# SYSTEM SERVICE ENABLER (Systemd/OpenRC)
+# SYSTEM SERVICE ENABLER (OpenRC)
 # ==============================================================================
-# Description: Enables system services safely and sequentially.
-#              Supports both systemd and OpenRC.
-# Logic:       Checks EUID -> Detect Init -> Iterates Array -> Checks Unit Existence -> Enables
-# Standards:   Bash 5+, set -euo pipefail, No Logs, Auto-Sudo
+# Description: Enables system services safely and sequentially via OpenRC.
+# Standards:   Bash 5+, set -euo pipefail, Auto-Sudo
 # ==============================================================================
 
-# --- 1. Strict Error Handling & Safety ---
 set -euo pipefail
 
-# --- 2. Configuration (User Editable) ---
-# Add your system services here.
+# --- 1. Configuration (User Editable) ---
 readonly TARGET_SERVICES=(
 	"fwupd"
 	"warp-svc"
@@ -21,53 +17,36 @@ readonly TARGET_SERVICES=(
 	"asusd"
 	"NetworkManager"
 	"bluetooth"
-	# Add more services below:
-	# "bluetooth"
 )
 
-# --- Init System ---
-readonly INIT_SYSTEM="openrc"
+# --- 2. Formatting & Visuals ---
+readonly C_RESET=$'\033[0m'
+readonly C_BOLD=$'\033[1m'
+readonly C_GREEN=$'\033[0;32m'
+readonly C_YELLOW=$'\033[1;33m'
+readonly C_RED=$'\033[0;31m'
+readonly C_BLUE=$'\033[0;34m'
 
-# --- 3. Formatting & Visuals ---
-# We use $'\e...' to ensure the escape character is interpreted correctly
-readonly C_RESET=$'\e[0m'
-readonly C_BOLD=$'\e[1m'
-readonly C_GREEN=$'\e[32m'
-readonly C_YELLOW=$'\e[33m'
-readonly C_RED=$'\e[31m'
-readonly C_BLUE=$'\e[34m'
+log_info() { printf '%s[INFO]%s    %s\n' "${C_BLUE}" "${C_RESET}" "$1"; }
+log_success() { printf '%s[SUCCESS]%s %s\n' "${C_GREEN}" "${C_RESET}" "$1"; }
+log_warn() { printf '%s[SKIP]%s    %s\n' "${C_YELLOW}" "${C_RESET}" "$1"; }
+log_error() { printf '%s[FAIL]%s    %s\n' "${C_RED}" "${C_RESET}" "$1" >&2; }
 
-log_info() { printf "${C_BLUE}[INFO]${C_RESET}  %s\n" "$1"; }
-log_success() { printf "${C_GREEN}[OK]${C_RESET}    %s\n" "$1"; }
-log_warn() { printf "${C_YELLOW}[SKIP]${C_RESET}  %s\n" "$1"; }
-log_err() { printf "${C_RED}[FAIL]${C_RESET}  %s\n" "$1"; }
-
-# --- 4. Cleanup Trap ---
-cleanup() {
-	# Reset terminal colors on exit/interruption
-	printf "%s" "${C_RESET}"
-}
-trap cleanup EXIT INT TERM
-
-# --- 5. Privilege Escalation (Auto-Sudo) ---
-# If not running as root, re-execute script with sudo preserving environment
-if [[ $EUID -ne 0 ]]; then
-	log_info "Root privileges required. Elevating..."
-	exec sudo -E "$0" "$@"
+# --- 3. Privilege Escalation (Auto-Sudo) ---
+if [[ "${EUID}" -ne 0 ]]; then
+	exec sudo "$0" "$@"
 fi
 
-# --- 6. Main Logic ---
+# --- 4. Pre-flight Check ---
+if ! command -v rc-service >/dev/null 2>&1; then
+	log_error "rc-service not found. This script requires OpenRC."
+	exit 1
+fi
+
+# --- 5. Main Logic ---
 main() {
-	local init_system
-	init_system=$(detect_init)
-
-	if [[ "$init_system" == "unknown" ]]; then
-		log_err "No init system detected (systemd or OpenRC)."
-		exit 1
-	fi
-
-	printf "\n${C_BOLD}Starting System Service Initialization ($init_system)...${C_RESET}\n"
-	printf "${C_BOLD}-----------------------------------------${C_RESET}\n"
+	printf '\n%sStarting System Service Initialization (OpenRC)...%s\n' "${C_BOLD}" "${C_RESET}"
+	printf '%s-----------------------------------------%s\n' "${C_BOLD}" "${C_RESET}"
 
 	local svc_name
 
@@ -75,18 +54,18 @@ main() {
 		if rc-service -l 2>/dev/null | grep -q "^${svc_name}$"; then
 			if rc-update add "$svc_name" default 2>/dev/null; then
 				rc-service "$svc_name" start 2>/dev/null || true
-				log_success "Enabled & Started: ${C_BOLD}$svc_name${C_RESET}"
+				log_success "Enabled & Started: ${C_BOLD}${svc_name}${C_RESET}"
 			else
-				log_err "Could not enable $svc_name"
+				log_error "Could not enable ${svc_name}"
 			fi
 		else
-			log_warn "Service not found: ${C_BOLD}$svc_name${C_RESET}. Skipping..."
+			log_warn "Service not found: ${C_BOLD}${svc_name}${C_RESET}"
 		fi
 	done
 
-	printf "${C_BOLD}-----------------------------------------${C_RESET}\n"
+	printf '%s-----------------------------------------%s\n' "${C_BOLD}" "${C_RESET}"
 	log_info "Operation complete."
-	printf "\n"
+	printf '\n'
 }
 
 main "$@"
