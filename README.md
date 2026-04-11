@@ -135,7 +135,7 @@ If a script fails (which can happen on a rolling release distro):
 
 ### 📡 Connecting to WiFi with connmanctl
 
-Dawn uses ConnMan instead of NetworkManager. To connect to WiFi from a terminal:
+Dawn uses ConnMan instead of NetworkManager. To connect to WiFi from a terminal (e.g. after a fresh install):
 
 ```bash
 connmanctl
@@ -146,8 +146,6 @@ connmanctl> services
 connmanctl> connect wifi_xxxxxxxxxxxx_xxxxxxxxxxxx
 connmanctl> quit
 ```
-
-You can also use the GUI: `connman-gtk`
 
 ---
 
