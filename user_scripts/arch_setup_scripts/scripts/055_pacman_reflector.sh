@@ -35,9 +35,10 @@ ensure_reflector() {
 }
 
 backup_mirrorlist() {
-	if [[ -f "$TARGET_FILE" ]]; then
-		cp -a "$TARGET_FILE" "${TARGET_FILE}.bak"
-		log_info "Backed up existing mirrorlist to ${TARGET_FILE}.bak"
+	local target="${1:-$TARGET_FILE}"
+	if [[ -f "$target" ]]; then
+		cp -a "$target" "${target}.bak"
+		log_info "Backed up existing mirrorlist to ${target}.bak"
 	fi
 }
 
@@ -1106,6 +1107,110 @@ detect_openrc() {
 	return 1
 }
 
+# --- ARTIX LOGIC ---
+# Artix needs TWO mirrorlists:
+#   /etc/pacman.d/mirrorlist       → Artix repos (system, world, galaxy, lib32)
+#   /etc/pacman.d/mirrorlist-arch  → Arch repos (extra, multilib)
+update_mirrors_artix() {
+	log_info "Artix Linux detected — updating both Artix and Arch mirrorlists."
+
+	# ── Step 1: Update Artix mirrorlist ──
+	log_info "Updating Artix mirrorlist..."
+	if pacman -Qq artix-mirrorlist >/dev/null 2>&1; then
+		log_info "Re-installing artix-mirrorlist package for fresh mirrorlist..."
+		pacman -S --noconfirm artix-mirrorlist 2>/dev/null || {
+			log_warn "Failed to re-install artix-mirrorlist. Attempting direct download."
+			curl -sL "https://gitea.artixlinux.org/packages/artix-mirrorlist/raw/branch/master/mirrorlist" \
+				-o /etc/pacman.d/mirrorlist 2>/dev/null || {
+				log_err "Failed to download Artix mirrorlist. Continuing with existing mirrors."
+			}
+		}
+	else
+		log_info "artix-mirrorlist package not found. Downloading mirrorlist directly..."
+		pacman -S --noconfirm artix-mirrorlist 2>/dev/null || {
+			curl -sL "https://gitea.artixlinux.org/packages/artix-mirrorlist/raw/branch/master/mirrorlist" \
+				-o /etc/pacman.d/mirrorlist 2>/dev/null || {
+				log_err "Failed to download Artix mirrorlist. Continuing with existing mirrors."
+			}
+		}
+	fi
+
+	if [[ -f /etc/pacman.d/mirrorlist ]] && grep -q '^Server' /etc/pacman.d/mirrorlist 2>/dev/null; then
+		log_ok "Artix mirrorlist updated."
+	else
+		log_warn "Artix mirrorlist may be empty or missing Server entries."
+	fi
+
+	# ── Step 2: Update Arch mirrorlist using reflector ──
+	local arch_mirrorlist="/etc/pacman.d/mirrorlist-arch"
+
+	# Check if Arch repos are configured in pacman.conf
+	if ! grep -qE '^\[(extra|multilib)\]' /etc/pacman.conf 2>/dev/null; then
+		log_warn "No Arch repositories configured in pacman.conf. Skipping Arch mirrorlist."
+		log_info "Install artix-archlinux-support and enable [extra]/[multilib] repos to use Arch packages."
+		pacman -Syy || log_err "Failed to sync Artix package databases."
+		return 0
+	fi
+
+	log_info "Updating Arch mirrorlist ($arch_mirrorlist) using reflector..."
+
+	# Install reflector if missing
+	ensure_reflector
+
+	local country="${1:-$DEFAULT_COUNTRY}"
+
+	# If running interactively, ask for country
+	if [[ -t 0 ]] && [[ -z "$country" || "$country" == "list" ]]; then
+		printf '\n%s:: Arch Mirror Configuration%s\n' "$B" "$NC"
+		printf '   NOTE: This is for Arch repo mirrors (extra, multilib).\n'
+		printf '   Artix mirrors were already updated above.\n'
+		printf '   Type %slist%s to view countries, %sskip%s to skip.\n' "$B" "$NC" "$B" "$NC"
+		printf '   Press %s[Enter]%s for default (%s).\n' "$B" "$NC" "$DEFAULT_COUNTRY"
+
+		local input_country
+		read -r -p ":: Enter country for Arch mirrors: " input_country || {
+			printf '\n'
+			pacman -Syy || log_err "Failed to sync package databases."
+			return 0
+		}
+
+		if [[ "${input_country,,}" == "s" || "${input_country,,}" == "skip" ]]; then
+			log_warn "Skipping Arch mirror update."
+			pacman -Syy || log_err "Failed to sync package databases."
+			return 0
+		fi
+
+		if [[ "${input_country,,}" == "list" ]]; then
+			reflector --list-countries 2>/dev/null || true
+			read -r -p ":: Enter country: " input_country || {
+				printf '\n'
+				pacman -Syy || log_err "Failed to sync package databases."
+				return 0
+			}
+		fi
+
+		country="${input_country:-$DEFAULT_COUNTRY}"
+	fi
+
+	backup_mirrorlist "$arch_mirrorlist"
+
+	if reflector --country "$country" --latest 10 --protocol https \
+		--sort rate --download-timeout 5 --save "$arch_mirrorlist" 2>/dev/null; then
+		log_ok "Arch mirrorlist updated via reflector."
+	else
+		log_warn "Reflector failed for Arch mirrors. Attempting direct download..."
+		curl -sL "https://archlinux.org/mirrorlist/all/" -o "${arch_mirrorlist}.tmp" 2>/dev/null &&
+			sed 's/^#Server/Server/' "${arch_mirrorlist}.tmp" >"$arch_mirrorlist" &&
+			rm -f "${arch_mirrorlist}.tmp" || {
+			log_err "Failed to download Arch mirrorlist. Continuing with existing mirrors."
+		}
+	fi
+
+	log_info "Syncing package databases..."
+	pacman -Syy || log_err "Failed to sync package databases."
+	log_ok "Artix mirror update complete."
+}
+
 # --- BARE ARCH LOGIC ---
 update_mirrors() {
 	ensure_reflector
@@ -1247,32 +1352,57 @@ main() {
 	done
 
 	if ((manual_override)); then
-		printf '\n%s:: Manual Mode%s\n' "$B" "$NC"
-		printf '   1) Run standard Arch mirror sync (Reflector + Fallbacks)\n'
-		printf '   2) Skip (use existing mirrors)\n'
+		if detect_openrc; then
+			printf '\n%s:: Manual Mode (Artix)%s\n' "$B" "$NC"
+			printf '   1) Update Artix + Arch mirrors\n'
+			printf '   2) Update Arch mirrors only (reflector)\n'
+			printf '   3) Skip (use existing mirrors)\n'
 
-		local os_choice
-		read -r -p ":: Select option [1-2]: " os_choice || {
-			printf '\n'
-			exit 0
-		}
+			local os_choice
+			read -r -p ":: Select option [1-3]: " os_choice || {
+				printf '\n'
+				exit 0
+			}
 
-		case "$os_choice" in
-		1) update_mirrors ;;
-		2)
-			log_warn "Skipping mirror update."
-			exit 0
-			;;
-		*)
-			log_err "Invalid selection. Exiting."
-			exit 1
-			;;
-		esac
+			case "$os_choice" in
+			1) update_mirrors_artix ;;
+			2) update_mirrors ;;
+			3)
+				log_warn "Skipping mirror update."
+				exit 0
+				;;
+			*)
+				log_err "Invalid selection. Exiting."
+				exit 1
+				;;
+			esac
+		else
+			printf '\n%s:: Manual Mode (Arch)%s\n' "$B" "$NC"
+			printf '   1) Run standard Arch mirror sync (Reflector + Fallbacks)\n'
+			printf '   2) Skip (use existing mirrors)\n'
+
+			local os_choice
+			read -r -p ":: Select option [1-2]: " os_choice || {
+				printf '\n'
+				exit 0
+			}
+
+			case "$os_choice" in
+			1) update_mirrors ;;
+			2)
+				log_warn "Skipping mirror update."
+				exit 0
+				;;
+			*)
+				log_err "Invalid selection. Exiting."
+				exit 1
+				;;
+			esac
+		fi
 	else
 		if detect_openrc; then
 			log_info "Artix Linux environment detected."
-			log_warn "Skipping mirror update for Artix (uses different repos)."
-			log_info "Manually configure /etc/pacman.conf for Artix repos if needed."
+			update_mirrors_artix
 		else
 			log_info "Standard Arch Linux environment detected."
 			update_mirrors
