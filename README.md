@@ -1,308 +1,295 @@
-## If you need help with installation or troubleshooting, join the Discord server.
+<div align="center">
 
+# 🌅 Dawn
 
-[Join Discord Server][discord]
+**A meticulously crafted Hyprland dotfiles framework for Artix Linux (OpenRC)**
 
-[discord]: https://discord.gg/Nv2a7yTBQS
+[![Stars](https://img.shields.io/github/stars/dim-ghub/dawn?style=for-the-badge&logo=starship&color=a167e0&labelColor=1a1a2e)](https://github.com/dim-ghub/dawn/stargazers)
+[![License: MIT](https://img.shields.io/github/license/dim-ghub/dawn?style=for-the-badge&color=a167e0&labelColor=1a1a2e)](https://github.com/dim-ghub/dawn/blob/main/LICENSE)
+[![Discord](https://img.shields.io/discord/1372743714785177600?style=for-the-badge&logo=discord&color=5865F2&labelColor=1a1a2e&label=DISCORD)](https://discord.gg/a85YB9wuau)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome!-style=for-the-badge&color=a167e0&labelColor=1a1a2e)](https://github.com/dim-ghub/dawn/pulls)
 
-## Updated demo video now out on YouTube with all major features covered! 
-(since the release of this video around 5 major features have been added, scroll down to the `overview` section for details)
+[![](https://img.shields.io/badge/Artix%20Installer-a167e0?style=for-the-badge&logo=github&logoColor=white&labelColor=1a1a2e)](https://github.com/dim-ghub/artix-installer)
+[![](https://img.shields.io/badge/Join%20Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white&labelColor=1a1a2e)](https://discord.gg/a85YB9wuau)
+[![](https://img.shields.io/badge/View%20Wallpapers-a167e0?style=for-the-badge&logo=github&logoColor=white&labelColor=1a1a2e)](https://github.com/dusklinux/images)
 
-[Watch now][video]
+<a href="https://star-history.com/#dim-ghub/dawn&Date">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=dim-ghub/dawn&type=Date&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=dim-ghub/dawn&type=Date&theme=light" />
+   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=dim-ghub/dawn&type=Date&theme=dark" />
+ </picture>
+</a>
 
-[video]: https://youtu.be/JmgvSdEIK8c
+</div>
 
-### If you're here just for the wallpapers, you can get all of them (+1050 wallpapers) from my [images repo][images].
+---
 
-[images]: https://github.com/dusklinux/images
+> **If you need help with installation or troubleshooting, join the [Discord server](https://discord.gg/a85YB9wuau).**
+>
+> 🚀 **Haven't installed Artix yet?** Use the [Artix Installer](https://github.com/dim-ghub/artix-installer) to get a full Hyprland setup running in minutes.
 
-### to get this out of the way cuz i'm getting so many questions about waybar. 
-YES YOU CAN HAVE HORIZONTAL WAYBAR. and you will be asked which side you want it on bottom/top/left/right. 
+### 🖼️ Wallpapers
 
-- **waybar horizontal and vertical,:**  Take your pick during setup, easily toggleable from rofi as well. 
-here's what it looks like. 
+If you're here just for the wallpapers, grab all 1050+ from the [images repo](https://github.com/dusklinux/images).
 
-![New Nerdy Horizontal Waybar](Pictures/readme_assets/waybar_horizontal.webp)
+### 📊 Waybar — Your Pick
 
-![waybar block](Pictures/readme_assets/waybar_block.webp)
+Horizontal or vertical, choose during setup — easily toggleable from rofi too.
 
-![waybar circular](Pictures/readme_assets/waybar_circular.webp)
+| Block | Circular | Nerdy |
+|:---:|:---:|:---:|
+| ![Block](Pictures/readme_assets/waybar_block.webp) | ![Circular](Pictures/readme_assets/waybar_circular.webp) | ![Horizontal](Pictures/readme_assets/waybar_horizontal.webp) |
 
-![waybar_minimal](Pictures/readme_assets/waybar_minimal.webp)
+| Minimal |  |
+|:---:|:---:|
+| ![Minimal](Pictures/readme_assets/waybar_minimal.webp) | |
 
+### 🎛️ Dawn Control Center
 
-### There's also a brand new Dusky Control Center that acts as a system overview gui for settings and features, it's exhaustive in it's scope, almost anything you want to set/change can be done from this one stop shop intuitive gui app. I'll keep adding more quality of life features to it over time.
+A brand new system-overview GUI for settings and features. Almost anything you want to set or change can be done from this one-stop-shop app, and more quality-of-life features are added regularly.
 
-![Dusky Control Center](Pictures/readme_assets/dawn_control_center.webp)
+![Dawn Control Center](Pictures/readme_assets/dawn_control_center.webp)
 
-This repository is the result of 8 months of tinkering/breaking/fixing and polishing. Its a labor of love designed to feel as easy to install as a "standard" distribution but with the raw power and minimalism of arch. **please consider starring ⭐ this repo** as a token of support.
+---
+
+This repository is the result of 8 months of tinkering, breaking, fixing, and polishing. It's a labor of love designed to feel as easy to install as a "standard" distribution — but with the raw power and minimalism of Arch Linux on OpenRC.
+
+**Please consider starring ⭐ this repo as a token of support!**
+
+---
 
 ## ⚠️ Prerequisites & Hardware
 
 ### Filesystem
 
-This setup is strictly optimized for **BTRFS file system format**. (should also work on ext4 but not recommanded)
+This setup is strictly optimized for **BTRFS** filesystem format. (Should also work on ext4, but not recommended.)
 
-- **Why?** ZSTD compression, copy on write (CoW) to prevent data corruption, and you also get instant Snapshots.
-    
+- **Why BTRFS?** ZSTD compression, copy-on-write (CoW) to prevent data corruption, and instant snapshots.
 
-### Hardware Config (Intel/Nvidia/AMD)
+### Hardware Config (Intel / Nvidia / AMD)
 
-The setup scripts are written to auto detect your hardware and set the appropriate environment variables but in case your hardware is not detected or has some issues, you're advised to configure the following files to set your environment variables.
+The setup scripts auto-detect your hardware and set the appropriate environment variables. If your hardware isn't detected or has issues, configure manually:
 
 > [!Note]
 >
 > Configure your GPU environment variables.
 >
-> 1. Open the file at ~/.config/hypr/edit_here/source/environment_variables.conf
->
+> 1. Open `~/.config/hypr/edit_here/source/environment_variables.conf`
 > 2. Add Intel/Nvidia/AMD-specific variables for your hardware.
->
-
 
 ### Dual Booting
 
 - Compatible with Windows or other Linux distros.
+- **Bootloader:** Uses `Limine` — a modern, lightweight UEFI bootloader.
 
-- **Bootloader:** Defaults to `systemd-boot` for UEFI (boots up to 5s faster). Defaults to `GRUB` for BIOS.
+### Init System
 
+- **OpenRC only** — Dawn fully supports Artix Linux with the OpenRC init system.
+- **Systemd is no longer supported.** All user services are managed directly via autostart or OpenRC init scripts.
 
+---
 
-# Installation 💿
+## 💿 Installation
 
-[Watch Video Tutorial][Watch Video Tutorial]
+[![](https://img.shields.io/badge/Artix%20Installer-a167e0?style=for-the-badge&logo=github&logoColor=white&labelColor=1a1a2e)](https://github.com/dim-ghub/artix-installer)
 
-[Watch Video Tutorial]: https://youtu.be/OzeFAY_8T8Y
+**Best for:** Users who already have a fresh, unconfigured Artix Linux installation with Hyprland, set up either via the [Artix Installer](https://github.com/dim-ghub/artix-installer) or manually. If you haven't installed yet, use the installer script to get up and running with **Btrfs** and **Hyprland** configured automatically.
 
-**Best for:** Users who already have a fresh, unconfigured Arch Linux installation with Hyprland, set up either via the archinstall script or through a manual install. If you have not installed yet, use the Arch ISO and ensure you select Btrfs as the filesystem and Hyprland as the window manager.
-
-after installing arch, boot into the os and then run this in the terminal. 
+After installing, boot into the OS and run the following in a terminal:
 
 ### Step 1: Clone Dotfiles (Bare Repo Method)
 
-i use a bare git repository method to drop files exactly where they belong in your home directory.
+Uses a bare git repository method to drop files exactly where they belong in your home directory.
 
-make sure your connected to the internet and git is installed, 
+Make sure you're connected to the internet and git is installed:
 
-```
+```bash
 sudo pacman -Syu --needed git
 ```
 
+Clone the repo:
 
-clone the repo
-```
+```bash
 git clone --bare --depth 1 https://github.com/dim-ghub/dawn.git $HOME/dawn
 ```
 
-deploy the files on your system.
+Deploy the files on your system:
 
 ```bash
 git --git-dir=$HOME/dawn/ --work-tree=$HOME checkout -f
 ```
 
-> Note:
-> 
-> This will immediately list a few errors at the top, but dont worry, that's expected behaviour, the errors will later go away on there own after matugen generates colors and cycles through a wallpaper. 
-
+> [!Note]
+> This will list a few errors at the top — that's expected! They'll resolve on their own once `matugen` generates colors and cycles through a wallpaper.
 
 ### Step 2: Run the Orchestra
 
-Run the master script to install dependencies, themes, and services, this will take a while. because it sets up everything. You'll be promted to say yes/no during setup, so dont leave it running unattended.
+Run the master script to install dependencies, themes, and services. This will take a while since it sets up everything. You'll be prompted with yes/no questions during setup, so don't leave it running unattended.
 
 ```bash
 ~/user_scripts/arch_setup_scripts/ORCHESTRA.sh
 ```
 
-## The Orchestra Script
+## 🎼 The Orchestra Script
 
-The `ORCHESTRA.sh` is a "conductor" that manages ~80 subscripts.
+The `ORCHESTRA.sh` is a conductor that manages ~80 subscripts.
 
-- **Smart:** It detects installed packages and skips them.
+- **Smart:** Detects installed packages and skips them.
+- **Safe:** Re-run as many times as you like without breaking things.
+- **Time:** Expect 30–60 minutes. A few AUR packages compile from source — grab a coffee!
 
-- **Safe:** You can re-run it as many times as you like without breaking things.
-
-- **Time:** Expect 30–60 minutes. We use `paru` to install a few AUR packages, and compiling from source takes time. Grab a coffee!
-
+---
 
 ## ⌨️ Usage & Keybinds
 
-The steepest learning curve will be the keybinds. I have designed them to be intuitive, but feel free to change them in the config.
+The steepest learning curve will be the keybinds. They're designed to be intuitive, but feel free to customize them.
 
-> 💡 Pro Tip:
->
-> Press CTRL + SHIFT + SPACE to open the Keybinds Cheatsheet. You can click commands in this menu to run them directly!
+> 💡 **Pro Tip:** Press `Ctrl` + `Shift` + `Space` to open the Keybinds Cheatsheet. You can click commands in this menu to run them directly!
 
+Tested to work on other Arch-based distros with Hyprland installed (fresh install).
 
-It's been tested to work on other arch based distros with hyprland installed (fresh installed) like catchyOS
-
+---
 
 ## 🔧 Troubleshooting
 
 If a script fails (which can happen on a rolling release distro):
 
-1. **Don't Panic.** The scripts are modular. The rest of the system usually installs fine.
-    
+1. **Don't Panic.** The scripts are modular — the rest of the system usually installs fine.
 2. **Check the Output.** Identify which subscript failed (located in `$HOME/user_scripts/setup_scripts/scripts/`).
-    
-3. **Run Manually.** You can try running that specific subscript individually.
-    
-4. **AI Help.** Copy the script content and the error message into ChatGPT/Gemini. It can usually pinpoint the exact issue (missing dependency, changed package name, etc.).
-    
+3. **Run Manually.** Try running that specific subscript individually.
+4. **AI Help.** Copy the script content and error message into ChatGPT/Gemini. It can usually pinpoint the exact issue.
 
-## overview
+---
 
-Note : i've purposely decided to not use quickshell for anything in the interest of keeping this as light weight as possible, Quickshell can quickly add to ram and slow down your system, therefore everything is user friendly Tui to keep it snappy and lightweight while delivering on A WHOLE HOST OF FEATURES. Read below for most features.
+## 📋 Overview
 
-**utilities**
+> Note: Dawn purposely avoids Quickshell to keep things as lightweight as possible. Everything uses user-friendly TUIs to stay snappy and low on resources while delivering a whole host of features.
 
-- Music Recognition - allows you to look up what music is playing. 
+### 🛠️ Utilities
 
-- Circle to search type feature. uses Google lens. 
+| Feature | Description |
+|---------|-------------|
+| **Music Recognition** | Look up what music is playing |
+| **Circle-to-Search** | Google Lens integration |
+| **Appearance TUI** | Chain hyprland's appearance — gaps, shadow color, blur, opacity, and more |
+| **AI LLM Sidebar** | Local inference with Ollama (terminal-based, incredibly resource efficient) |
+| **Keybind TUI Setter** | Auto-checks for conflicts and unbinds existing keybinds |
+| **Swaync Side Toggle** | Easily switch notification center to left or right |
+| **Airmon WiFi Script** | WiFi testing / password cracking *(only use on access points you own)* |
+| **Live Disk I/O Monitor** | See live read/write disk speed — useful for flash drives & external drives |
+| **Quick Audio Switch** | Keybind to switch audio input/output (e.g. Bluetooth ↔ speakers) |
+| **Mono/Stereo Toggle** | Toggle mono and stereo audio |
+| **Touchpad Gestures** | Volume/brightness, lock screen, swaync, pause/play, mute |
+| **Battery Notifier** | Customizable notifications at certain battery levels |
+| **Power Saver Mode** | Togglable power saver for laptops |
+| **System Cleanup** | Cache purge to reclaim storage |
+| **USB Notifications** | Sound alerts for USB plug/unplug events |
+| **FTP Server** | Automatic FTP server setup |
+| **Tailscale** | Automatic Tailscale VPN setup |
+| **OpenSSH** | Automatic SSH setup (with or without Tailscale) |
+| **Cloudflare Warp** | Auto setup and toggle from rofi |
+| **VNC for iPhone** | Wired VNC setup for iPhones |
+| **Dynamic Fractional Scaling** | Scale your display with a keybind |
+| **Window Effects Toggle** | Toggle transparency, blur, and shadows with a single keybind |
+| **Hypridle TUI** | Configure hypridle settings |
+| **Network Manager** | Connect to WiFi via `connman-gtk` (replaces NetworkManager) |
+| **Sysbench Benchmarking** | System benchmarking script |
+| **Color Picker** | Pick colors from anywhere on screen |
+| **Neovim** | Pre-configured neovim (or install lazyvim/your own rice) |
+| **GitHub Repo Integration** | Easily create a repo to backup files via bare git (tracked via `~/.git_dawn_list`) |
+| **BTRFS Compression Stats** | See how much space ZSTD compression is saving you |
+| **Drive Manager** | Lock/unlock encrypted drives, auto-mount at specified paths, NTFS fix |
+| **Discord Webhook Notifications** | Script failure notifications via Discord webhook |
 
-- Tui for chaining your hyprland's appearience like gaps, shadow color, blur strength, opacity strength and a lottt more!!
+### 📱 Rofi Menus
 
-- Ai llm local infrense using ollama side bar (terminal, incredilby resource efficient)
-
-- keybind TUI setter that auto checks for conflicts and unbinds any existing keybind in the default hyrland keybind.conf
-
-- Easily switch Swaync's side to either lift or right.
-
-- airmon wifi script for wifi testing/password cracking
-    (only use on access points that you own, i'm not legally responsible if you use it for nefarious purposes)
-- live disk i/o monitoring, to allow you to see live read/write disk speed during copying and infer if copying has actually finsihed, useful for flashdrives, external drives. 
-
-- quick audio input/output switch with a keybind, eg if you have bluetooth headphones connected, you can quicly switch to speakers without disconnecting. 
-
-- mono/sterio audio toggling. 
-
-- also supports touchpad gestures for volume/brightess, locking the screen, invoking swaync, pause/play, muting.(requires a laptop or a touchpad for pc)
-
-- battery notifier for laptops, you can customize it to show notifications at certain levels.
-
-- Togglable power saver mode.
-
-- system clean up (cache purge)- removes unwanted files to reclaim storage. 
-
-- usb sounds , get notified when usb devices are plugged/unplugged.
-
-- FTP server auto setup. 
-
-- Tailscale auto setup. 
-
-- Openssh auto setup. with or without tailscale.
-
-- auto warp- cloudflaire setup and toggleale right from rofi. 
-
-- Vnc setup for iphones (wired)
-
-- dynamic frantional scalling script so you can scale your display with a keybind. 
-
-- toggle window transparancy, blur and shadow with a single keybind. 
-
-- hypridle tui configuration.
-
-- wifi connecting script for setup at ~/user_scripts/network_manager/nmcli_wifi.sh
-
-- Sysbench benchmarking script. 
-
-- color picker
-
-- neovim configured, you could also use your own later on. or install lazyvim or any another neovim rice
-
-
-- github repo integration so you can easily create your own repo to backup all files, this uses bare repo so your specific existing files, listed in ~/.git_dawn_list will backup to github, you can add more files/remove existing ones from this text file.
-
-- btrfs system compression ratio - scans your os files to see how much space zstd compression is saving you. 
-
-- drive manager, easily lock/unlock encrypted drives from the terminal using "unlock media or lock media", it automaticlaly mounts your drives at a specified path, also unmounts when you lock it. This requires you to first configure the ~/user_scripts/drives/drive_manager.sh script with your drives' uuid. 
-
-- ntfs drives have a tendency to not unlock if the drive had previously been disconnected without unmounting first, because of corrupted metadata, i've a script that fixes this. ntfs_fix.sh
-
-RoFI menus. 
-
-- Emoji
+- Emoji Picker
 - Calculator
-- Matugen Theme switcher. 
-- Animation switcher. 
-- Power menu. 
-- Clipboard
-- Wallpaper selector
-- Shader menu.
-- System menu. 
+- Matugen Theme Switcher
+- Animation Switcher
+- Power Menu
+- Clipboard Manager
+- Wallpaper Selector
+- Shader Menu
+- System Menu
 
-and a lot more that would take forever to list, trust me these dotfiles are the shit! try em out. 
+### 🎚️ GUI Sliders (Keybind-Invoked)
 
-GUI keybind invokable sliders for:
-- Volume control 
-- Brightness control 
-- Nightlight/hyprsunset intensity. 
+- Volume Control
+- Brightness Control
+- Nightlight / Hyprsunset Intensity
 
+### 🗣️ Speech & Audio
 
-Speech to text 
-- Whisper - for cpu 
-or 
-- Parakeet - for nvidia gpus. might also work on Amd (not sure)
+| Feature | Engine |
+|---------|--------|
+| **Speech-to-Text** | Whisper (CPU) or Parakeet (Nvidia GPU) |
+| **Text-to-Speech** | Kokoro (CPU & GPU) |
+| **Mechanical Keypress Sounds** | Togglable via keybind or rofi |
 
-text to speech 
-- kokoro for both cpu and gpu
+### 🎨 Wlogout
 
-- mechanical keypress sounds
-togglalble with a keybind or from rofi. 
+Dynamically rendered to respect your fractional scaling settings.
 
-- Wlogout is drawn using a dynamic script that respects your frational scaling. 
+---
 
+## ⚡ Performance & System
 
-**performance and system**
+- **Lightweight:** ~900MB RAM usage and ~5GB disk usage (fully configured)
+- **ZSTD & ZRAM:** Compression enabled by default — save storage and triple your effective RAM (great for low-spec machines)
+- **Native Optimization:** AUR helpers configured to build with CPU-native flags (up to 20% performance boost)
+- **OpenRC Support:** Fully compatible with Artix Linux and the OpenRC init system
 
-- **light weight**, ~900MB RAM usage and ~5GB disk usage (fully configured).
-    
-- **ZSTD & ZRAM:** Compression enabled by default to save storage and triple your effective RAM (great for low-spec machines).
-    
-- **Native Optimization:** AUR helpers configured to build with CPU-native flags (up to 20% performance boost).
-    
+---
 
-- **OpenRC Support:** Fully compatible with Artix Linux and OpenRC init system.
-    
+## 🎮 Graphics & Gaming
 
-**Graphics & Gaming**
+- **Fluid Animations:** Tuned physics and momentum for a liquid feel
+- **GPU Passthrough Guide:** Zero latency (native performance) for dual-GPU setups using Looking Glass
+- **Instant Shaders:** Switch visual shaders via Rofi
+- **Android Support:** Automated Waydroid installer script
 
-- **Fluid Animations:** Tuned physics and momentum for a "liquid" feel, I've spent days fine tuning this.
-    
-- **GPU Passthrough Guide:** Zero latency (native performance) for dual-GPU setups using Looking Glass.
-    
-- **Instant Shaders:** Switch visual shaders instantly via Rofi.
-    
-- **Android Support:** Automated Waydroid installer script.
-    
+---
 
-**Usability & Theming**
+## 🎨 Usability & Theming
 
-- **Universal Theming:** `Matugen` powers a unified Light/Dark mode across the system.
-    
-- **Dual Workflow:** Designed for both GUI-centric (mouse) and Terminal-centric (keyboard) users.
-    
-- **Accessibility:** Text-to-Speech (TTS) and Speech-to-Text (STT) capabilities (hardware dependent).
-    
-- **Keybind Cheatsheet:** Press `CTRL` + `SHIFT` + `SPACE` anytime to see your controls.
-    
+- **Universal Theming:** `Matugen` powers unified Light/Dark mode across the system
+- **Dual Workflow:** Designed for both GUI-centric (mouse) and Terminal-centric (keyboard) users
+- **Accessibility:** Text-to-Speech (TTS) and Speech-to-Text (STT) capabilities
+- **Keybind Cheatsheet:** Press `Ctrl` + `Shift` + `Space` anytime to see controls
 
+---
+
+## 🔄 Key Changes from Previous Releases
+
+| Change | Details |
+|--------|---------|
+| **Dusky → Dawn** | Complete project rename |
+| **systemd → OpenRC** | systemd support has been dropped; Artix Linux / OpenRC is the primary target |
+| **UWSM Removed** | No longer depends on UWSM; apps launch directly in Hyprland |
+| **swww → awww** | Wallpaper engine switched from swww to awww |
+| **NetworkManager → connman** | Network management now uses connman + connman-gtk |
+| **wifitui removed** | Replaced with connman-gtk for WiFi management |
+| **CachyOS dropped** | CachyOS support removed; Artix Linux support added |
+| **Discord Webhooks** | Script failures can now notify you via Discord webhook |
+
+---
 
 <div align="center">
 
-Enjoy the experience!
+**Enjoy the experience!**
 
 If you run into issues, check the detailed Obsidian notes included in the repo (~2MB).
 
 </div>
 
+---
 
+## 🙏 Acknowledgments
 
-# Acknowledgments:
 Thank you to all the Contributors!
 
-sddm is a modified version of the SilentSDDM project by @uiriansan (this is a great project! Kindly star it on github)
+SDDM theme is a modified version of the **SilentSDDM** project by [@uiriansan](https://github.com/uiriansan) — a great project, kindly star it on GitHub!
 
-[SilentSDDM by uiriansan][repo_linkk]
-
-[repo_linkk]: https://github.com/uiriansan/SilentSDDM/
-
+[![](https://img.shields.io/badge/SilentSDDM-⭐%20on%20GitHub-a167e0?style=for-the-badge&logo=github&labelColor=1a1a2e)](https://github.com/uiriansan/SilentSDDM/)

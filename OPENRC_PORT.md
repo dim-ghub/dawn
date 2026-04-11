@@ -1,6 +1,6 @@
-# DuskyRC - Artix Linux (OpenRC) Port
+# Dawn - Artix Linux (OpenRC) Port
 
-This document outlines the changes made to port DuskyRC from Arch Linux (systemd) to Artix Linux (OpenRC).
+This document outlines the changes made to port Dawn from Arch Linux (systemd) to Artix Linux (OpenRC).
 
 ## Overview
 
@@ -22,7 +22,7 @@ Located in `user_scripts/openrc/init.d/`:
 - `update-checker` - Update checking service
 - `battery-notify` - Battery notifications
 - `dawn-control-center` - Control center
-- `swww` - Wallpaper daemon
+- `awww` - Wallpaper daemon (replaces swww)
 
 ### OpenRC Timer
 Located in `user_scripts/openrc/timers/`:
@@ -40,14 +40,14 @@ Located in `user_scripts/openrc/timers/`:
 
 ## Modified Scripts
 
-The following scripts have been updated to detect and use OpenRC when available:
+The following scripts have been updated for OpenRC (systemd support has been dropped):
 
 1. **powermenu.sh** - Now uses OpenRC session script when systemd is not available
 2. **waybar_autostart.sh** - Falls back to OpenRC service or direct launch
 3. **dawn_wayclick.sh** - Uses rc-service for PipeWire when systemd unavailable
-4. **reload_sliders.sh** - Supports both systemd and OpenRC service management
+4. **reload_sliders.sh** - Supports OpenRC service management
 5. **restart_swayosd.sh** - Supports OpenRC service or fallback
-6. **theme_ctl.sh** - Supports OpenRC swww service
+6. **theme_ctl.sh** - Supports OpenRC awww service
 
 ## Usage
 
@@ -141,7 +141,7 @@ pacman -S util-linux
 | network-meter.service | network-meter |
 | dawn_sliders.service | dawn-sliders |
 | update-checker.service | update-checker |
-| swww.service | swww |
+| swww.service | swww (now awww) |
 | hypridle.service | hypridle |
 | hyprpolkitagent.service | hyprpolkitagent |
 | swayosd.service | swayosd |
