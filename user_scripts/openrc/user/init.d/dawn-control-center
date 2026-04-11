@@ -1,0 +1,11 @@
+#!/sbin/openrc-run
+
+name="Dusky Control Center"
+description="Dusky system control center daemon"
+supervisor=supervise-daemon
+command="${HOME}/user_scripts/dawn_system/control_center/dawn_control_center"
+
+depend() {
+	need dbus
+	after hyprland
+}

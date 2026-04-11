@@ -1,0 +1,12 @@
+#!/sbin/openrc-run
+
+name="Dusky Sliders"
+description="Dusky sliders daemon for system controls"
+supervisor=supervise-daemon
+command="/usr/bin/python3"
+command_args="${HOME}/user_scripts/sliders/dawn_sliders.py"
+
+depend() {
+	need dbus
+	after waybar
+}

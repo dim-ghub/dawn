@@ -1920,6 +1920,13 @@ pages:
                 command: gnome-text-editor "$HOME/.config/hypr/source/autostart.conf"
             - type: button
               properties:
+                title: User Services
+                button_text: "Manage"
+              on_press:
+                type: exec
+                command: kitty -e bash "$HOME/user_scripts/services/dawn_service_toggle.sh" --user
+            - type: button
+              properties:
                 title: Keybinds
                 button_text: "View"
               on_press:

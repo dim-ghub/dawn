@@ -1,0 +1,11 @@
+#!/sbin/openrc-run
+
+name="Waybar Network Meter"
+description="Waybar network speed monitoring daemon"
+supervisor=supervise-daemon
+command="${HOME}/user_scripts/waybar/network/network_meter_daemon.sh"
+
+depend() {
+	need dbus
+	after networkmanager
+}

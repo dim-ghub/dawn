@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# Enables user services
+# Enables user-level and system-level OpenRC services
 # ==============================================================================
-# Script Name: enable_hyprland_services_v2.sh
-# Description: Fixed logic for enabling Hyprland user services.
-#              Supports both systemd and OpenRC.
+# Script Name: enabling_user_services.sh
+# Description: Enables Hyprland session services using OpenRC user-level services
+#              (rc-service --user / rc-update --user) and system services.
+#              User services do NOT require root; system services require sudo.
 # ==============================================================================
 
 set -euo pipefail
@@ -26,79 +27,122 @@ log() {
 	esac
 }
 
-# --- Init System ---
-readonly INIT_SYSTEM="openrc"
+DOTFILES_USER_INITD_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../openrc/user/init.d"
+USER_RC_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/rc"
+USER_INIT_DIR="${USER_RC_DIR}/init.d"
 
-# --- Root Privilege Check ---
-if [[ $EUID -eq 0 ]]; then
-	log ERROR "Do NOT run user service scripts as root."
-	exit 1
-fi
+# ─── System Services (require root) ──────────────────────────────────────────
 
-# --- Service Definition ---
-services_systemd=(
-	"pipewire.socket"
-	"pipewire-pulse.socket"
-	"wireplumber.service"
-	"hypridle.service"
-	"hyprpolkitagent.service"
-	"fumon.service"
-	"gnome-keyring-daemon.service"
-	"gnome-keyring-daemon.socket"
-)
-
-services_openrc=(
+SYSTEM_SERVICES=(
 	"pipewire"
 	"wireplumber"
-	"hypridle"
-	"hyprpolkitagent"
 )
 
-main() {
-	local init_system
-	init_system=$(detect_init)
+# ─── User Services (no root needed) ──────────────────────────────────────────
 
-	if [[ "$init_system" == "unknown" ]]; then
-		log ERROR "No init system detected."
-		exit 1
-	fi
+USER_SERVICES=(
+	"hypridle"
+	"hyprsunset"
+	"network-meter"
+	"dawn-control-center"
+	"dawn-sliders"
+	"update-checker"
+)
 
-	log INFO "Initializing Hyprland User Service Setup ($init_system)..."
+# ─── Install user service scripts ─────────────────────────────────────────────
 
-	local success_count=0
-	local fail_count=0
+install_user_service_scripts() {
+	log INFO "Installing user service scripts to ${USER_INIT_DIR}..."
 
-	local services
-	if [[ "$init_system" == "systemd" ]]; then
-		services=("${services_systemd[@]}")
-	else
-		services=("${services_openrc[@]}")
-	fi
+	mkdir -p "${USER_INIT_DIR}"
 
-	for unit in "${services[@]}"; do
-		if [[ "$init_system" == "systemd" ]]; then
-			log_warn "User services not supported with autostart - skipping: ${C_BOLD}$unit${C_RESET}"
-			success_count=$((success_count + 1))
+	for svc in "${USER_SERVICES[@]}"; do
+		if [[ -x "${DOTFILES_USER_INITD_DIR}/${svc}" ]]; then
+			cp "${DOTFILES_USER_INITD_DIR}/${svc}" "${USER_INIT_DIR}/${svc}"
+			chmod +x "${USER_INIT_DIR}/${svc}"
+			log SUCCESS "Installed: ${C_BOLD}${svc}${C_RESET}"
 		else
-			if ! rc-service -l 2>/dev/null | grep -q "^${unit}$" && [[ ! -x "/etc/init.d/$unit" ]]; then
-				log WARN "Service ${C_BOLD}$unit${C_RESET} not found. Skipped."
-				fail_count=$((fail_count + 1))
-				continue
-			fi
-
-			if rc-update add "$unit" default 2>/dev/null; then
-				rc-service "$unit" start 2>/dev/null || true
-				log SUCCESS "Enabled: ${C_BOLD}$unit${C_RESET}"
-				success_count=$((success_count + 1))
-			else
-				log ERROR "Failed: ${C_BOLD}$unit${C_RESET}"
-				fail_count=$((fail_count + 1))
-			fi
+			log WARN "User service script not found in dotfiles: ${svc}"
 		fi
 	done
 
+	# Also install pipewire and wireplumber user service scripts if available
+	for svc in "pipewire" "wireplumber"; do
+		if [[ -x "${DOTFILES_USER_INITD_DIR}/${svc}" ]]; then
+			cp "${DOTFILES_USER_INITD_DIR}/${svc}" "${USER_INIT_DIR}/${svc}"
+			chmod +x "${USER_INIT_DIR}/${svc}"
+			log SUCCESS "Installed: ${C_BOLD}${svc}${C_RESET}"
+		fi
+	done
+}
+
+# ─── Enable system services (require root) ────────────────────────────────────
+
+enable_system_services() {
+	log INFO "Enabling system services (may require sudo)..."
+
+	for unit in "${SYSTEM_SERVICES[@]}"; do
+		if ! rc-service -l 2>/dev/null | grep -q "^${unit}$" && [[ ! -x "/etc/init.d/$unit" ]]; then
+			log WARN "System service ${C_BOLD}$unit${C_RESET} not found. Skipped."
+			continue
+		fi
+
+		if rc-update add "$unit" default 2>/dev/null; then
+			rc-service "$unit" start 2>/dev/null || true
+			log SUCCESS "Enabled (system): ${C_BOLD}$unit${C_RESET}"
+		else
+			sudo rc-update add "$unit" default 2>/dev/null &&
+				sudo rc-service "$unit" start 2>/dev/null &&
+				log SUCCESS "Enabled (system): ${C_BOLD}$unit${C_RESET}" ||
+				log ERROR "Failed (system): ${C_BOLD}$unit${C_RESET}"
+		fi
+	done
+}
+
+# ─── Enable user services (no root needed) ────────────────────────────────────
+
+enable_user_services() {
+	log INFO "Enabling user services..."
+
+	for unit in "${USER_SERVICES[@]}"; do
+		if ! rc-service --user --list 2>/dev/null | grep -q "^${unit}$" &&
+			[[ ! -x "${USER_INIT_DIR}/${unit}" ]] &&
+			[[ ! -x "/etc/user/init.d/${unit}" ]]; then
+			log WARN "User service ${C_BOLD}$unit${C_RESET} not found. Skipped."
+			continue
+		fi
+
+		if rc-update --user add "$unit" default 2>/dev/null; then
+			rc-service "$unit" --user start 2>/dev/null || true
+			log SUCCESS "Enabled (user): ${C_BOLD}$unit${C_RESET}"
+		else
+			log ERROR "Failed (user): ${C_BOLD}$unit${C_RESET}"
+		fi
+	done
+}
+
+main() {
+	log INFO "Enabling Hyprland Services (OpenRC user + system)..."
+
+	if [[ "${EUID}" -eq 0 ]]; then
+		log ERROR "Do NOT run user service scripts as root."
+		log ERROR "System services will use sudo when needed."
+		exit 1
+	fi
+
+	# Step 1: Install user service scripts from dotfiles
+	install_user_service_scripts
+
+	# Step 2: Enable system services (pipewire, wireplumber)
+	enable_system_services
+
+	# Step 3: Enable user services
+	enable_user_services
+
 	printf "\n"
-	log INFO "Done. Success: ${success_count} | Skipped/Failed: ${fail_count}"
+	log INFO "Done. User services are managed via: rc-service --user <name> start|stop"
+	log INFO "                                  rc-update --user add <name> default"
+	log INFO "                                  rc-status --user"
 }
 
 main

@@ -46,7 +46,7 @@ readonly SERVICES_CONFIG=(
 	"$HOME/user_scripts/sliders/service/dawn_sliders.service | disable"
 )
 
-# OpenRC init scripts (for Artix Linux)
+# OpenRC init scripts (system-level, for Artix Linux)
 readonly OPENRC_SERVICES_CONFIG=(
 	"$HOME/user_scripts/openrc/init.d/network-meter | enable"
 	"$HOME/user_scripts/openrc/init.d/dawn-sliders | disable"
@@ -56,6 +56,16 @@ readonly OPENRC_SERVICES_CONFIG=(
 	"$HOME/user_scripts/openrc/init.d/pipewire | enable"
 	"$HOME/user_scripts/openrc/init.d/wireplumber | enable"
 	"$HOME/user_scripts/openrc/init.d/swww | disable"
+)
+
+# OpenRC user service scripts (user-level, no root needed)
+readonly OPENRC_USER_SERVICES_CONFIG=(
+	"$HOME/user_scripts/openrc/user/init.d/hypridle | disable"
+	"$HOME/user_scripts/openrc/user/init.d/hyprsunset | disable"
+	"$HOME/user_scripts/openrc/user/init.d/network-meter | enable"
+	"$HOME/user_scripts/openrc/user/init.d/dawn-control-center | disable"
+	"$HOME/user_scripts/openrc/user/init.d/dawn-sliders | disable"
+	"$HOME/user_scripts/openrc/user/init.d/update-checker | disable"
 )
 
 # XDG Standard: ~/.config/systemd/user
@@ -183,6 +193,74 @@ install_and_manage() {
 	esac
 }
 
+install_and_manage_user() {
+	local source_path="$1"
+	local default_action="$2"
+	local service_name
+	local target_file
+	local user_init_dir="${XDG_CONFIG_HOME:-$HOME/.config}/rc/init.d"
+	local prompt_msg
+	local user_input
+	local user_choice
+
+	service_name="${source_path##*/}"
+
+	echo "------------------------------------------------"
+	log_info "Processing (user): $service_name"
+
+	if [[ ! -f "$source_path" ]]; then
+		log_error "Source file not found: $source_path"
+		log_warn "Skipping..."
+		return 0
+	fi
+
+	# Install to user init.d directory
+	target_file="${user_init_dir}/${service_name}"
+	log_info "Installing to $target_file..."
+	mkdir -p "${user_init_dir}"
+	install -D -m 755 -- "$source_path" "$target_file"
+
+	# Interactive State Management
+	if [[ "${use_defaults:-false}" == "true" ]]; then
+		log_info "Auto-applying default action ($default_action)..."
+		user_input=""
+	else
+		if [[ "$default_action" == "enable" ]]; then
+			prompt_msg="Enable and Start (user) $service_name? [Y/n] (Default: Yes): "
+		else
+			prompt_msg="Enable and Start (user) $service_name? [y/N] (Default: No): "
+		fi
+
+		printf "${YELLOW}%s${NC}" "$prompt_msg"
+		read -r user_input </dev/tty || true
+	fi
+
+	if [[ -z "$user_input" ]]; then
+		if [[ "$default_action" == "enable" ]]; then
+			user_choice="y"
+		else
+			user_choice="n"
+		fi
+	else
+		user_choice="${user_input,,}"
+	fi
+
+	case "$user_choice" in
+	y | yes)
+		log_info "Starting (user)..."
+		rc-update --user add "$service_name" default 2>/dev/null || true
+		rc-service "$service_name" --user start 2>/dev/null || true
+		log_success "$service_name is active (user)."
+		;;
+	*)
+		log_info "Stopping (user)..."
+		rc-service "$service_name" --user stop 2>/dev/null || true
+		rc-update --user del "$service_name" default 2>/dev/null || true
+		log_success "$service_name is inactive (user)."
+		;;
+	esac
+}
+
 main() {
 	# Argument Parsing
 	local use_defaults="false"
@@ -216,26 +294,45 @@ main() {
 
 	log_info "Starting Service Manager..."
 
-	# Iterate over the configuration array
-	for entry in "${config_array[@]}"; do
-		# Split string by delimiter '|'
-		IFS='|' read -r src_path action <<<"$entry"
+	# --- Phase 1: System-level OpenRC services (require root) ---
+	local entry
+	local src_path
+	local action
 
-		# Trim whitespace using pure bash function
-		src_path=$(trim "$src_path")
-		action=$(trim "$action")
+	config_array=("${OPENRC_SERVICES_CONFIG[@]}")
 
-		# Skip empty lines if any exist
-		[[ -z "$src_path" ]] && continue
+	if [[ ${#config_array[@]} -gt 0 ]]; then
+		log_info "=== System Services (require root) ==="
+		for entry in "${config_array[@]}"; do
+			IFS='|' read -r src_path action <<<"$entry"
+			src_path=$(trim "$src_path")
+			action=$(trim "$action")
+			[[ -z "$src_path" ]] && continue
+			if [[ "$action" != "enable" && "$action" != "disable" ]]; then
+				log_warn "Invalid default action '$action' for $src_path. Defaulting to 'disable'."
+				action="disable"
+			fi
+			install_and_manage "$src_path" "$action"
+		done
+	fi
 
-		# Validate action config
-		if [[ "$action" != "enable" && "$action" != "disable" ]]; then
-			log_warn "Invalid default action '$action' for $src_path. Defaulting to 'disable'."
-			action="disable"
-		fi
+	# --- Phase 2: User-level OpenRC services (no root needed) ---
+	config_array=("${OPENRC_USER_SERVICES_CONFIG[@]}")
 
-		install_and_manage "$src_path" "$action"
-	done
+	if [[ ${#config_array[@]} -gt 0 ]]; then
+		log_info "=== User Services (no root needed) ==="
+		for entry in "${config_array[@]}"; do
+			IFS='|' read -r src_path action <<<"$entry"
+			src_path=$(trim "$src_path")
+			action=$(trim "$action")
+			[[ -z "$src_path" ]] && continue
+			if [[ "$action" != "enable" && "$action" != "disable" ]]; then
+				log_warn "Invalid default action '$action' for $src_path. Defaulting to 'disable'."
+				action="disable"
+			fi
+			install_and_manage_user "$src_path" "$action"
+		done
+	fi
 
 	echo "------------------------------------------------"
 	log_success "All operations completed."

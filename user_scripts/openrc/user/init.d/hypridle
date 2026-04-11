@@ -1,0 +1,11 @@
+#!/sbin/openrc-run
+
+name="Hypridle"
+description="Hyprland idle daemon"
+supervisor=supervise-daemon
+command="/usr/bin/hypridle"
+
+depend() {
+	need dbus
+	after hyprland
+}

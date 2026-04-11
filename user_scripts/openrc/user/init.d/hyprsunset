@@ -1,0 +1,11 @@
+#!/sbin/openrc-run
+
+name="Hyprsunset"
+description="Hyprland blue light filter / night light"
+supervisor=supervise-daemon
+command="/usr/bin/hyprsunset"
+
+depend() {
+	need dbus
+	after hyprland
+}

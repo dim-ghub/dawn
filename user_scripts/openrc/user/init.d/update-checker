@@ -1,0 +1,12 @@
+#!/sbin/openrc-run
+
+name="Dusky Update Checker"
+description="Checks for system updates periodically"
+supervisor=supervise-daemon
+command="${HOME}/user_scripts/update_dawn/update_checker/update_checker.sh"
+command_args="--num"
+
+depend() {
+	need dbus
+	after networkmanager
+}
