@@ -1,15 +1,10 @@
 #!/usr/bin/env bash
-# Installs/uninstalls the battery_notify service.
-# -----------------------------------------------------------------------------
-# Script: install_battery_notify.sh
-# Description: Installs (copies) and enables the battery_notify service,
-#              or uninstalls (removes) and disables it.
-#              Supports both systemd and OpenRC.
-# Environment: Arch Linux / Artix Linux / Hyprland (Wayland) / UWSM
-# Author: DevOps Assistant
-# -----------------------------------------------------------------------------
+# Installs/uninstalls the battery_notify OpenRC user service.
+# ==============================================================================
+# On Artix/OpenRC, battery-notify is a user-level service managed via
+# rc-service --user / rc-update --user.
+# ==============================================================================
 
-# --- Strict Error Handling ---
 set -euo pipefail
 
 # --- Styling & Colors ---
@@ -18,229 +13,84 @@ readonly GREEN=$'\033[0;32m'
 readonly YELLOW=$'\033[1;33m'
 readonly BLUE=$'\033[0;34m'
 readonly BOLD=$'\033[1m'
-readonly NC=$'\033[0m' # No Color
+readonly NC=$'\033[0m'
+
+log_info() { printf '%s[INFO]%s %s\n' "${BLUE}" "${NC}" "$1"; }
+log_success() { printf '%s[OK]%s   %s\n' "${GREEN}" "${NC}" "$1"; }
+log_warn() { printf '%s[WARN]%s %s\n' "${YELLOW}" "${NC}" "$1"; }
+log_error() { printf '%s[ERROR]%s %s\n' "${RED}" "${NC}" "$1" >&2; }
 
 # --- Configuration ---
-readonly SERVICE_NAME="battery_notify.service"
-readonly OPENRC_SERVICE_NAME="battery-notify"
-readonly CONFIG_DIR="${XDG_CONFIG_HOME:-"${HOME}/.config"}"
-readonly SYSTEMD_USER_DIR="${CONFIG_DIR}/systemd/user"
-readonly SOURCE_FILE="${HOME}/user_scripts/battery/notify/${SERVICE_NAME}"
-readonly OPENRC_SOURCE_FILE="${HOME}/user_scripts/openrc/init.d/${OPENRC_SERVICE_NAME}"
-readonly TARGET_FILE="${SYSTEMD_USER_DIR}/${SERVICE_NAME}"
+readonly SERVICE_NAME="battery-notify"
+readonly DOTFILES_INITD_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../openrc/user/init.d"
+readonly USER_RC_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/rc"
+readonly USER_INIT_DIR="${USER_RC_DIR}/init.d"
 
-readonly INIT_SYSTEM="openrc"
+# --- Root Guard ---
+if [[ "${EUID}" -eq 0 ]]; then
+	log_error "Do NOT run this script as root. User services run under your session."
+	exit 1
+fi
 
-# --- Helper Functions ---
-log_info() {
-	printf '%s[INFO]%s %s\n' "${BLUE}" "${NC}" "$1"
-}
+# --- Argument Parsing ---
+AUTO_MODE=false
+UNINSTALL_MODE=false
 
-log_success() {
-	printf '%s[OK]%s %s\n' "${GREEN}" "${NC}" "$1"
-}
+for arg in "$@"; do
+	case "$arg" in
+	--auto | auto) AUTO_MODE=true ;;
+	--uninstall | -u) UNINSTALL_MODE=true ;;
+	esac
+done
 
-log_warn() {
-	printf '%s[WARN]%s %s\n' "${YELLOW}" "${NC}" "$1"
-}
+# --- Uninstall ---
+if [[ "${UNINSTALL_MODE}" == true ]]; then
+	log_info "Uninstalling battery-notify user service..."
 
-log_error() {
-	printf '%s[ERROR]%s %s\n' "${RED}" "${NC}" "$1" >&2
-}
-
-# Cleanup/Error Trap
-cleanup() {
-	local exit_code=$?
-	# Suppress message for user-initiated exits (Ctrl+C = 130, etc.)
-	if [[ ${exit_code} -ne 0 && ${exit_code} -lt 128 ]]; then
-		log_error "Script failed with exit code ${exit_code}."
-	fi
-}
-trap cleanup EXIT
-
-# --- State Detection Functions ---
-
-has_battery() {
-	compgen -G "/sys/class/power_supply/BAT*" >/dev/null 2>&1
-}
-
-is_service_installed() {
-	[[ -f "${TARGET_FILE}" ]]
-}
-
-is_service_enabled() {
-	rc-update show default 2>/dev/null | grep -q "${OPENRC_SERVICE_NAME}"
-}
-
-is_service_active() {
-	rc-service "${OPENRC_SERVICE_NAME}" status >/dev/null 2>&1
-}
-
-# --- Action Functions ---
-
-do_install() {
-	log_info "Initializing battery notify installation ($INIT_SYSTEM)..."
-
-	# OpenRC installation
-	if [[ ! -f "${OPENRC_SOURCE_FILE}" ]]; then
-		log_error "Source file not found at: ${OPENRC_SOURCE_FILE}"
-		return 1
+	if rc-service --user --list 2>/dev/null | grep -q "^${SERVICE_NAME}$"; then
+		rc-service "${SERVICE_NAME}" --user stop 2>/dev/null || true
+		rc-update --user del "${SERVICE_NAME}" default 2>/dev/null || true
+		log_success "Stopped and disabled: ${SERVICE_NAME}"
 	fi
 
-	log_info "Installing OpenRC service..."
-	install -m 755 "${OPENRC_SOURCE_FILE}" /etc/init.d/"${OPENRC_SERVICE_NAME}"
-
-	log_info "Enabling and starting ${OPENRC_SERVICE_NAME}..."
-	rc-update add "${OPENRC_SERVICE_NAME}" default 2>/dev/null || true
-	rc-service "${OPENRC_SERVICE_NAME}" start 2>/dev/null || true
-
-	log_success "Battery notification service installed and running."
-}
-
-do_uninstall() {
-	log_info "Initializing battery notify removal ($INIT_SYSTEM)..."
-
-	local changed=false
-
-	# 1. Stop the service if it's currently active
-	if is_service_active; then
-		log_info "Stopping service..."
-		rc-service "${OPENRC_SERVICE_NAME}" stop 2>/dev/null || true
-		changed=true
+	if [[ -f "${USER_INIT_DIR}/${SERVICE_NAME}" ]]; then
+		rm -f "${USER_INIT_DIR}/${SERVICE_NAME}"
+		log_success "Removed: ${USER_INIT_DIR}/${SERVICE_NAME}"
 	fi
 
-	# 2. Disable the service if it's currently enabled
-	if is_service_enabled; then
-		log_info "Disabling service..."
-		rc-update del "${OPENRC_SERVICE_NAME}" default 2>/dev/null || true
-		changed=true
-	fi
+	log_success "Battery notify service uninstalled."
+	exit 0
+fi
 
-	# 3. Remove the installed service file
-	if [[ -f "/etc/init.d/${OPENRC_SERVICE_NAME}" ]]; then
-		log_info "Removing service file: /etc/init.d/${OPENRC_SERVICE_NAME}"
-		rm -f "/etc/init.d/${OPENRC_SERVICE_NAME}"
-		changed=true
-	fi
+# --- Install ---
+log_info "Installing battery-notify as OpenRC user service..."
 
-	log_success "Battery notification service has been fully removed."
-}
+mkdir -p "${USER_INIT_DIR}"
 
-# --- UI Function (Interactive Mode) ---
+# Install from dotfiles user init.d if available
+if [[ -x "${DOTFILES_INITD_DIR}/${SERVICE_NAME}" ]]; then
+	cp "${DOTFILES_INITD_DIR}/${SERVICE_NAME}" "${USER_INIT_DIR}/${SERVICE_NAME}"
+	chmod +x "${USER_INIT_DIR}/${SERVICE_NAME}"
+	log_success "Installed: ${SERVICE_NAME}"
+elif [[ -x "/etc/user/init.d/${SERVICE_NAME}" ]]; then
+	cp "/etc/user/init.d/${SERVICE_NAME}" "${USER_INIT_DIR}/${SERVICE_NAME}"
+	chmod +x "${USER_INIT_DIR}/${SERVICE_NAME}"
+	log_success "Installed from system: ${SERVICE_NAME}"
+else
+	log_error "battery-notify service script not found."
+	log_error "Checked: ${DOTFILES_INITD_DIR}/${SERVICE_NAME}"
+	log_error "Checked: /etc/user/init.d/${SERVICE_NAME}"
+	exit 1
+fi
 
-show_interactive_ui() {
-	local battery_status
-	if has_battery; then
-		battery_status="${GREEN}Detected${NC}"
-	else
-		battery_status="${YELLOW}Not detected${NC}"
-	fi
+# Enable
+if rc-update --user add "${SERVICE_NAME}" default 2>/dev/null; then
+	rc-service "${SERVICE_NAME}" --user start 2>/dev/null || true
+	log_success "Enabled & started (user): ${SERVICE_NAME}"
+else
+	log_error "Failed to enable (user): ${SERVICE_NAME}"
+fi
 
-	local service_status
-	if is_service_installed; then
-		if is_service_active; then
-			service_status="${GREEN}Installed and running${NC}"
-		elif is_service_enabled; then
-			service_status="${YELLOW}Installed and enabled (not currently active)${NC}"
-		else
-			service_status="${YELLOW}Installed but not enabled${NC}"
-		fi
-	else
-		service_status="${RED}Not installed${NC}"
-	fi
-
-	printf '\n'
-	printf '%s══════════════════════════════════════════════%s\n' "${BOLD}" "${NC}"
-	printf '%s   Battery Notification Service Manager%s\n' "${BOLD}" "${NC}"
-	printf '%s══════════════════════════════════════════════%s\n' "${BOLD}" "${NC}"
-	printf '  Battery:  %b\n' "${battery_status}"
-	printf '  Service:  %b\n' "${service_status}"
-	printf '%s══════════════════════════════════════════════%s\n' "${BOLD}" "${NC}"
-	printf '\n'
-
-	# If no battery, warn the user but still let them choose
-	if ! has_battery; then
-		log_warn "No battery detected. This service is intended for laptops with batteries."
-		log_warn "Installing on a desktop or battery-less system is not recommended."
-		printf '\n'
-	fi
-
-	printf '  %s1)%s Install / Re-install and enable the service\n' "${BOLD}" "${NC}"
-	printf '  %s2)%s Uninstall and disable the service (undo)\n' "${BOLD}" "${NC}"
-	printf '  %s3)%s Exit without changes\n' "${BOLD}" "${NC}"
-	printf '\n'
-
-	local choice
-	while true; do
-		if ! read -rp "  Select an option [1-3]: " choice; then
-			# EOF (Ctrl+D) — treat as exit
-			printf '\n'
-			log_info "Exiting without changes."
-			return 0
-		fi
-		case "${choice}" in
-		1)
-			printf '\n'
-			if ! has_battery; then
-				local confirm=""
-				if ! read -rp "${BLUE}[QUERY]${NC} No battery present. Proceed anyway? (y/N): " confirm; then
-					# EOF (Ctrl+D) — treat as "No"
-					printf '\n'
-					log_info "Installation cancelled by user."
-					return 0
-				fi
-				if [[ ! "${confirm}" =~ ^[Yy]$ ]]; then
-					log_info "Installation cancelled by user."
-					return 0
-				fi
-			fi
-			do_install
-			return 0
-			;;
-		2)
-			printf '\n'
-			if ! is_service_installed && ! is_service_enabled && ! is_service_active; then
-				log_info "Service is not installed. Nothing to uninstall."
-				return 0
-			fi
-			do_uninstall
-			return 0
-			;;
-		3)
-			log_info "Exiting without changes."
-			return 0
-			;;
-		*)
-			log_error "Invalid selection. Please enter 1, 2, or 3."
-			;;
-		esac
-	done
-}
-
-# --- Main Logic ---
-
-main() {
-	# --- Argument Parsing ---
-	local auto_mode=false
-	for arg in "$@"; do
-		if [[ "${arg}" == "--auto" ]]; then
-			auto_mode=true
-			break
-		fi
-	done
-
-	# --- Auto Mode: Original non-interactive behavior, completely unchanged ---
-	if [[ "${auto_mode}" == true ]]; then
-		if ! has_battery; then
-			log_info "Auto-mode: No battery detected. Skipping installation."
-			exit 0
-		fi
-		do_install
-		exit 0
-	fi
-
-	# --- Interactive Mode: Always show UI ---
-	show_interactive_ui
-}
-
-main "$@"
+printf '\n'
+log_info "Done. Manage via: rc-service --user battery-notify start|stop"
+log_info "                  rc-update --user add battery-notify default"

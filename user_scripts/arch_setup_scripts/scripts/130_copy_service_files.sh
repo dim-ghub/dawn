@@ -62,18 +62,19 @@ readonly OPENRC_SERVICES_CONFIG=(
 	"$REAL_HOME/user_scripts/openrc/init.d/dawn-sliders | disable"
 	"$REAL_HOME/user_scripts/openrc/init.d/update-checker | disable"
 	"$REAL_HOME/user_scripts/openrc/init.d/waybar | enable"
-	"$REAL_HOME/user_scripts/openrc/init.d/hypridle | disable"
-	"$REAL_HOME/user_scripts/openrc/init.d/pipewire | enable"
-	"$REAL_HOME/user_scripts/openrc/init.d/wireplumber | enable"
 	"$REAL_HOME/user_scripts/openrc/init.d/swww | disable"
-	"$REAL_HOME/user_scripts/openrc/init.d/swayosd | enable"
 )
 
 # OpenRC user service scripts (user-level, no root needed)
 readonly OPENRC_USER_SERVICES_CONFIG=(
 	"$REAL_HOME/user_scripts/openrc/user/init.d/hypridle | disable"
 	"$REAL_HOME/user_scripts/openrc/user/init.d/hyprsunset | disable"
+	"$REAL_HOME/user_scripts/openrc/user/init.d/swayosd | enable"
 	"$REAL_HOME/user_scripts/openrc/user/init.d/network-meter | enable"
+	"$REAL_HOME/user_scripts/openrc/user/init.d/pipewire | enable"
+	"$REAL_HOME/user_scripts/openrc/user/init.d/wireplumber | enable"
+	"$REAL_HOME/user_scripts/openrc/user/init.d/pipewire-pulse | enable"
+	"$REAL_HOME/user_scripts/openrc/user/init.d/battery-notify | enable"
 	"$REAL_HOME/user_scripts/openrc/user/init.d/dawn-control-center | disable"
 	"$REAL_HOME/user_scripts/openrc/user/init.d/dawn-sliders | disable"
 	"$REAL_HOME/user_scripts/openrc/user/init.d/update-checker | disable"

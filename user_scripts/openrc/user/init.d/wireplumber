@@ -1,0 +1,11 @@
+#!/sbin/openrc-run
+
+name="WirePlumber"
+description="PipeWire session/policy manager"
+supervisor=supervise-daemon
+command="/usr/bin/wireplumber"
+
+depend() {
+	need pipewire dbus
+	after hyprland
+}

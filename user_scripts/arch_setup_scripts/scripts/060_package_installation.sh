@@ -29,7 +29,7 @@ declare -ar pkgs_desktop=(
 
 # Group 5: Audio & Bluetooth
 declare -ar pkgs_audio=(
-	"pipewire" "wireplumber" "pipewire-pulse" "playerctl" "bluez" "bluez-utils" "blueman" "bluetui" "pavucontrol" "gst-plugin-pipewire" "libcanberra" "songrec" "sox" "pipewire-openrc" "wireplumber-openrc" "pipewire-pulse-openrc" "bluez-openrc"
+	"pipewire" "wireplumber" "pipewire-pulse" "pipewire-alsa" "playerctl" "bluez" "bluez-utils" "blueman" "bluetui" "pavucontrol" "gst-plugin-pipewire" "libcanberra" "songrec" "sox" "pipewire-openrc" "wireplumber-openrc" "pipewire-pulse-openrc" "bluez-openrc"
 )
 
 # Group 6: Filesystem & Archives

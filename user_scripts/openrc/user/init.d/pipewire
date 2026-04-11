@@ -1,0 +1,11 @@
+#!/sbin/openrc-run
+
+name="PipeWire"
+description="Audio/video server for Wayland"
+supervisor=supervise-daemon
+command="/usr/bin/pipewire"
+
+depend() {
+	need dbus
+	after hyprland
+}

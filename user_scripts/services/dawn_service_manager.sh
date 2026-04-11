@@ -80,7 +80,6 @@ declare -A SYSTEM_SERVICES=(
 	["bluetooth"]="true"
 	["cronie"]="true"
 	["elogind"]="true"
-	["swayosd"]="true"
 )
 
 # ─── User Services (no root needed, use --user flag) ─────────────────────────
@@ -88,7 +87,11 @@ declare -A SYSTEM_SERVICES=(
 declare -A USER_SERVICES=(
 	["hypridle"]="false"
 	["hyprsunset"]="false"
+	["swayosd"]="true"
 	["network-meter"]="true"
+	["pipewire"]="true"
+	["wireplumber"]="true"
+	["pipewire-pulse"]="true"
 	["dawn-control-center"]="false"
 	["dawn-sliders"]="false"
 	["update-checker"]="false"

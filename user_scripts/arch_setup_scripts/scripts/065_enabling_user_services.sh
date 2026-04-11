@@ -27,27 +27,30 @@ log() {
 	esac
 }
 
-DOTFILES_USER_INITD_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../openrc/user/init.d"
+DOTFILES_USER_INITD_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../openrc/user/init.d"
 USER_RC_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/rc"
 USER_INIT_DIR="${USER_RC_DIR}/init.d"
 
 # ─── System Services (require root) ──────────────────────────────────────────
 
 SYSTEM_SERVICES=(
-	"pipewire"
-	"wireplumber"
-	"swayosd"
+	# swayosd is a session daemon — installed as user service below
 )
 
 # ─── User Services (no root needed) ──────────────────────────────────────────
 
 USER_SERVICES=(
+	"pipewire"
+	"wireplumber"
+	"pipewire-pulse"
 	"hypridle"
 	"hyprsunset"
+	"swayosd"
 	"network-meter"
 	"dawn-control-center"
 	"dawn-sliders"
 	"update-checker"
+	"battery-notify"
 )
 
 # ─── Install user service scripts ─────────────────────────────────────────────
@@ -58,21 +61,17 @@ install_user_service_scripts() {
 	mkdir -p "${USER_INIT_DIR}"
 
 	for svc in "${USER_SERVICES[@]}"; do
+		# Check dotfiles first, then package-installed user init scripts
 		if [[ -x "${DOTFILES_USER_INITD_DIR}/${svc}" ]]; then
 			cp "${DOTFILES_USER_INITD_DIR}/${svc}" "${USER_INIT_DIR}/${svc}"
 			chmod +x "${USER_INIT_DIR}/${svc}"
 			log SUCCESS "Installed: ${C_BOLD}${svc}${C_RESET}"
+		elif [[ -x "/etc/user/init.d/${svc}" ]]; then
+			cp "/etc/user/init.d/${svc}" "${USER_INIT_DIR}/${svc}"
+			chmod +x "${USER_INIT_DIR}/${svc}"
+			log SUCCESS "Installed from system: ${C_BOLD}${svc}${C_RESET}"
 		else
-			log WARN "User service script not found in dotfiles: ${svc}"
-		fi
-	done
-
-	# Also install pipewire and wireplumber user service scripts if available
-	for svc in "pipewire" "wireplumber"; do
-		if [[ -x "${DOTFILES_USER_INITD_DIR}/${svc}" ]]; then
-			cp "${DOTFILES_USER_INITD_DIR}/${svc}" "${USER_INIT_DIR}/${svc}"
-			chmod +x "${USER_INIT_DIR}/${svc}"
-			log SUCCESS "Installed: ${C_BOLD}${svc}${C_RESET}"
+			log WARN "User service script not found: ${svc}"
 		fi
 	done
 }
@@ -108,6 +107,7 @@ enable_user_services() {
 	for unit in "${USER_SERVICES[@]}"; do
 		if ! rc-service --user --list 2>/dev/null | grep -q "^${unit}$" &&
 			[[ ! -x "${USER_INIT_DIR}/${unit}" ]] &&
+			[[ ! -x "${DOTFILES_USER_INITD_DIR}/${unit}" ]] &&
 			[[ ! -x "/etc/user/init.d/${unit}" ]]; then
 			log WARN "User service ${C_BOLD}$unit${C_RESET} not found. Skipped."
 			continue
@@ -134,7 +134,7 @@ main() {
 	# Step 1: Install user service scripts from dotfiles
 	install_user_service_scripts
 
-	# Step 2: Enable system services (pipewire, wireplumber)
+	# Step 2: Enable system services (swayosd)
 	enable_system_services
 
 	# Step 3: Enable user services
