@@ -206,7 +206,7 @@ declare -ar DEPENDENCY_PACKAGES=(
 	zen-browser-bin
 	# AUR Helpers (from 080_aur_paru_fallback_yay.sh)
 	paru yay
-	# AUR Discord Client (from 470_equibop_matugen.sh)
+	# AUR Browser & Client (from 470_equibop_matugen.sh)
 	equibop-bin
 )
 
@@ -269,58 +269,6 @@ setup_logging() {
 	echo "--- Log File: $LOG_FILE ---"
 }
 
-# Discord Webhook Configuration
-DISCORD_WEBHOOK_URL="https://discord.com/api/webhooks/1492363011136946257/tO4hhxCGf_ZXcZqVO-h4mHs35kGt8gtGrHDcmIH5ohXlxsG2ENWJ9XiqVMG8drEYTObq"
-DISCORD_NOTIFY_ON_ERROR=true
-
-send_discord_notification() {
-	local -r title="$1"
-	local -r description="$2"
-	local -r color="$3"  # hex color without #
-	local -r fields="$4" # optional additional fields
-
-	local payload
-	payload=$(
-		cat <<EOF
-{
-  "embeds": [{
-    "title": "$title",
-    "description": "$description",
-    "color": "$color",
-    "timestamp": "$(date -Iseconds)",
-    "footer": {
-      "text": "Dawn Conductor"
-    }
-    ${fields:+, "fields": [$fields]}
-  }]
-}
-EOF
-	)
-
-	curl -s -X POST \
-		-H "Content-Type: application/json" \
-		-d "$payload" \
-		"$DISCORD_WEBHOOK_URL" >/dev/null 2>&1 || true
-}
-
-notify_error_to_discord() {
-	local -r script_name="$1"
-	local -r error_message="$2"
-	local -r log_file="${3:-}"
-
-	local fields='{"name": "Script", "value": "'"$script_name"'"}, {"name": "Error", "value": "'"$error_message"'"}'
-
-	if [[ -n "$log_file" && -f "$log_file" ]]; then
-		fields+=', {"name": "Log", "value": "'"$log_file"'"}'
-	fi
-
-	send_discord_notification \
-		"Script Failed" \
-		"**$script_name** encountered an error" \
-		"FF5555" \
-		"$fields"
-}
-
 # 5b. Dependency Verification
 verify_dependencies() {
 	if [[ ${#DEPENDENCY_PACKAGES[@]} -eq 0 ]]; then
@@ -359,61 +307,7 @@ verify_dependencies() {
 		log "WARN" "  ✗ $pkg"
 	done
 
-	# Upload log to Discord if notifications are enabled
-	if [[ "$DISCORD_NOTIFY_ON_ERROR" == "true" ]]; then
-		send_missing_deps_notification "${missing[@]}"
-	fi
-
 	return 0
-}
-
-send_missing_deps_notification() {
-	local -a missing_pkgs=("$@")
-
-	# Build a compact missing-packages list for Discord embed (4096-char limit)
-	local missing_list=""
-	local pkg
-	for pkg in "${missing_pkgs[@]}"; do
-		missing_list+="• ${pkg}\n"
-	done
-
-	# Truncate if the list exceeds the embed description limit
-	if ((${#missing_list} > 3800)); then
-		missing_list=""
-		for pkg in "${missing_pkgs[@]:0:50}"; do
-			missing_list+="• ${pkg}\n"
-		done
-		missing_list+="… and $((${#missing_pkgs[@]} - 50)) more"
-	fi
-
-	local payload_file
-	payload_file=$(mktemp) || return 0
-
-	cat >"$payload_file" <<PAYLOAD_EOF
-{
-  "embeds": [{
-    "title": "Missing Dependencies Detected",
-    "description": "**${#missing_pkgs[@]} packages missing:**\n${missing_list}",
-    "color": "FF5555",
-    "timestamp": "$(date -Iseconds)",
-    "footer": {
-      "text": "Dawn Conductor"
-    }
-  }]
-}
-PAYLOAD_EOF
-
-	# Upload the install log alongside the notification
-	if [[ -f "$LOG_FILE" && -r "$LOG_FILE" ]]; then
-		curl -s -F "payload_json=<${payload_file}" \
-			-F "file=@${LOG_FILE};filename=install_log.txt;type=text/plain" \
-			"$DISCORD_WEBHOOK_URL" >/dev/null 2>&1 || true
-	else
-		curl -s -X POST -H "Content-Type: application/json" \
-			-d @"${payload_file}" "$DISCORD_WEBHOOK_URL" >/dev/null 2>&1 || true
-	fi
-
-	rm -f "$payload_file"
 }
 
 log() {
@@ -465,9 +359,6 @@ cleanup() {
 			log "SUCCESS" "Conductor finished successfully."
 		else
 			log "ERROR" "Conductor exited with error code $exit_code."
-			if [[ "$DISCORD_NOTIFY_ON_ERROR" == "true" ]]; then
-				notify_error_to_discord "Conductor" "Failed with exit code $exit_code" "$LOG_FILE"
-			fi
 		fi
 	fi
 
@@ -887,7 +778,6 @@ main() {
 				break
 			else
 				log "ERROR" "Failed $filename (Exit Code: $result)."
-				notify_error_to_discord "$filename" "Exit code: $result" "$LOG_FILE"
 
 				echo -e "${YELLOW}Action Required:${RESET} Script execution failed."
 				read -r -p "Do you want to [S]kip to next, [R]etry, or [Q]uit? (s/r/q): " _fail_choice

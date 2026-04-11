@@ -173,7 +173,6 @@ If a script fails (which can happen on a rolling release distro):
 | **GitHub Repo Integration** | Easily create a repo to backup files via bare git (tracked via `~/.git_dawn_list`) |
 | **BTRFS Compression Stats** | See how much space ZSTD compression is saving you |
 | **Drive Manager** | Lock/unlock encrypted drives, auto-mount at specified paths, NTFS fix |
-| **Discord Webhook Notifications** | Script failure notifications via Discord webhook |
 
 ### 📱 Rofi Menus
 
