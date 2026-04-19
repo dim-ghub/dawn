@@ -3,10 +3,10 @@
 # Script: reload_sliders.sh
 # Purpose: Forcefully manages the Dusky Sliders lifecycle.
 #          1. Snapshots and terminates running instances (SIGTERM -> SIGKILL).
-#          2. Resets systemd failure state.
-#          3. Starts a clean systemd user service instance.
+#          2. Resets OpenRC failure state.
+#          3. Starts a clean OpenRC service instance.
 #          4. Signals the UI to activate via D-Bus.
-# Compatibility: Bash 5.3+, Arch Linux, UWSM/Hyprland
+# Compatibility: Bash 5.3+, Arch Linux (OpenRC), UWSM/Hyprland
 # -----------------------------------------------------------------------------
 
 set -euo pipefail
@@ -58,7 +58,7 @@ preflight_checks() {
 	fi
 
 	local -a missing=()
-	for cmd in pgrep python3; do
+	for cmd in pgrep python3 sudo; do
 		command -v "$cmd" &>/dev/null || missing+=("$cmd")
 	done
 
@@ -124,15 +124,10 @@ terminate_processes() {
 # Service Management
 # -----------------------------------------------------------------------------
 start_and_verify_service() {
-	if command -v rc-service >/dev/null 2>&1; then
-		log_info "Starting OpenRC service: ${C_BOLD}${SERVICE_NAME}${C_RESET}"
+	log_info "Starting OpenRC service: ${C_BOLD}${SERVICE_NAME}${C_RESET}"
 
-		if ! rc-service "$SERVICE_NAME" start; then
-			log_err "rc-service start failed."
-			return 1
-		fi
-	else
-		log_err "No service manager found (OpenRC)."
+	if ! sudo rc-service "$SERVICE_NAME" start; then
+		log_err "rc-service start failed."
 		return 1
 	fi
 
@@ -150,8 +145,6 @@ activate_ui() {
 
 	log_info "Activating UI window via D-Bus..."
 
-	# GTK4 Adw.Application natively handles D-Bus activation.
-	# Running it sends the signal to the primary daemon and exits immediately.
 	if [[ -x "$GUI_SCRIPT_PATH" ]]; then
 		"$GUI_SCRIPT_PATH" >/dev/null 2>&1
 	else

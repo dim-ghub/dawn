@@ -3,10 +3,10 @@
 # Script: restart_dawn_cc.sh
 # Purpose: Forcefully manages the Dusky Control Center lifecycle.
 #          1. Snapshots and terminates running instances (SIGTERM -> SIGKILL).
-#          2. Resets systemd failure state.
-#          3. Starts a clean systemd user service instance.
+#          2. Resets OpenRC failure state.
+#          3. Starts a clean OpenRC service instance.
 #          4. Signals the UI to activate (if applicable).
-# Compatibility: Bash 5.3+, Arch Linux, UWSM/Hyprland
+# Compatibility: Bash 5.3+, Arch Linux (OpenRC), UWSM/Hyprland
 # Author: Elite DevOps Engineer
 # -----------------------------------------------------------------------------
 
@@ -21,7 +21,7 @@ trap '' HUP
 # Configuration
 # -----------------------------------------------------------------------------
 readonly APP_NAME="Dusky Control Center"
-readonly SERVICE_NAME="dawn.service"
+readonly SERVICE_NAME="dawn-control-center"
 readonly PROCESS_PATTERN='dawn_control_center\.py'
 readonly GUI_SCRIPT_PATH="${HOME}/user_scripts/dawn_system/control_center/dawn_control_center.py"
 
@@ -63,9 +63,13 @@ preflight_checks() {
 
 	local -a missing=()
 	local cmd
-	for cmd in pgrep systemctl journalctl python3; do
+	for cmd in pgrep python3 sudo; do
 		command -v "$cmd" &>/dev/null || missing+=("$cmd")
 	done
+
+	if ! command -v rc-service >/dev/null 2>&1; then
+		missing+=("rc-service")
+	fi
 
 	if ((${#missing[@]} > 0)); then
 		log_err "Missing required binaries: ${missing[*]}"
@@ -126,25 +130,14 @@ terminate_processes() {
 # Service Management
 # -----------------------------------------------------------------------------
 start_and_verify_service() {
-	log_info "Starting Dusky Control Center process..."
+	log_info "Starting OpenRC service: ${C_BOLD}${SERVICE_NAME}${C_RESET}"
 
-	local script_path="$GUI_SCRIPT_PATH"
-	if [[ ! -x "$script_path" ]]; then
-		log_err "Script not found or not executable: $script_path"
+	if ! sudo rc-service "$SERVICE_NAME" start; then
+		log_err "rc-service start failed."
 		return 1
 	fi
 
-	nohup "$script_path" &>/dev/null &
-	local pid=$!
-
-	sleep "$SERVICE_INIT_DELAY_SEC"
-
-	if ! pgrep -f "$PROCESS_PATTERN" >/dev/null; then
-		log_err "Process failed to start."
-		return 1
-	fi
-
-	log_ok "Process is running."
+	log_ok "Service is active."
 }
 
 # -----------------------------------------------------------------------------
@@ -158,7 +151,6 @@ activate_ui() {
 
 	log_info "Activating UI window..."
 
-	# Robust launch: background the process and immediately disown it
 	if [[ -x "$GUI_SCRIPT_PATH" ]]; then
 		"$GUI_SCRIPT_PATH" >/dev/null 2>&1 &
 		disown
